@@ -56,9 +56,9 @@ Satisfy dependecies first...
 
 - meshes
 - ws_ur5_ball_pooler
--   /src/left_arm_description: URDF and XACRO for arm
--   /src/scene_description
--   /src/moveit_config
+- ‎ /src/left_arm_description: URDF and XACRO for arm
+- ‎ /src/scene_description
+- ‎ /src/moveit_config
 
 ---
 
