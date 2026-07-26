@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<robot name="left_arm_ur5e" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <!-- robot name parameter -->
+    <xacro:arg name="name" default="ur5e"/>
+
+
+     <!-- import main macro dell'UR (richiede pacchetto scaricato Universal Robots -> ur_description) -->
+    <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+
+
+    <!-- ROBOT XACRO PARAMETERS-->
+    <xacro:arg name="ur_type" default="ur5e"/>
+    <xacro:arg name="tf_prefix_left" default="left_" />
+    
+
+    <!-- LETTURA PARAMETRI DELL'UR5e DA CONFIG FILES -->
+
+    <!-- da ur_description (generici UR)-->
+    <xacro:arg name="joint_limit_params" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+    <xacro:arg name="physical_params" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+    <xacro:arg name="visual_params" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+
+    <!-- da calibrazione su nostro braccio -->
+    <xacro:arg name="kinematics_params" default="$(find left_arm_description)/config/uclv_left_ur5e_kinematics.yaml"/>
+
+    <!-- safety parameters (ininfluenti in visualizzazione)-->
+    <xacro:arg name="safety_limits" default="true"/>
+    <xacro:arg name="safety_pos_margin" default="0.15"/>
+    <xacro:arg name="safety_k_position" default="20"/>
+
+
+    <!-- DESCRIZIONE STRUTTURALE-->
+
+    <!-- table as base for the UR5e robot -->
+    <link name="world">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="package://left_arm_description/meshes/vention/visual/myvention_visual.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+            <material name="Blue">
+                <color rgba="1.0 1.0 1.0 1.0" />
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <mesh filename="package://left_arm_description/meshes/vention/collision/myvention_collision.stl" scale="0.001 0.001 0.001"/>
+            </geometry>
+        </collision>  
+    </link>
+
+
+    <!-- left arm -->
+    <xacro:ur_robot
+        name="ur5e"
+        tf_prefix="$(arg tf_prefix_left)"
+        parent="world"
+        joint_limits_parameters_file="$(arg joint_limit_params)"
+        kinematics_parameters_file="$(arg kinematics_params)"
+        physical_parameters_file="$(arg physical_params)"
+        visual_parameters_file="$(arg visual_params)"
+        safety_limits="$(arg safety_limits)"
+        safety_pos_margin="$(arg safety_pos_margin)"
+        safety_k_position="$(arg safety_k_position)"
+        >
+        <origin xyz="-0.188189 0.13575 0.556631" rpy="${3*pi/4} 0 ${-pi/2}" />
+    </xacro:ur_robot>
+
+
+    <!-- gripper/holder link -->
+    <link name="$(arg tf_prefix_left)holder_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <!-- <mesh filename="package://left_arm_description/meshes/holder/holder.stl" scale="0.001 0.001 0.001"/> -->
+                <!-- <mesh filename="package://left_arm_description/meshes/holder/holder_with_full_rod.stl" scale="0.001 0.001 0.001"/> -->
+                <mesh filename="package://left_arm_description/meshes/holder/holder_with_cut_rod.obj" scale="0.001 0.001 0.001"/> 
+            </geometry>
+            <!-- <material name="Grey">     decommenta se non hai usato un obj con mtl file per il colore del mesh (es stl)
+                <color rgba="0.5 0.5 0.5 1.0" />
+            </material> -->
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <!-- <mesh filename="package://left_arm_description/meshes/holder/holder.stl" scale="0.001 0.001 0.001"/> -->
+                <!-- <mesh filename="package://left_arm_description/meshes/holder/holder_with_full_rod.stl" scale="0.001 0.001 0.001"/> -->
+                <mesh filename="package://left_arm_description/meshes/holder/holder_with_cut_rod.obj" scale="0.001 0.001 0.001"/> 
+            </geometry>
+        </collision>
+    </link>
+
+    
+
+    <!-- fixed joint: flangia -> holder -->
+    <joint name="$(arg tf_prefix_left)tool0_holder_joint" type="fixed">
+        <parent link="$(arg tf_prefix_left)tool0" />
+        <child link="$(arg tf_prefix_left)holder_link" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+    <!-- muro dietro la scrivania -->
+    <link name="wall_link">
+        <visual>
+            <origin xyz="0 0.5 0.3" rpy="0 0 0" />
+            <geometry>
+                <box size="3 0.1 2"/>
+            </geometry>
+            <material name="LightGrey">
+                <color rgba="0.8 0.8 0.8 1.0" />
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0.5 0.3" rpy="0 0 0" />
+            <geometry>
+                <box size="3 0.1 2"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="world_wall_joint" type="fixed">
+        <parent link="world" />
+        <child link="wall_link" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+    </joint>
+
+</robot>

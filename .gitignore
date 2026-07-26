@@ -1,0 +1,35 @@
+# ==========================================
+# ROS 2 / Colcon Build Artifacts
+# ==========================================
+# Cartelle create dal comando `colcon build` / `colcon test`
+**/build/
+**/install/
+**/log/
+
+# File di stato di colcon
+**/.colcon_install_layout
+
+# ==========================================
+# IDE & Editor Setup
+# ==========================================
+# Configurazione specifica per VS Code
+**/.vscode/
+
+# Altri editor comuni (opzionale ma consigliato)
+**/.idea/
+*.swp
+*~
+
+# ==========================================
+# Python & C++ Artifacts
+# ==========================================
+# Bytecode e cache di Python (molto frequenti nei pacchetti ament_python)
+**/__pycache__/
+*.py[cod]
+*$py.class
+**/*.egg-info/
+**/.eggs/
+
+# File temporanei di sistema
+.DS_Store
+Thumbs.db
