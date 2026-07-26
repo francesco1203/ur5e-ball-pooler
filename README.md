@@ -46,7 +46,8 @@ CMD2 - build scene
 - 4. source install/setup.bash
 - 5. ros2 run scene_description scene_builder
 
-### IMPORTANT
+
+## IMPORTANT
 
 Satisfy dependecies first...
 
@@ -56,9 +57,9 @@ Satisfy dependecies first...
 
 - meshes
 - ws_ur5_ball_pooler
-- ‎ /src/left_arm_description: URDF and XACRO for arm
-- ‎ /src/scene_description
-- ‎ /src/moveit_config
+- ‎ ‎ ‎ /src/left_arm_description: URDF and XACRO for arm
+- ‎ ‎ ‎ /src/scene_description
+- ‎ ‎ ‎ /src/moveit_config
 
 ---
 
