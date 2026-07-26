@@ -1,0 +1,90 @@
+INERTIAL
+
+when not specified, the measure had been taken by MeshLab (std_unit = mm)
+
+
+- holder (cad)
+
+  mass (estimated*) ~ 400g 		(!!da aggiustare con peso reale del cad)
+  *using PLA density ~ 1.24g/cm^3	(!!da aggiustare con peso reale del cad)
+  
+  Mesh Volume is 319049.69
+  
+  Center of Mass is -0.04 -2.91 47.88
+  
+  Inertia Tensor is :
+   | 570366144.000000 -102764.695312 -146555.562500 |
+   | -102764.695312 532865760.000000 -58696496.000000 |
+   | -146555.562500 -58696496.000000 189585216.000000 |
+   
+
+-holder with cut rod 
+  
+  mass (computed*) is ~ 416g 	(!!da aggiustare con peso reale del cad)
+  * 400g + 16g
+  
+  Mesh Volume is 341242.69
+  
+  Center of Mass (computed*) is to do
+  * holder and cut rod
+  
+  Inertia Tensor (computed*) is : to do
+  
+  * holder and cut rod using Huygens-Steiner theorem
+   
+   
+   
+- full rod:
+
+  Mass (hand-measured) is ~ 60g
+  
+  Mesh volume (computed by difference*) is 83778.21 
+  *difference: holder with full rod - holder
+  
+  Density (computed): 0.72 g / cm^3
+  
+
+- cut rod (from CAD, not reality):
+
+  Mass (computed*) is ~ 16g
+  *using mesh volume above * density full rod 
+  
+  Mesh volume (computed by difference*) is 22210.00
+  *difference: holder with cut rod - holder
+  
+  Center of Mass is -41.20 0.0 106.92
+  
+  Inertia Tensor is :
+   | 426887.562500 54.580643 42580.738281 |
+   | 54.580643 67643048.000000 6.285519 |
+   | 42580.738281 6.285519 67646144.000000 |
+
+  
+- balls 
+
+  Mass (hand-measured) is 10g for white balls, 15g for coloured balls
+  
+  Mesh Volume is 8176.56
+  
+  Center of Mass (approximated to ideal) is 0 0 0
+  
+  Inertia Tensor (approximated to ideal) is :
+   | 510860 0.0000 0.0000 |
+   | 0.0000 510860 0.0000 |
+   | 0.0000 0.0000 510860 |
+ 
+   
+   
+- billiard
+
+  mass (hand-measured): 1370g
+  
+  Mesh Volume is 9517831.000000
+  
+  Center of Mass is 0.0 0.0 31.672869
+  
+  Inertia Tensor is :
+   | 78749474816.000000 -307.027863 0.498290 |
+   | -307.027863 208509730816.000000 0.605656 |
+   | 0.498290 0.605656 280543821824.000000 |
+   

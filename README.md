@@ -1,10 +1,10 @@
-## Nome del Progetto / Project Name
+## Project Name
 
 Ur5e ball pooler
 
 ---
 
-## Stato / State
+## State
 
 Work in progress..
 
@@ -18,11 +18,10 @@ Work in progress..
 
 ---
 
-### Linguaggi e tecnologie / Languages & Technologies
+### Languages & Technologies
 
 - ROS2 JAZZY
 - (... MuJoCo)
-- ...
 
 ---
 
@@ -56,7 +55,7 @@ Satisfy dependecies first...
 ### Structure
 
 - meshes
-- ws_ur5_ball_pooler
+- ws_ur5_ball_pooler: ros2 workspace
 
 ---
 
