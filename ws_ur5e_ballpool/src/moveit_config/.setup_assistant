@@ -7,7 +7,7 @@ moveit_setup_assistant_config:
   package_settings:
     author_name: Schettini Francesco
     author_email: francesco.schettini12@gmail.com
-    generated_timestamp: 1785059212
+    generated_timestamp: 1785162392
   control_xacro:
     command:
       - position
