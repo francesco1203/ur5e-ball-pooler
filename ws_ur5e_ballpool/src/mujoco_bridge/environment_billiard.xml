@@ -1,0 +1,79 @@
+<mujoco model="biliardo_env">
+
+    <default>
+        
+        <!-- GESTIONE DELLE COLLISIONI -->
+        <!-- Attive solo le collisioni tra oggetti di interesse (biliardo con palline, palline con biliardo ed end-effector)-->
+        <!-- per maggiori informazioni su come funziona la bitmask contype e conaffinity, consulta https://mujoco.readthedocs.io/en/stable/XMLreference.html -->
+
+        <!-- BILIARDO (contype=1): collide con Bianca (2) e Colorate (4) -> conaffinity = 2 + 4 = 6 -->
+        <default class="biliardo_collision">
+            <geom contype="1" conaffinity="6"/>
+        </default>
+
+        <!-- PALLINA BIANCA (contype=2): collide con Biliardo (1), Bianca (2), Colorate (4) ed EE (8) -> conaffinity = 15 -->
+        <default class="pallina_bianca_collision">
+            <geom type="sphere" size="0.0125" mass="0.010"
+                  contype="2" conaffinity="15"
+                  friction="0.01 0.005 0.0001"/>
+        </default>
+
+        <!-- PALLINE COLORATE (contype=4): collidono con Biliardo (1), Bianca (2) e Colorate (4) -> conaffinity = 7 -->
+        <!-- NOTA: Ignorano completamente l'End-Effector! -->
+        <default class="pallina_colorata_collision">
+            <geom type="sphere" size="0.0125" mass="0.015"
+                  contype="4" conaffinity="7"
+                  friction="0.01 0.005 0.0001"/>
+        </default>
+
+    </default>
+
+    <asset>
+        <!-- Materiali -->
+        <material name="verde_biliardo" rgba="0.1 0.5 0.2 1" roughness="0.8"/>
+        <material name="bianco"         rgba="0.95 0.95 0.95 1" shininess="0.8"/>
+        <material name="rosso"          rgba="0.9 0.1 0.1 1"   shininess="0.8"/>
+        <material name="blu"            rgba="0.1 0.2 0.9 1"   shininess="0.8"/>
+        <material name="giallo"         rgba="0.9 0.8 0.1 1"   shininess="0.8"/>
+
+
+        <!-- Mesh CAD Tavolo (scalata da mm a metri) -->
+        <mesh name="biliardo_mesh" file="assets/environment/billiard.obj" scale="0.001 0.001 0.001"/>
+
+        
+    </asset>
+
+    <worldbody>
+        <!-- TAVOLO DA BILIARDO -->
+        <body name="tavolo_biliardo" pos="0.8 0 0">
+            <geom class="biliardo_collision" type="mesh" mesh="biliardo_mesh" material="verde_biliardo"/>
+        </body>
+
+        <!-- PALLINE (Figlie dirette di worldbody -> free joint consentito!) -->
+
+        <!-- 1. PALLINA BIANCA (pos_X = 0.8 + 0.0 = 0.8) -->
+        <body name="white_ball" pos="0.8 0.0 0.600">
+            <joint type="free"/>
+            <geom class="pallina_bianca_collision" material="bianco"/>
+        </body>
+
+        <!-- 2. PALLINA ROSSA (pos_X = 0.8 + 0.07 = 0.87) -->
+        <body name="red_ball" pos="0.87 0.05 0.600">
+            <joint type="free"/>
+            <geom class="pallina_colorata_collision" material="rosso"/>
+        </body>
+
+        <!-- 3. PALLINA BLU (pos_X = 0.8 - 0.08 = 0.72) -->
+        <body name="blue_ball" pos="0.72 -0.05 0.600">
+            <joint type="free"/>
+            <geom class="pallina_colorata_collision" material="blu"/>
+        </body>
+
+        <!-- 4. PALLINA GIALLA (pos_X = 0.8 + 0.15 = 0.95) -->
+        <body name="yellow_ball" pos="0.95 -0.03 0.600">
+            <joint type="free"/>
+            <geom class="pallina_colorata_collision" material="giallo"/>
+        </body>
+
+    </worldbody>
+</mujoco>

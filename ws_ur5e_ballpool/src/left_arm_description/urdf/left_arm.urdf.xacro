@@ -112,11 +112,11 @@
         </collision>
         <inertial>
             <!-- Centro di massa dell'Holder in metri -->
-            <origin xyz="-0.000040 -0.002910 0.047880" rpy="0 0 0" />
-            <mass value="0.395622" />
-            <inertia ixx="0.0007072540" ixy="-0.0000001274" ixz="-0.0000001817"
-                      iyy="0.0006607535" iyz="-0.0000727837"
-                      izz="0.0002350857" />
+            <origin xyz="-0.000020 -0.000000 0.034870" rpy="0 0 0" />
+            <mass value="0.190087" />
+            <inertia ixx="0.0002082050" ixy="-0.0000000001" ixz="0.0000002035"
+                     iyy="0.0002077921" iyz="-0.0000000002"
+                     izz="0.0000715583" />
         </inertial>
     </link>
 
@@ -133,7 +133,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <!-- Modifica il percorso se la mesh della rod è in un file separato -->
+                
                 <mesh filename="package://left_arm_description/meshes/holder/cut_rod.obj" scale="0.001 0.001 0.001"/>
             </geometry>
         </visual>
@@ -145,11 +145,12 @@
         </collision>
         <inertial>
             <!-- Centro di massa della Cut Rod in metri -->
-            <origin xyz="-0.041200 0.000000 0.106920" rpy="0 0 0" />
-            <mass value="0.015991" />
-            <inertia ixx="0.0000003074" ixy="0.0000000000" ixz="0.0000000307"
-                      iyy="0.0000487030" iyz="0.0000000000"
-                      izz="0.0000487052" />
+            
+          <origin xyz="-0.029300 0.000000 0.080990" rpy="0 0 0" />
+          <mass value="0.012517" />
+          <inertia ixx="0.0000002222" ixy="0.0000000000" ixz="0.0000000000"
+                   iyy="0.0000262241" iyz="0.0000000000"
+                   izz="0.0000262242" />
         </inertial>
     </link>
 

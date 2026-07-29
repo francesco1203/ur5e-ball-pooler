@@ -4,62 +4,35 @@ when not specified, the measure had been taken by MeshLab (std_unit = mm)
 
 
 - holder (cad)
-
-  mass (estimated*) ~ 400g 		(!!da aggiustare con peso reale del cad)
+  
+  mass (estimated*) ~ 200g 		(!!da aggiustare con peso reale del cad)
   *using PLA density ~ 1.24g/cm^3	(!!da aggiustare con peso reale del cad)
   
-  Mesh Volume is 319049.69
+  Mesh Volume is 153296.078125
   
-  Center of Mass is -0.04 -2.91 47.88
+  Center of Mass is -0.020654 -0.000257 34.873882
   
   Inertia Tensor is :
-   | 570366144.000000 -102764.695312 -146555.562500 |
-   | -102764.695312 532865760.000000 -58696496.000000 |
-   | -146555.562500 -58696496.000000 189585216.000000 |
-   
-
--holder with cut rod 
+   | 167907232.000000 -95.849602 164078.109375 |
+   | -95.849602 167574288.000000 -200.701126 |
+   | 164078.109375 -200.701126 57708340.000000 |
   
-  mass (computed*) is ~ 416g 	(!!da aggiustare con peso reale del cad)
-  * 400g + 16g
-  
-  Mesh Volume is 341242.69
-  
-  Center of Mass (computed*) is to do
-  * holder and cut rod
-  
-  Inertia Tensor (computed*) is : to do
-  
-  * holder and cut rod using Huygens-Steiner theorem
    
    
-   
-- full rod:
-
-  Mass (hand-measured) is ~ 60g
-  
-  Mesh volume (computed by difference*) is 83778.21 
-  *difference: holder with full rod - holder
-  
-  Density (computed): 0.72 g / cm^3
-  
-
 - cut rod (from CAD, not reality):
 
-  Mass (computed*) is ~ 16g
-  *using mesh volume above * density full rod 
+  Mass (computed*) is ~ 10g
+  *using experimental density: 0.72 g / cm^3 
   
-  Mesh volume (computed by difference*) is 22210.00
-  *difference: holder with cut rod - holder
+  Mesh Volume is 17385.410156
   
-  Center of Mass is -41.20 0.0 106.92
+  Center of Mass is -29.283340 -0.000274 80.991402
   
   Inertia Tensor is :
-   | 426887.562500 54.580643 42580.738281 |
-   | 54.580643 67643048.000000 6.285519 |
-   | 42580.738281 6.285519 67646144.000000 |
-
-  
+   | 308658.031250 23.858063 -11.122323 |
+   | 23.858063 36422408.000000 15.397009 |
+   | -11.122323 15.397009 36422472.000000 |
+ 
 - balls 
 
   Mass (hand-measured) is 10g for white balls, 15g for coloured balls
