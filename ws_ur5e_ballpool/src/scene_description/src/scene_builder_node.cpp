@@ -154,7 +154,7 @@ class SceneBuilderNode : public rclcpp::Node
             pose.pose.position.z = mini_pool_table_z;
 
             // Carico la mesh del biliardo usando il percorso "package://" oppure il path assoluto file://
-            std::string pool_path = "file://" + pkg_share_dir + "/meshes/pool/pool.obj";
+            std::string pool_path = "file://" + pkg_share_dir + "/meshes/billiard/billiard.obj";
             addMESH(pool_path, scale, pose, ID_MINI_POOL_TABLE); 
 
 
