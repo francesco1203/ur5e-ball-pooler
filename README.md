@@ -14,41 +14,51 @@ Work in progress..
 
 (IT) : Programmare il braccio robotico UR5e per eseguire tiri di biliardo
 
-(EN) : To program the robotics arm UR5e to execute ball-pool shots
+(EN) : To program the robotic arm UR5e to execute ball-pool shots
 
 ---
 
 ### Languages & Technologies
 
 - ROS2 JAZZY
-- (... MuJoCo)
+- MoveIt
+- MuJoCo
 
 ---
 
 ### Dipendenze / Dipendences
 
+- ROS2Jazzy environment (source)
 - ur_description (Ros2 standard package)
+- moveit2 (Ros2 standard package)
+- mujoco_ros2_control (Ros2 package) + mujoco + python >= 3.12
 
 ---
 
 ### Usage
 
-On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and use cmd:
+On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and to build use cmd:
 
 - 1. colcon build --symlink-install
-
-CMD1 - start MoveIt and RViz
 - 2. source install/setup.bash
+
+Now, you should modify the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the right plugin (only RViz def).
+
+# No MuJoCo:
+
+CMD1 - start MoveIt and RViz (no MuJoCo)
 - 3. ros2 launch moveit_config demo.launch.py
 
 CMD2 - build scene
-- 4. source install/setup.bash
-- 5. ros2 run scene_description scene_builder
+- 4. ros2 run scene_description scene_builder
 
+# Using MuJoco
 
-## IMPORTANT
+CMD1 - start MoveIt, RViz and no MuJoCo
+- 3. ros2 launch moveit_config mujoco_demo.launch.py
 
-Satisfy dependecies first...
+CMD2 - build scene
+- 4. ros2 run scene_description scene_builder
 
 ---
 
