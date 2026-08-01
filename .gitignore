@@ -33,3 +33,9 @@
 # File temporanei di sistema
 .DS_Store
 Thumbs.db
+
+
+
+# PERSONALIZZATO
+ws_ur5e_ballpool/src/move_commands
+ws_ur5e_ballpool/src/interfaces_package
