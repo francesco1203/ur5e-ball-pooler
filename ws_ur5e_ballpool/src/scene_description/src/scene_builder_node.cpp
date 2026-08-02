@@ -8,24 +8,25 @@
 #include <moveit_msgs/msg/object_color.hpp>
 
 
-#include <Eigen/Dense>
 
 #include <geometric_shapes/shape_operations.h>
 #include <geometric_shapes/mesh_operations.h>
 #include <shape_msgs/msg/mesh.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-//per pubblicare terne statiche
-#include <tf2_ros/static_transform_broadcaster.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
+//per leggere le terne
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
 
 
-#include "scene_description/scene_description.hpp"
+//mie costanti e librerie
+#include "shared_headers_pkg/scene_description.hpp"
 
 
-//costanti
-const std::string PLANNING_GROUP = "left_arm";
+//costanti di programma
 const std::string NOME_PACCHETTO = "scene_description"; //nome del pacchetto ROS2, per recuperare la cartella share
+constexpr double eps_floating = 0.0001; // piccola elevazione per evitare problemi di collision detection con il piano del tavolo
+
 
 using namespace std::placeholders;
 using namespace std::chrono_literals;
@@ -46,7 +47,8 @@ class SceneBuilderNode : public rclcpp::Node
     using TimerPtr = rclcpp::TimerBase::SharedPtr;
 
     //tf2
-    using tf2_static_broadcaster_ptr = std::shared_ptr<tf2_ros::StaticTransformBroadcaster>;
+    using TfBuffer = std::shared_ptr<tf2_ros::Buffer>;
+    using TfListener = std::shared_ptr<tf2_ros::TransformListener>;
     using TransformStampedMsg = geometry_msgs::msg::TransformStamped;
 
     //msg
@@ -89,12 +91,13 @@ class SceneBuilderNode : public rclcpp::Node
         planning_scene_interface_ = std::make_unique<PlanningSceneInterface>();
 
         
-        // inizializzo il broadcaster per le terne statiche
-        static_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this->shared_from_this());
-
+        // Inizializzazione TF2 Buffer e Listener
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
         // Recupero la directory root del pacchetto ROS 2
         pkg_share_dir = ament_index_cpp::get_package_share_directory(NOME_PACCHETTO);
+        billiard_mesh_path = "file://" + pkg_share_dir + "/meshes/billiard/billiard.obj";
 
 
         RCLCPP_INFO(this->get_logger(), "Scene builder pronto.");
@@ -110,6 +113,7 @@ class SceneBuilderNode : public rclcpp::Node
     //NOTA: waitInit() è chiamato dal main dopo la creazione del nodo, prima di qualsiasi movimento
     //      per assicurarsi che start() abbia completato l'inizializzazione di move_group_ 
     //      e altri componenti necessari, senza i quali i metodi di movimento non funzionerebbero correttamente.
+
 
 
     /* METODI DI MODELLAZIONE SCENA */
@@ -147,154 +151,45 @@ class SceneBuilderNode : public rclcpp::Node
             scale.x = 0.001; scale.y = 0.001; scale.z = 0.001;  //da mm->m
 
             PoseStampedMsg pose;
-            pose.header.frame_id = TERNA_RIFERIMENTO_BILIARDO; //world
-            pose.pose.orientation.w = 1.0;
-            pose.pose.position.x = mini_pool_table_x;
-            pose.pose.position.y = mini_pool_table_y;
-            pose.pose.position.z = mini_pool_table_z;
+            pose.header.frame_id = BILLIARD_TABLE_FRAME;
+            pose.pose.orientation.w = 1.0;                  //terna è già orientata correttamente da telecamera, quindi non serve ruotarla
+            pose.pose.position.x = 0;
+            pose.pose.position.y = 0;
+            pose.pose.position.z = - POOL_TABLE_FIELD_HEIGHT + eps_floating; //la terna è sul campo, ma l'origine della mesh è sul pavimento, quindi devo abbassare la posizione dell'altezza del campo, ma elevarla di un epsilon per problemi di collision detection con il piano
 
-            // Carico la mesh del biliardo usando il percorso "package://" oppure il path assoluto file://
-            std::string pool_path = "file://" + pkg_share_dir + "/meshes/billiard/billiard.obj";
-            addMESH(pool_path, scale, pose, ID_MINI_POOL_TABLE); 
+            // Carico la mesh del biliardo usando il suo percorso
+            addMESH(billiard_mesh_path, scale, pose, ID_MINI_POOL_TABLE); 
 
-
-            // Pubblica la terna del biliardino
-            TransformStampedMsg tf_msg;
-            tf_msg.header.stamp = this->get_clock()->now();
-            tf_msg.header.frame_id = TERNA_RIFERIMENTO_BILIARDO;          
-            tf_msg.child_frame_id = TERNA_SOLIDALE_CENTRO_BILIARDO;       
-
-            //la metto all'altezza del campo, in modo che le palline siano posizionate correttamente
-            tf_msg.transform.translation.x = mini_pool_table_x;
-            tf_msg.transform.translation.y = mini_pool_table_y;
-            tf_msg.transform.translation.z = mini_pool_table_z + pool_table_field_height; 
-            tf_msg.transform.rotation.w = 1.0; 
-
-            static_broadcaster_->sendTransform(tf_msg);
         }
         
 
-        /* --- Aggiungo le palline come semplici sfere --- (PREFERIBILE PER FACILITARE COLLISION DETECTION)*/ 
-        {
-
-            //Pallina Bianca
-            PoseStampedMsg white_ball_pose;
-            white_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            white_ball_pose.pose.orientation.w = 1.0;
-            white_ball_pose.pose.position.x = w_ball_x;
-            white_ball_pose.pose.position.y = w_ball_y;
-            white_ball_pose.pose.position.z = w_ball_z;
-
-            addSPHERE(ball_radius, white_ball_pose, ID_WHITE_BALL);
-            setObjectColor(ID_WHITE_BALL, 1.0, 1.0, 1.0, 1.0); // Bianco
-
-            // Pallina Rossa
-            PoseStampedMsg red_ball_pose;
-            red_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            red_ball_pose.pose.orientation.w = 1.0;
-            red_ball_pose.pose.position.x = r_ball_x;
-            red_ball_pose.pose.position.y = r_ball_y;
-            red_ball_pose.pose.position.z = r_ball_z;
-
-            addSPHERE(ball_radius, red_ball_pose, ID_RED_BALL);
-            setObjectColor(ID_RED_BALL, 1.0, 0.0, 0.0, 1.0); // Rosso
-
-            // Pallina Blu
-            PoseStampedMsg blue_ball_pose;
-            blue_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            blue_ball_pose.pose.orientation.w = 1.0;
-            blue_ball_pose.pose.position.x = b_ball_x;
-            blue_ball_pose.pose.position.y = b_ball_y;
-            blue_ball_pose.pose.position.z = b_ball_z;
-
-            addSPHERE(ball_radius, blue_ball_pose, ID_BLUE_BALL);
-            setObjectColor(ID_BLUE_BALL, 0.0, 0.0, 1.0, 1.0); // Blu
-
-            // Pallina Gialla
-            PoseStampedMsg yellow_ball_pose;
-            yellow_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            yellow_ball_pose.pose.orientation.w = 1.0;
-            yellow_ball_pose.pose.position.x = y_ball_x;
-            yellow_ball_pose.pose.position.y = y_ball_y;
-            yellow_ball_pose.pose.position.z = y_ball_z;
-
-            addSPHERE(ball_radius, yellow_ball_pose, ID_YELLOW_BALL);
-            setObjectColor(ID_YELLOW_BALL, 1.0, 1.0, 0.0, 1.0); // Giallo
-        }
-
-
-        /* --- Aggiungo le palline come Mesh --- (NON PREFERIBILE, SOVRACCARICO COLLISION DETECTION)*/ 
-
         
-            //{
-            //  // Vettore per il fattore di scala (1.0 = dimensione originale, regola se i tuoi CAD sono in mm)
-            // Vector3Msg scale;
-            // scale.x = 0.001; scale.y = 0.001; scale.z = 0.001;  //da mm->m
-
-            //  // Pallina Bianca
-            // PoseStampedMsg white_ball_pose;
-            // white_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            // white_ball_pose.pose.orientation.w = 1.0;
-            // white_ball_pose.pose.position.x = w_ball_x;
-            // white_ball_pose.pose.position.y = w_ball_y;
-            // white_ball_pose.pose.position.z = w_ball_z;
-
-            // std::string white_ball_path = "file://" + pkg_share_dir + "/meshes/balls/white_ball.obj";
-            // addMESH(white_ball_path, scale, white_ball_pose, ID_WHITE_BALL);
-
-            // // Pallina Rossa
-            // PoseStampedMsg red_ball_pose;
-            // red_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            // red_ball_pose.pose.orientation.w = 1.0;
-            // red_ball_pose.pose.position.x = r_ball_x;
-            // red_ball_pose.pose.position.y = r_ball_y;
-            // red_ball_pose.pose.position.z = r_ball_z;
-
-            // std::string red_ball_path = "file://" + pkg_share_dir + "/meshes/balls/red_ball.obj";
-            // addMESH(red_ball_path, scale, red_ball_pose, ID_RED_BALL);
-
-            // // Pallina Blu
-            // PoseStampedMsg blue_ball_pose;
-            // blue_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            // blue_ball_pose.pose.orientation.w = 1.0;
-            // blue_ball_pose.pose.position.x = b_ball_x;
-            // blue_ball_pose.pose.position.y = b_ball_y;
-            // blue_ball_pose.pose.position.z = b_ball_z;
-
-            // std::string blue_ball_path = "file://" + pkg_share_dir + "/meshes/balls/blue_ball.obj";
-            // addMESH(blue_ball_path, scale, blue_ball_pose, ID_BLUE_BALL);
-
-            // // Pallina Gialla
-            // PoseStampedMsg yellow_ball_pose;
-            // yellow_ball_pose.header.frame_id = TERNA_RIFERIMENTO_PALLINE;
-            // yellow_ball_pose.pose.orientation.w = 1.0;
-            // yellow_ball_pose.pose.position.x = y_ball_x + 0.05; // Offset d'esempio
-            // yellow_ball_pose.pose.position.y = y_ball_y;
-            // yellow_ball_pose.pose.position.z = y_ball_z;
-
-            // std::string yellow_ball_path = "file://" + pkg_share_dir + "/meshes/balls/yellow_ball.obj";
-            // addMESH(yellow_ball_path, scale, yellow_ball_pose, ID_YELLOW_BALL);
-            //}
+        /* --- 2. Carico le palline dinamiche come sfere leggendo le terne da TF2 --- */
+        addBallsFromTF();
+        
         
     }
-
-
-
 
   private:
     /* MEMBRI PRIVATI */
     //MoveGroupInterfacePtr move_group_interface_;
     PlanningSceneInterfacePtr planning_scene_interface_;
-    tf2_static_broadcaster_ptr static_broadcaster_;
     TimerPtr start_timer_;
+
+    TfBuffer tf_buffer_;
+    TfListener tf_listener_;
 
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
+
     std::string pkg_share_dir;          //path del pacchetto ROS
+    std::string billiard_mesh_path;     //path della mesh del biliardo
+
 
 
     /* METODI PRIVATI */
-   
+
+    /*aggiunta di oggetti alla scena*/
     void addMESH(const std::string& file_path, 
                  const Vector3Msg& scale, 
                  const PoseStampedMsg& pose, 
@@ -368,6 +263,60 @@ class SceneBuilderNode : public rclcpp::Node
         this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
     }
     
+    /*individuazione palline dalle terne pubblicate dalla telecamera*/
+    void addBallsFromTF()
+    {
+        // Mappa tra gli ID delle palline che ti aspetti da TF e i loro colori (R, G, B, A)
+        const std::map<std::string, std::array<float, 4>> balls_to_find = {
+            {ID_WHITE_SOLID_BALL,  {1.0f, 1.0f, 1.0f, 1.0f}}, // Bianco
+            {ID_RED_SOLID_BALL,    {1.0f, 0.0f, 0.0f, 1.0f}}, // Rosso
+            {ID_BLUE_SOLID_BALL,   {0.0f, 0.0f, 1.0f, 1.0f}}, // Blu
+            {ID_YELLOW_SOLID_BALL, {1.0f, 1.0f, 0.0f, 1.0f}}  // Giallo
+        };
+
+        //per semplicità, è stato dato come ID il nome della terna
+
+        // Diamo tempo al buffer TF di riempirsi di trasformate ricevute dai nodi di percezione
+        this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
+
+        for (const auto& [ball_id, color] : balls_to_find)
+        {
+            try {
+                // Attende fino a 3.0 secondi che la trasformata sia disponibile nel buffer TF.
+                // canTransform blocca l'esecuzione consentendo allo spinner di aggiornare il buffer TF interno.
+           
+                if (tf_buffer_->canTransform(BILLIARD_TABLE_FRAME, ball_id, tf2::TimePointZero, tf2::durationFromSec(3.0)))
+                
+                {
+                    // Legge la trasformata della pallina rispetto al frame del tavolo/riferimento
+                    TransformStampedMsg tf_stamped = 
+                        tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, ball_id, tf2::TimePointZero);
+
+                    PoseStampedMsg ball_pose;
+                    ball_pose.header.frame_id = BILLIARD_TABLE_FRAME;
+                    ball_pose.pose.position.x = tf_stamped.transform.translation.x;
+                    ball_pose.pose.position.y = tf_stamped.transform.translation.y;
+                    ball_pose.pose.position.z = tf_stamped.transform.translation.z + eps_floating; // Elevazione anti-collisione
+                    ball_pose.pose.orientation = tf_stamped.transform.rotation;
+
+                    // Aggiunge la sfera e ne imposta il colore
+                    addSPHERE(BALL_RADIUS, ball_pose, ball_id);
+                    setObjectColor(ball_id, color[0], color[1], color[2], color[3]);
+
+                    RCLCPP_INFO(this->get_logger(), "Pallina [%s] aggiunta con successo da TF.", ball_id.c_str());
+                }
+                else
+                {
+                    RCLCPP_WARN(this->get_logger(), "Timeout: TF per [%s] rispetto a [%s] non trovata entro 3 secondi.", 
+                                ball_id.c_str(), BILLIARD_TABLE_FRAME.c_str());
+                }
+
+            } catch (const tf2::TransformException & ex) {
+                RCLCPP_WARN(this->get_logger(), "Eccezione TF durante la ricerca di [%s] rispetto a [%s]: %s", 
+                            ball_id.c_str(), BILLIARD_TABLE_FRAME.c_str(), ex.what());
+            }
+        }
+    }
 
     //altro di utilities
     void setObjectColor(const std::string& obj_id, 

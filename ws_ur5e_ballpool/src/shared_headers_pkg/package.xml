@@ -1,0 +1,18 @@
+<package format="3">
+  <name>shared_headers_pkg</name>
+  <version>0.0.0</version>
+  <description>Pacchetto condiviso di header ROS 2</description>
+  <maintainer email="francesco.schettini12@gmail.com">Francesco</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <!-- <depend>rclcpp</depend> -->
+
+  <depend>eigen</depend>
+
+  <!-- dichiaro di esportare il contenuto del pacchetto come libreria condivisa -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

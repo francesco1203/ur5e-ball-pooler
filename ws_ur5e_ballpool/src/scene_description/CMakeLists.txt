@@ -5,16 +5,18 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# Trova le dipendenze ROS 2 e di sistema
+
 find_package(rclcpp REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
+
+find_package(shared_headers_pkg REQUIRED)  #mia libreria di headers .hpp
+
 find_package(tf2_ros REQUIRED)
 find_package(geometric_shapes REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+
 find_package(Eigen3 REQUIRED)
 
-# Include la cartella locale
-include_directories(include)
 
 # Definizione del nodo
 add_executable(scene_builder src/scene_builder_node.cpp)
@@ -28,6 +30,7 @@ ament_target_dependencies(
   "geometric_shapes"  # <-- Necessaria per addMESH
   "ament_index_cpp"   # <-- Necessaria per get_package_share_directory
   "Eigen3"            # <-- Necessaria per la manipolazione vettoriale di geometric_shapes
+  "shared_headers_pkg"
 )
 
 # Installazione del nodo e della cartella meshes
