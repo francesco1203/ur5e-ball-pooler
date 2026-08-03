@@ -13,8 +13,12 @@
     //*es red --> red_solid_ball, red_stripes_ball ecc..
 
 
-    /*NOTA: in questo progetto usiamo solo le palline piene*/
+    /*NOTA: in questo progetto usiamo solo le seguenti palline piene*/
 
+    const std::string WHITE_SOLID_BALL_FRAME = "white_solid_ball";
+    const std::string RED_SOLID_BALL_FRAME = "red_solid_ball";
+    const std::string BLUE_SOLID_BALL_FRAME = "blue_solid_ball";
+    const std::string YELLOW_SOLID_BALL_FRAME = "yellow_solid_ball";
 
 
 /* POOL TABLE*/
@@ -38,11 +42,11 @@
 
 /*BALLS*/
 
-    //id palline di lavoro *
-    const std::string ID_WHITE_SOLID_BALL = "white_solid_ball";
-    const std::string ID_RED_SOLID_BALL = "red_solid_ball";
-    const std::string ID_BLUE_SOLID_BALL = "blue_solid_ball";
-    const std::string ID_YELLOW_SOLID_BALL = "yellow_solid_ball";
+    //id palline di lavoro (UGUALI AI NOMI DEI FRAME PER SEMPLICITA)*
+    const std::string ID_WHITE_SOLID_BALL = WHITE_SOLID_BALL_FRAME;
+    const std::string ID_RED_SOLID_BALL = RED_SOLID_BALL_FRAME;
+    const std::string ID_BLUE_SOLID_BALL = BLUE_SOLID_BALL_FRAME;
+    const std::string ID_YELLOW_SOLID_BALL = YELLOW_SOLID_BALL_FRAME;
     //* in futuro si possono aggiungere altre palline, ma per ora ci bastano queste 4
     
 

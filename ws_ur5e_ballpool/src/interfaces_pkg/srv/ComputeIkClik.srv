@@ -1,0 +1,8 @@
+geometry_msgs/PoseStamped target_pose
+float64 position_tolerance       # es. 0.001 metri (1 mm)
+float64 orientation_tolerance    # es. 0.02 rad (circa 1 grado)
+int32 max_iterations             # es. 100
+---
+bool success
+string message
+sensor_msgs/JointState joint_state

@@ -1,24 +1,25 @@
 #pragma once   // evita inclusioni doppie — alternativa moderna agli include guard
 
 #include <string>
-
+#include <vector>
 
 
 // Costanti specifiche del robot (UR5e)
 constexpr int N_JOINTS              = 6;
-// const std::vector<std::string> UR5e_JOINT_NAMES = {
-//     "left_shoulder_pan_joint", 
-//     "left_shoulder_lift_joint", 
-//     "left_elbow_joint",
-//     "left_wrist_1_joint", 
-//     "left_wrist_2_joint", 
-//     "left_wrist_3_joint"
-// };
+
+const std::vector<std::string> UR5e_JOINT_NAMES = {
+    "left_shoulder_pan_joint", 
+    "left_shoulder_lift_joint", 
+    "left_elbow_joint",
+    "left_wrist_1_joint", 
+    "left_wrist_2_joint", 
+    "left_wrist_3_joint"
+};
 
 
 const std::string EE_LINK = "left_rod_tip_virtual_link";  // link del tip dell'asta, end-effector (definito in URDF)
 //const std::string LAST_LINK         = "left_wrist_3_link";
-// const std::string BASE_LINK         = "left_base_link";        
+const std::string BASE_LINK         = "left_base_link";        
 
 
 

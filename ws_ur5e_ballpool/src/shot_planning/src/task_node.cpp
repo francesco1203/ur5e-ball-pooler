@@ -17,18 +17,29 @@
 #include <rclcpp/rclcpp.hpp>
 // #include "rclcpp_action/rclcpp_action.hpp"
 
+
 // MoveIt
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 
 #include "geometry_msgs/msg/pose_stamped.hpp" 
+#include "sensor_msgs/msg/joint_state.hpp"
 
 
 // miei headers
-#include "shared_headers_pkg/eigen_alias.hpp"
+#include "shared_headers_pkg/eigen_utilities.hpp"
+#include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
+
+
+
+// servizio
+#include "interfaces_pkg/srv/compute_ik_clik.hpp"
+
 
 
 using namespace std::chrono_literals;
@@ -48,6 +59,11 @@ class TaskNode : public rclcpp::Node
 
     //messaggi
     using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
+    using JointStateMsg  = sensor_msgs::msg::JointState;   
+
+    //servzio
+    using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
+    using ComputeIkClikSrvClientPtr = rclcpp::Client<ComputeIkClikSrv>::SharedPtr;
 
     //altro
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -86,11 +102,15 @@ class TaskNode : public rclcpp::Node
         move_group_->setMaxAccelerationScalingFactor(0.3);
 
         // Scelgo il planner da usare
-        move_group_->setPlanningTime(5.0);  // tempo massimo per la pianificazione (in secondi)
-        move_group_->setPlannerId("RRTkConfigDefault");
+        //move_group_->setPlanningTime(5.0);  // tempo massimo per la pianificazione (in secondi)
+        //move_group_->setPlannerId("RRTkConfigDefault");
         // move_group_->setPlannerId("RRTConnectkConfigDefault");
-        // move_group_->setPlannerId("PRMkConfigDefault");
+        move_group_->setPlannerId("PRMkConfigDefault");
         //move_group_->setPlannerId("PRMstarkConfigDefault");
+
+
+        /*SERVZIO CLIK*/
+        clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
 
  
         RCLCPP_INFO(this->get_logger(), "TaskNode pronto.");
@@ -186,7 +206,8 @@ class TaskNode : public rclcpp::Node
     //
     // INPUT:  target_name → nome della configurazione (es. "home")
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
-    bool moveToNamedTarget(const std::string& target_name, double planning_time = 5.0)
+    bool moveToNamedTarget(const std::string& target_name, 
+                           double planning_time = 5.0)
     {
 
         move_group_->setPlanningTime(planning_time);
@@ -299,6 +320,81 @@ class TaskNode : public rclcpp::Node
         return ok;
     }
 
+
+    bool moveToCartesianPoseThroughJointSpace(const Vector3d& posizione, 
+                                              const Quaternion& orientamento, 
+                                              const std::string& frame_id,
+                                              double planning_time = 5.0 )
+    {
+        // 1. Preparazione della posa target espressa in PoseStamped
+        PoseStampedMsg target_pose;
+        target_pose.header.stamp = this->now();
+        target_pose.header.frame_id = frame_id;
+
+        target_pose.pose.position.x = posizione.x();
+        target_pose.pose.position.y = posizione.y();
+        target_pose.pose.position.z = posizione.z();
+
+        Quaternion q_norm = orientamento.normalized();
+        target_pose.pose.orientation.w = q_norm.w();
+        target_pose.pose.orientation.x = q_norm.x();
+        target_pose.pose.orientation.y = q_norm.y();
+        target_pose.pose.orientation.z = q_norm.z();
+
+
+        // 2. Controllo disponibilità del servizio CLIK
+        if (!clik_client_->wait_for_service(std::chrono::seconds(2))) {
+            RCLCPP_ERROR(this->get_logger(), "Servizio CLIK non disponibile!");
+            return false;
+        }
+
+
+        // 3. Costruzione richiesta Servizio CLIK
+        auto request = std::make_shared<ComputeIkClikSrv::Request>();
+        request->target_pose = target_pose;
+
+        //se non passo nulla agli altri campi, il servizio usa i valori di default
+        // request->max_iterations = 100;             // 100 iterazioni massime
+        // request->position_tolerance = 0.001;       // 1 mm
+        // request->orientation_tolerance = 0.01;     // ~0.5 gradi
+
+
+        // 4. Chiamata ed attesa sincrona della risposta
+        auto future_result = clik_client_->async_send_request(request);
+
+        // Attesa massima di 1 secondi per la risposta della CPU
+        if (future_result.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
+            RCLCPP_ERROR(this->get_logger(), "Timeout nell'attesa della risposta dal servizio CLIK!");
+            return false;
+        }
+
+        auto response = future_result.get();
+
+
+        // 5. Verifica dell'esito della Cinematica Inversa
+        if (!response->success) {
+            RCLCPP_ERROR(this->get_logger(), "Calcolo CLIK fallito: %s", response->message.c_str());
+            return false;
+        }
+
+
+        // 6. Estrazione della configurazione giunti calcolata
+        joint_config joint_target_positions = response->joint_state.position;
+
+
+        // Log delle posizioni trovate
+        RCLCPP_INFO(this->get_logger(), "Configurazione giunti trovata con successo via CLIK:");
+        for (size_t i = 0; i < joint_target_positions.size(); ++i) {
+            std::string j_name = (i < response->joint_state.name.size()) ? response->joint_state.name[i] : std::to_string(i);
+            RCLCPP_INFO(this->get_logger(), "  - %s: %.4f rad", j_name.c_str(), joint_target_positions[i]);
+        }
+
+        
+        // 7. Pianificazione ed esecuzione nello spazio giunti
+        return moveToJointConfig(joint_target_positions, planning_time);
+    }
+
+
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
     void print_and_wait(const std::string & message)
     {
@@ -315,10 +411,14 @@ class TaskNode : public rclcpp::Node
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
+    ComputeIkClikSrvClientPtr clik_client_;
+
     char c_in; // variabile per input da terminale (usata in print_and_wait)
 
 
 };
+
+
 
 
 // ── main ────────────────────────────────────────────────────────────────────
@@ -339,43 +439,88 @@ int main(int argc, char* argv[])
 
     /* SEQUENZA DI TASK */
  
-   
+
     // 1 - vado in pre-approach per approcciare la pallina
-    node->print_and_wait("Posizionamento in 'pre_approach");
-    node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 5);
+    {
+        node->print_and_wait("Posizionamento in 'pre_approach");
+        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 5);
+    }
+    
     
 
     // 2 - vado in posizione di pre-shot
-    node->print_and_wait("Pianificando verso la posizione di pre-shot...");
+    {
+        node->print_and_wait("Pianificando verso la posizione di pre-shot...");
 
-    Vector3d pos_pre_shot = Vector3d(-0.05, 
-                                      0, 
-                                      0.05
-                                    );
+        Vector3d pos_pre_shot = Vector3d(0, 
+                                        0, 
+                                        0.05
+                                        );
 
-    // Vector3d pos_pre_shot = Vector3d( -0.5, 
-    //                                   -0.2, 
-    //                                   0.3
-    //                                 );
+        // direzione d'impatto
+        double alpha_latitude_rad = 30 * M_PI / 180;   //rotazione attorno asse y
+        double beta_longitude_rad = 0 * M_PI / 180;    //rotazione attorno asse z
 
-    Quaternion Q_pre_shot(RotationAxis(10 * M_PI / 180, Y_AXIS)); // rotazione di 10° attorno a Y
-    Q_pre_shot = Q_pre_shot.normalized(); // normalizzo il quaternione per sicurezza
+        Quaternion Q_pre_shot(
+                            RotationAxis(-M_PI/2, Y_AXIS) 
+                            // RotationAxis(alpha_latitude_rad, Y_AXIS) * 
+                            // RotationAxis(beta_longitude_rad, Z_AXIS)
+                            ); 
 
-    // Quaternion Q_pre_shot(1,0,0,0); // orientamento identità (nessuna rotazione)
+        // Q_pre_shot = Q_pre_shot.normalized(); // normalizzo il quaternione per sicurezza
+
+        // Quaternion Q_pre_shot(1,0,0,0); // orientamento identità (nessuna rotazione)
+
+        //node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
+
+        node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
+    }
+    
 
 
-    node->moveToPose(pos_pre_shot, Q_pre_shot, BILLIARD_TABLE_FRAME, 30);
 
+    //2+ un'altra posa a caso
+    {
+        node->print_and_wait("Posa a caso...");
+
+        Vector3d pos_pre_shot = Vector3d( 0, 
+                                        0, 
+                                        0.10
+                                        );
+
+        // direzione d'impatto
+        double alpha_latitude_rad = 0 * M_PI / 180;   //rotazione attorno asse y
+        double beta_longitude_rad = 0 * M_PI / 180;    //rotazione attorno asse z
+
+        Quaternion Q_pre_shot(
+                            RotationAxis(-M_PI/2, Y_AXIS) *
+                            RotationAxis(alpha_latitude_rad, Y_AXIS) * 
+                            RotationAxis(beta_longitude_rad, Z_AXIS)
+                            ); 
+        // Q_pre_shot = Q_pre_shot.normalized(); // normalizzo il quaternione per sicurezza
+
+        // Quaternion Q_pre_shot(1,0,0,0); // orientamento identità (nessuna rotazione)
+
+        //node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
+        
+        
+        node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, WORLD_FRAME, 60);
+    }
+    
 
 
     // 3 - eseguo tiro
-    //TODO..
-
+    {
+        //TODO..
+    }
+    
 
     // 4 - vado in pre-approach per la prossima pallina
-    node->print_and_wait("Ritorno in 'pre_approach");
-    node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
-    
+    {
+        node->print_and_wait("Ritorno in 'pre_approach");
+        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
+    }
+
 
 
     // Termina: shutdown sblocca lo spinner, poi join aspetta che finisca
