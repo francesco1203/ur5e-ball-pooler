@@ -24,20 +24,20 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
 
-add_executable(clik_node src/clik_node.cpp)
-ament_target_dependencies(
-  clik_node
-  "rclcpp"
-  "moveit_ros_planning_interface"
-  "moveit_core"
-  "geometry_msgs"
-  "sensor_msgs"
-  "Eigen3"
-  "shared_headers_pkg"
-  "interfaces_pkg"
-  tf2_ros
-  tf2_geometry_msgs
-)
+# add_executable(clik_node src/clik_node.cpp)
+# ament_target_dependencies(
+#   clik_node
+#   "rclcpp"
+#   "moveit_ros_planning_interface"
+#   "moveit_core"
+#   "geometry_msgs"
+#   "sensor_msgs"
+#   "Eigen3"
+#   "shared_headers_pkg"
+#   "interfaces_pkg"
+#   tf2_ros
+#   tf2_geometry_msgs
+# )
 
 add_executable(task_node src/task_node.cpp)
 ament_target_dependencies(
@@ -53,7 +53,7 @@ ament_target_dependencies(
 
 install(TARGETS 
   task_node
-  clik_node
+  # clik_node
 DESTINATION lib/${PROJECT_NAME})
 
 ########## INSTALL the launch files ############

@@ -7,6 +7,7 @@ using Vector3d = Eigen::Vector3d;
 using Vector6d = Eigen::Matrix<double, 6, 1>;
 using VectorXd = Eigen::VectorXd;                    //generic Vector dinamico
 using MatrixXd = Eigen::MatrixXd;                    //generic Matrix dinamica
+using Matrix3d = Eigen::Matrix3d;                    //matrice 3x3
 using Quaternion = Eigen::Quaterniond;
 using RotationAxis = Eigen::AngleAxisd;              //rotazione attorno ad un asse (usato per definire quaternioni)
 using RotoTraslMatrix = Eigen::Isometry3d;

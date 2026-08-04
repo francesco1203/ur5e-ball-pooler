@@ -21,6 +21,7 @@
 // MoveIt
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
+#include <moveit_msgs/msg/planning_scene.hpp>
 
 #include <moveit/robot_model_loader/robot_model_loader.hpp>
 #include <moveit/robot_state/robot_state.hpp>
@@ -62,8 +63,8 @@ class TaskNode : public rclcpp::Node
     using JointStateMsg  = sensor_msgs::msg::JointState;   
 
     //servzio
-    using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
-    using ComputeIkClikSrvClientPtr = rclcpp::Client<ComputeIkClikSrv>::SharedPtr;
+    // using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
+    // using ComputeIkClikSrvClientPtr = rclcpp::Client<ComputeIkClikSrv>::SharedPtr;
 
     //altro
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -73,8 +74,20 @@ class TaskNode : public rclcpp::Node
 
     /* Costruttore */
     TaskNode(const rclcpp::NodeOptions& opt = rclcpp::NodeOptions())
-        : rclcpp::Node("task_node", rclcpp::NodeOptions(opt).automatically_declare_parameters_from_overrides(true))
+    : rclcpp::Node("task_node", opt)
     {
+        // Parametri di pianificazione da launch file
+        
+        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);     // default planning time in seconds
+        this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");  
+        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault"); 
+
+        def_cartesian_planning_time_ = this->get_parameter("def_cartesian_planning_time").as_double();
+        joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
+        cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
+
+
+
         // MoveGroupInterface ha bisogno di shared_from_this(), che non è
         // disponibile dentro il costruttore → usiamo un timer one-shot (WORKAROUND)
         start_timer_ = this->create_wall_timer(
@@ -101,16 +114,14 @@ class TaskNode : public rclcpp::Node
         move_group_->setMaxVelocityScalingFactor(0.3);
         move_group_->setMaxAccelerationScalingFactor(0.3);
 
-        // Scelgo il planner da usare
-        //move_group_->setPlanningTime(5.0);  // tempo massimo per la pianificazione (in secondi)
-        //move_group_->setPlannerId("RRTkConfigDefault");
-        // move_group_->setPlannerId("RRTConnectkConfigDefault");
-        move_group_->setPlannerId("PRMkConfigDefault");
-        //move_group_->setPlannerId("PRMstarkConfigDefault");
 
+        //Scelta planner da usare
+        //move_group_->setPlannerId("PLANNER");
+        //NON LO FACCIAMO QUI, MA NEI METODI APPOSITI, PERCHÉ DISTINGUIAMO TRA PIANIFICAZIONE CARTESIANA E PIANIFICAZIONE IN SPAZIO GIUNTI
+      
 
         /*SERVZIO CLIK*/
-        clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
+        //clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
 
  
         RCLCPP_INFO(this->get_logger(), "TaskNode pronto.");
@@ -139,6 +150,8 @@ class TaskNode : public rclcpp::Node
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveToJointConfig(const joint_config& joint_values, double planning_time = 5.0)
     {
+        //setting moveit
+        move_group_->setPlannerId(joint_planning_algorithm_);
         move_group_->setPlanningTime(planning_time);
 
         // Recuperiamo il modello cinematico associato al gruppo per validare l'input
@@ -209,7 +222,8 @@ class TaskNode : public rclcpp::Node
     bool moveToNamedTarget(const std::string& target_name, 
                            double planning_time = 5.0)
     {
-
+        //setting moveit
+        move_group_->setPlannerId(joint_planning_algorithm_);
         move_group_->setPlanningTime(planning_time);
 
         RCLCPP_INFO(this->get_logger(),
@@ -262,15 +276,22 @@ class TaskNode : public rclcpp::Node
                     const std::string& frame_id = WORLD_FRAME, 
                     double planning_time = 5.0)
     {
+        //setting moveit
+        move_group_->setPlannerId(cartesian_planning_algorithm_);
+        move_group_->setPlanningTime(planning_time);
         
+
         RCLCPP_INFO(this->get_logger(),
                     "→ Planning verso posa cartesiana: [%.3f, %.3f, %.3f] con orientamento [w: %.3f, x: %.3f, y: %.3f, z: %.3f] in frame '%s'",
                     posizione.x(), posizione.y(), posizione.z(), 
                     orientamento.normalized().w(), orientamento.normalized().x(), orientamento.normalized().y(), orientamento.normalized().z(), 
                     frame_id.c_str());
 
+        
+        // 1. Rilassiamo le tolleranze (adatta questi valori in base alla precisione richiesta)
+        move_group_->setGoalPositionTolerance(0.002);    // 2 mm
+        move_group_->setGoalOrientationTolerance(0.02);  // ~1 grado
 
-        move_group_->setPlanningTime(planning_time);
 
         // Costruisco il messaggio ROS2 della posa target a partire da posizione e orientamento desiderati
         // NOTA: ho bisogno di stamped per specificare anche il frame di riferimento, altrimenti
@@ -279,20 +300,26 @@ class TaskNode : public rclcpp::Node
 
         target_pose.header.frame_id = frame_id;
 
+        target_pose.header.stamp = this->get_clock()->now();
+
         target_pose.pose.position.x = posizione.x();
         target_pose.pose.position.y = posizione.y();
         target_pose.pose.position.z = posizione.z();
  
-        target_pose.pose.orientation.w = orientamento.normalized().w();
-        target_pose.pose.orientation.x = orientamento.normalized().x();
-        target_pose.pose.orientation.y = orientamento.normalized().y();
-        target_pose.pose.orientation.z = orientamento.normalized().z();
+        Quaternion q_norm = orientamento.normalized();
+        target_pose.pose.orientation.w = q_norm.w();
+        target_pose.pose.orientation.x = q_norm.x();
+        target_pose.pose.orientation.y = q_norm.y();
+        target_pose.pose.orientation.z = q_norm.z();
         
 
-        // Puliamo i target precedenti prima di impostare la nuova configurazione
-        //ridondanza per robustezza codice: assicuriamoci che MoveIt! conosca la configurazione attuale del robot prima di pianificare
+        // 3. Forziamo l'aggiornamento dello stato (funziona solo se c'è uno spinner attivo!)
         move_group_->setStartStateToCurrentState();
         move_group_->clearPoseTargets();
+
+
+        // 4. (Opzionale ma raccomandato) Specifica esplicitamente l'end-effector
+        move_group_->setEndEffectorLink(EE_LINK);
 
 
         move_group_->setPoseTarget(target_pose);
@@ -321,79 +348,82 @@ class TaskNode : public rclcpp::Node
     }
 
 
-    bool moveToCartesianPoseThroughJointSpace(const Vector3d& posizione, 
-                                              const Quaternion& orientamento, 
-                                              const std::string& frame_id,
-                                              double planning_time = 5.0 )
-    {
-        // 1. Preparazione della posa target espressa in PoseStamped
-        PoseStampedMsg target_pose;
-        target_pose.header.stamp = this->now();
-        target_pose.header.frame_id = frame_id;
+    // bool moveToCartesianPoseThroughJointSpace(const Vector3d& posizione, 
+    //                                           const Quaternion& orientamento, 
+    //                                           const std::string& frame_id,
+    //                                           double planning_time = 5.0 )
+    // {
+    //     // 1. Preparazione della posa target espressa in PoseStamped
+    //     PoseStampedMsg target_pose;
+    //     target_pose.header.stamp = this->now();
+    //     target_pose.header.frame_id = frame_id;
 
-        target_pose.pose.position.x = posizione.x();
-        target_pose.pose.position.y = posizione.y();
-        target_pose.pose.position.z = posizione.z();
+    //     target_pose.pose.position.x = posizione.x();
+    //     target_pose.pose.position.y = posizione.y();
+    //     target_pose.pose.position.z = posizione.z();
 
-        Quaternion q_norm = orientamento.normalized();
-        target_pose.pose.orientation.w = q_norm.w();
-        target_pose.pose.orientation.x = q_norm.x();
-        target_pose.pose.orientation.y = q_norm.y();
-        target_pose.pose.orientation.z = q_norm.z();
-
-
-        // 2. Controllo disponibilità del servizio CLIK
-        if (!clik_client_->wait_for_service(std::chrono::seconds(2))) {
-            RCLCPP_ERROR(this->get_logger(), "Servizio CLIK non disponibile!");
-            return false;
-        }
+    //     Quaternion q_norm = orientamento.normalized();
+    //     target_pose.pose.orientation.w = q_norm.w();
+    //     target_pose.pose.orientation.x = q_norm.x();
+    //     target_pose.pose.orientation.y = q_norm.y();
+    //     target_pose.pose.orientation.z = q_norm.z();
 
 
-        // 3. Costruzione richiesta Servizio CLIK
-        auto request = std::make_shared<ComputeIkClikSrv::Request>();
-        request->target_pose = target_pose;
-
-        //se non passo nulla agli altri campi, il servizio usa i valori di default
-        // request->max_iterations = 100;             // 100 iterazioni massime
-        // request->position_tolerance = 0.001;       // 1 mm
-        // request->orientation_tolerance = 0.01;     // ~0.5 gradi
+    //     // 2. Controllo disponibilità del servizio CLIK
+    //     if (!clik_client_->wait_for_service(std::chrono::seconds(2))) {
+    //         RCLCPP_ERROR(this->get_logger(), "Servizio CLIK non disponibile!");
+    //         return false;
+    //     }
 
 
-        // 4. Chiamata ed attesa sincrona della risposta
-        auto future_result = clik_client_->async_send_request(request);
+    //     // 3. Costruzione richiesta Servizio CLIK
+    //     auto request = std::make_shared<ComputeIkClikSrv::Request>();
+    //     request->target_pose = target_pose;
 
-        // Attesa massima di 1 secondi per la risposta della CPU
-        if (future_result.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
-            RCLCPP_ERROR(this->get_logger(), "Timeout nell'attesa della risposta dal servizio CLIK!");
-            return false;
-        }
-
-        auto response = future_result.get();
+    //     //se non passo nulla agli altri campi, il servizio usa i valori di default
+    //     // request->max_iterations = 100;             // 100 iterazioni massime
+    //     // request->position_tolerance = 0.001;       // 1 mm
+    //     // request->orientation_tolerance = 0.01;     // ~0.5 gradi
 
 
-        // 5. Verifica dell'esito della Cinematica Inversa
-        if (!response->success) {
-            RCLCPP_ERROR(this->get_logger(), "Calcolo CLIK fallito: %s", response->message.c_str());
-            return false;
-        }
+    //     // 4. Chiamata ed attesa sincrona della risposta
+    //     auto future_result = clik_client_->async_send_request(request);
+
+    //     // Attesa massima di 1 secondi per la risposta della CPU
+    //     if (future_result.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
+    //         RCLCPP_ERROR(this->get_logger(), "Timeout nell'attesa della risposta dal servizio CLIK!");
+    //         return false;
+    //     }
+
+    //     auto response = future_result.get();
 
 
-        // 6. Estrazione della configurazione giunti calcolata
-        joint_config joint_target_positions = response->joint_state.position;
+    //     // 5. Verifica dell'esito della Cinematica Inversa
+    //     if (!response->success) {
+    //         RCLCPP_ERROR(this->get_logger(), "Calcolo CLIK fallito: %s", response->message.c_str());
+    //         return false;
+    //     }
 
 
-        // Log delle posizioni trovate
-        RCLCPP_INFO(this->get_logger(), "Configurazione giunti trovata con successo via CLIK:");
-        for (size_t i = 0; i < joint_target_positions.size(); ++i) {
-            std::string j_name = (i < response->joint_state.name.size()) ? response->joint_state.name[i] : std::to_string(i);
-            RCLCPP_INFO(this->get_logger(), "  - %s: %.4f rad", j_name.c_str(), joint_target_positions[i]);
-        }
+    //     // 6. Estrazione della configurazione giunti calcolata
+    //     joint_config joint_target_positions = response->joint_state.position;
+
+
+    //     // Log delle posizioni trovate
+    //     RCLCPP_INFO(this->get_logger(), "Configurazione giunti trovata con successo via CLIK:");
+    //     for (size_t i = 0; i < joint_target_positions.size(); ++i) {
+    //         std::string j_name = (i < response->joint_state.name.size()) ? response->joint_state.name[i] : std::to_string(i);
+    //         RCLCPP_INFO(this->get_logger(), "  - %s: %.4f rad", j_name.c_str(), joint_target_positions[i]);
+    //     }
 
         
         // 7. Pianificazione ed esecuzione nello spazio giunti
-        return moveToJointConfig(joint_target_positions, planning_time);
-    }
+    //     return moveToJointConfig(joint_target_positions, planning_time);
+    // }
 
+
+    //metodi getter
+    double getDefCartesianPlanningTime() const { return def_cartesian_planning_time_; }
 
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
     void print_and_wait(const std::string & message)
@@ -411,10 +441,14 @@ class TaskNode : public rclcpp::Node
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
-    ComputeIkClikSrvClientPtr clik_client_;
+    //ComputeIkClikSrvClientPtr clik_client_;
 
     char c_in; // variabile per input da terminale (usata in print_and_wait)
 
+    // Parametri di pianificazione
+    double def_cartesian_planning_time_;          // tempo di pianificazione di default (secondi)
+    std::string joint_planning_algorithm_;      // planner per pianificazione in spazio giunti
+    std::string cartesian_planning_algorithm_;  // planner per pianificazione cartesiana
 
 };
 
@@ -448,65 +482,30 @@ int main(int argc, char* argv[])
     
     
 
-    // 2 - vado in posizione di pre-shot
+    // 2 - approach alla pallina
     {
-        node->print_and_wait("Pianificando verso la posizione di pre-shot...");
+        node->print_and_wait("Pianificando verso approach alla pallina..");
 
-        Vector3d pos_pre_shot = Vector3d(0, 
-                                        0, 
-                                        0.05
+        Vector3d pos_pre_shot = Vector3d(0.02, 
+                                         0, 
+                                         0.02
                                         );
 
         // direzione d'impatto
-        double alpha_latitude_rad = 30 * M_PI / 180;   //rotazione attorno asse y
+        double alpha_latitude_rad = 10 * M_PI / 180;   //rotazione attorno asse y
         double beta_longitude_rad = 0 * M_PI / 180;    //rotazione attorno asse z
 
         Quaternion Q_pre_shot(
-                            RotationAxis(-M_PI/2, Y_AXIS) 
-                            // RotationAxis(alpha_latitude_rad, Y_AXIS) * 
-                            // RotationAxis(beta_longitude_rad, Z_AXIS)
-                            ); 
-
-        // Q_pre_shot = Q_pre_shot.normalized(); // normalizzo il quaternione per sicurezza
-
-        // Quaternion Q_pre_shot(1,0,0,0); // orientamento identità (nessuna rotazione)
-
-        //node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
-
-        node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
-    }
-    
-
-
-
-    //2+ un'altra posa a caso
-    {
-        node->print_and_wait("Posa a caso...");
-
-        Vector3d pos_pre_shot = Vector3d( 0, 
-                                        0, 
-                                        0.10
-                                        );
-
-        // direzione d'impatto
-        double alpha_latitude_rad = 0 * M_PI / 180;   //rotazione attorno asse y
-        double beta_longitude_rad = 0 * M_PI / 180;    //rotazione attorno asse z
-
-        Quaternion Q_pre_shot(
-                            RotationAxis(-M_PI/2, Y_AXIS) *
+                            RotationAxis(M_PI/2, Y_AXIS) *
                             RotationAxis(alpha_latitude_rad, Y_AXIS) * 
                             RotationAxis(beta_longitude_rad, Z_AXIS)
-                            ); 
-        // Q_pre_shot = Q_pre_shot.normalized(); // normalizzo il quaternione per sicurezza
+                            );
 
-        // Quaternion Q_pre_shot(1,0,0,0); // orientamento identità (nessuna rotazione)
+        node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, node->getDefCartesianPlanningTime());
 
-        //node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, 60);
-        
-        
-        node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, WORLD_FRAME, 60);
+        //node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, "left_rod_tip_virtual_link", 60);
     }
-    
+
 
 
     // 3 - eseguo tiro

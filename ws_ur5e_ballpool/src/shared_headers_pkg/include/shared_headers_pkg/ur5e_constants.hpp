@@ -19,7 +19,7 @@ const std::vector<std::string> UR5e_JOINT_NAMES = {
 
 const std::string EE_LINK = "left_rod_tip_virtual_link";  // link del tip dell'asta, end-effector (definito in URDF)
 //const std::string LAST_LINK         = "left_wrist_3_link";
-const std::string BASE_LINK         = "left_base_link";        
+// const std::string BASE_LINK         = "left_base_link_inertia";        
 
 
 

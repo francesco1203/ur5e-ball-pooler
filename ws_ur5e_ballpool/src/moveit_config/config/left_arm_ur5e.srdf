@@ -57,4 +57,15 @@
     <disable_collisions link1="left_wrist_1_link" link2="left_wrist_3_link" reason="Never"/>
     <disable_collisions link1="left_wrist_2_link" link2="left_wrist_3_link" reason="Adjacent"/>
     <disable_collisions link1="wall_link" link2="world" reason="Adjacent"/>
+
+    <!-- AGGIUNTI PER DEBUG di task node (le collisioni devono essere attive ai fini del programma)-->
+    <!-- <disable_collisions link1="left_upper_arm_link" link2="world" reason="Never"/>
+    <disable_collisions link1="left_upper_arm_link" link2="left_base_link_inertia" reason="Never"/>
+    <disable_collisions link1="left_holder_link" link2="left_forearm_link" reason="Never"/>
+    <disable_collisions link1="left_holder_link" link2="world" reason="Never"/>
+    <disable_collisions link1="left_cut_rod_link" link2="left_forearm_link" reason="Never"/>
+    <disable_collisions link1="left_cut_rod_link" link2="world" reason="Never"/>
+    <disable_collisions link1="left_forearm_link" link2="world" reason="Never"/>
+    <disable_collisions link1="left_wrist_3_link" link2="world" reason="Never"/>
+    <disable_collisions link1="left_wrist_2_link" link2="world" reason="Never"/> -->
 </robot>
