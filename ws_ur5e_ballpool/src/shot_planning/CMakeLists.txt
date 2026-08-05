@@ -13,15 +13,15 @@ find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 
 find_package(shared_headers_pkg REQUIRED)  #mia libreria di headers .hpp
-find_package(interfaces_pkg REQUIRED)   #mia libreria di interfaces per servizi e azioni
+# find_package(interfaces_pkg REQUIRED)     #mia libreria di interfaces per servizi e azioni
 
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 find_package(Eigen3 REQUIRED)      
 
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
+# find_package(tf2_ros REQUIRED)
+# find_package(tf2_geometry_msgs REQUIRED)
 
 
 # add_executable(clik_node src/clik_node.cpp)
@@ -48,7 +48,7 @@ ament_target_dependencies(
   "sensor_msgs"
   "Eigen3"
   "shared_headers_pkg"
-  "interfaces_pkg"
+  # "interfaces_pkg"
 )
 
 install(TARGETS 
@@ -56,10 +56,16 @@ install(TARGETS
   # clik_node
 DESTINATION lib/${PROJECT_NAME})
 
-########## INSTALL the launch files ############
-install(DIRECTORY launch
+########## INSTALL the config files ############
+install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME})
 ################################################
+
+
+# ########## INSTALL the launch files ############
+# install(DIRECTORY launch
+#   DESTINATION share/${PROJECT_NAME})
+# ################################################
 
 
 

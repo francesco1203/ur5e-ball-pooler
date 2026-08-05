@@ -39,34 +39,16 @@ Work in progress..
 
 On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and to build use cmd:
 
-- 1. colcon build --symlink-install
-- 2. source install/setup.bash
+- colcon build --symlink-install
 
-Now, you should modify the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the right plugin (only RViz def).
+then open cmd and execute the bash script:
 
-### No MuJoCo:
+- ./start_robot.sh
 
-CMD1 - start MoveIt and RViz (no MuJoCo)
-- 3. ros2 launch moveit_config demo.launch.py
+### !!USING MUJOCO!!
+You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the MuJoCo plugin (TODO: automatic upload)
 
-CMD2 - write your position in fake_camera/config and enable fake camera
-- 4. ros2 launch fake_camera fake_camera.launch.py
-
-CMD3 - build scene
-- 5. ros2 run scene_description scene_builder
-
-### Using MuJoco
-
-CMD1 - start MoveIt, RViz and no MuJoCo
-- 3. ros2 launch moveit_config mujoco_demo.launch.py
-
-CMD2 - write your position in fake_camera/config and enable fake camera
-- 4. ros2 launch fake_camera fake_camera.launch.py
-
-CMD3 - build scene
-- 5. ros2 run scene_description scene_builder
-
-NOTE: in MUJOCO you should upload the positions all by hand, modifying directly mujoco_bridge/complete_scene.xml
+Then you should upload the positions all by hand, modifying directly mujoco_bridge/complete_scene.xml (TODO: automatic upload)
 
 ---
 

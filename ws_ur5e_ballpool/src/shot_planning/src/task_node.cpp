@@ -3,11 +3,13 @@
 //  Nodo ROS2 che pianifica e ESEGUE movimenti del braccio
 //  usando MoveIt! MoveGroupInterface.
 //
+//  Eseguire con: ros2 run shot_planning task_node --ros-args --params-file $(ros2 pkg prefix shot_planning)/share/shot_planning/config/task_params.yaml
+//
 //  Struttura:
 //    - TaskNode (classe nodo ROS2)
 //        ├── moveToJointConfig    → pianifica ed esegue verso una configurazione di giunti specifica
-//        ├── moveToPose()         → va a una posa cartesiana (posizione + orientamento)
 //        ├── moveToNamedTarget()  → va a una posizione predefinita (es. "home")
+//        ├── moveToPose()         → va a una posa cartesiana (posizione + orientamento)
 // ============================================================
 
 #include <memory>
@@ -39,7 +41,7 @@
 
 
 // servizio
-#include "interfaces_pkg/srv/compute_ik_clik.hpp"
+// #include "interfaces_pkg/srv/compute_ik_clik.hpp"
 
 
 
@@ -58,31 +60,40 @@ class TaskNode : public rclcpp::Node
     using MoveGroupInterfacePtr = std::unique_ptr<MoveGroupInterface>;
     using Plan                  = MoveGroupInterface::Plan;
 
-    //messaggi
+    //Msh
     using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
     using JointStateMsg  = sensor_msgs::msg::JointState;   
 
-    //servzio
+    //Service
     // using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
     // using ComputeIkClikSrvClientPtr = rclcpp::Client<ComputeIkClikSrv>::SharedPtr;
 
-    //altro
+    //Other
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
 
 
   public:
 
-    /* Costruttore */
+    /* Builder */
     TaskNode(const rclcpp::NodeOptions& opt = rclcpp::NodeOptions())
-    : rclcpp::Node("task_node", opt)
+        : rclcpp::Node("task_node", opt)
     {
-        // Parametri di pianificazione da launch file
-        
-        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);     // default planning time in seconds
-        this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");  
-        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault"); 
+        // Planning parameters from task_param.yaml
+        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);                           // default planning time in seconds
+        this->declare_parameter<double>("def_joint_planning_time", 5.0);                                // default planning time in seconds
+        this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians
+        this->declare_parameter<double>("goal_position_tolerance", 0.002);                              // default position tolerance in meters
+        this->declare_parameter<double>("goal_orientation_tolerance", 0.02);                            // default orientation tolerance in radians
+         this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
+        this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");   // def planner
+        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault");  // def planner
 
         def_cartesian_planning_time_ = this->get_parameter("def_cartesian_planning_time").as_double();
+        def_joint_planning_time_ = this->get_parameter("def_joint_planning_time").as_double();
+        goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
+        goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
+        goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
+        max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
         joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
         cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
 
@@ -100,6 +111,7 @@ class TaskNode : public rclcpp::Node
         start_timer_->cancel(); // esegui una sola volta
  
 
+
         /*MOVEIT setup*/
         move_group_ = std::make_unique<MoveGroupInterface>(this->shared_from_this(), PLANNING_GROUP);
 
@@ -110,13 +122,19 @@ class TaskNode : public rclcpp::Node
         // Setto end effector link (tip asta) per MoveGroupInterface, altrimenti MoveIt! assume il link finale del gruppo cinematico
         move_group_->setEndEffectorLink(EE_LINK);
  
-        // Velocità e accelerazione — abbassale ulteriormente in fase di test
-        move_group_->setMaxVelocityScalingFactor(0.3);
-        move_group_->setMaxAccelerationScalingFactor(0.3);
+
+        // Rilassiamo le tolleranze degli algoritmi di pianificazione, per evitare che MoveIt! fallisca la pianificazione per piccole imprecisioni
+        move_group_->setGoalJointTolerance(goal_joint_tolerance_);              // ~un ventesimo di grado
+        move_group_->setGoalPositionTolerance(goal_position_tolerance_);        // 2 mm
+        move_group_->setGoalOrientationTolerance(goal_orientation_tolerance_);  // ~1 grado
+
+
+        // Velocità e accelerazione — scaling rispetto ai limiti massimi definiti in URDF e joint_limits.yaml
+        move_group_->setMaxVelocityScalingFactor(max_velocity_acceleration_scaling_factor_);
+        move_group_->setMaxAccelerationScalingFactor(max_velocity_acceleration_scaling_factor_);
 
 
         //Scelta planner da usare
-        //move_group_->setPlannerId("PLANNER");
         //NON LO FACCIAMO QUI, MA NEI METODI APPOSITI, PERCHÉ DISTINGUIAMO TRA PIANIFICAZIONE CARTESIANA E PIANIFICAZIONE IN SPAZIO GIUNTI
       
 
@@ -124,9 +142,11 @@ class TaskNode : public rclcpp::Node
         //clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
 
  
+
         RCLCPP_INFO(this->get_logger(), "TaskNode pronto.");
         init_done_.set_value();  // sblocca il main — init completato
     }
+
 
     void waitInit()
     {
@@ -147,12 +167,17 @@ class TaskNode : public rclcpp::Node
     // desiderata (espressa in radianti).
     //
     // INPUT:  joint_values → vettore di double contenente gli angoli dei giunti
+    //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
-    bool moveToJointConfig(const joint_config& joint_values, double planning_time = 5.0)
+    bool moveToJointConfig(const joint_config& joint_values, 
+                           double planning_time = -1.0)
     {
         //setting moveit
         move_group_->setPlannerId(joint_planning_algorithm_);
-        move_group_->setPlanningTime(planning_time);
+
+        // Se non è stato specificato (valore sentinella -1.0), usa il membro di classe
+        double real_planning_time = (planning_time < 0.0) ? def_joint_planning_time_ : planning_time;
+        move_group_->setPlanningTime(real_planning_time);
 
         // Recuperiamo il modello cinematico associato al gruppo per validare l'input
         auto joint_model_group = move_group_->getCurrentState()->getRobotModel()->getJointModelGroup(move_group_->getName());
@@ -217,14 +242,18 @@ class TaskNode : public rclcpp::Node
     // ── moveToNamedTarget ────────────────────────────────────────────────
     // Muove il robot in una configurazione predefinita per nome,
     //
-    // INPUT:  target_name → nome della configurazione (es. "home")
+    // INPUT:  target_name → nome della configurazione di giunto (es. "home")
+    //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveToNamedTarget(const std::string& target_name, 
-                           double planning_time = 5.0)
+                           double planning_time = -1.0)
     {
         //setting moveit
         move_group_->setPlannerId(joint_planning_algorithm_);
-        move_group_->setPlanningTime(planning_time);
+
+         // Se non è stato specificato (valore sentinella -1.0), usa il membro di classe
+        double real_planning_time = (planning_time < 0.0) ? def_joint_planning_time_ : planning_time;
+        move_group_->setPlanningTime(real_planning_time);
 
         RCLCPP_INFO(this->get_logger(),
                     "→ Named target: '%s'", target_name.c_str());
@@ -270,15 +299,19 @@ class TaskNode : public rclcpp::Node
     // INPUT:  posizione    → Vector3d {x, y, z} rispetto a "world"
     //         orientamento → Quaternion che descrive l'orientamento del EEF
     //         terna di riferimento frame esplicito (world di default)
+    //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveToPose(const Vector3d& posizione, 
                     const Quaternion& orientamento,
                     const std::string& frame_id = WORLD_FRAME, 
-                    double planning_time = 5.0)
+                    double planning_time = -1.0)
     {
         //setting moveit
         move_group_->setPlannerId(cartesian_planning_algorithm_);
-        move_group_->setPlanningTime(planning_time);
+
+        // Se non è stato specificato (valore sentinella -1.0), usa il membro di classe
+        double real_planning_time = (planning_time < 0.0) ? def_cartesian_planning_time_ : planning_time;
+        move_group_->setPlanningTime(real_planning_time);
         
 
         RCLCPP_INFO(this->get_logger(),
@@ -286,11 +319,6 @@ class TaskNode : public rclcpp::Node
                     posizione.x(), posizione.y(), posizione.z(), 
                     orientamento.normalized().w(), orientamento.normalized().x(), orientamento.normalized().y(), orientamento.normalized().z(), 
                     frame_id.c_str());
-
-        
-        // 1. Rilassiamo le tolleranze (adatta questi valori in base alla precisione richiesta)
-        move_group_->setGoalPositionTolerance(0.002);    // 2 mm
-        move_group_->setGoalOrientationTolerance(0.02);  // ~1 grado
 
 
         // Costruisco il messaggio ROS2 della posa target a partire da posizione e orientamento desiderati
@@ -348,82 +376,12 @@ class TaskNode : public rclcpp::Node
     }
 
 
-    // bool moveToCartesianPoseThroughJointSpace(const Vector3d& posizione, 
-    //                                           const Quaternion& orientamento, 
-    //                                           const std::string& frame_id,
-    //                                           double planning_time = 5.0 )
-    // {
-    //     // 1. Preparazione della posa target espressa in PoseStamped
-    //     PoseStampedMsg target_pose;
-    //     target_pose.header.stamp = this->now();
-    //     target_pose.header.frame_id = frame_id;
-
-    //     target_pose.pose.position.x = posizione.x();
-    //     target_pose.pose.position.y = posizione.y();
-    //     target_pose.pose.position.z = posizione.z();
-
-    //     Quaternion q_norm = orientamento.normalized();
-    //     target_pose.pose.orientation.w = q_norm.w();
-    //     target_pose.pose.orientation.x = q_norm.x();
-    //     target_pose.pose.orientation.y = q_norm.y();
-    //     target_pose.pose.orientation.z = q_norm.z();
-
-
-    //     // 2. Controllo disponibilità del servizio CLIK
-    //     if (!clik_client_->wait_for_service(std::chrono::seconds(2))) {
-    //         RCLCPP_ERROR(this->get_logger(), "Servizio CLIK non disponibile!");
-    //         return false;
-    //     }
-
-
-    //     // 3. Costruzione richiesta Servizio CLIK
-    //     auto request = std::make_shared<ComputeIkClikSrv::Request>();
-    //     request->target_pose = target_pose;
-
-    //     //se non passo nulla agli altri campi, il servizio usa i valori di default
-    //     // request->max_iterations = 100;             // 100 iterazioni massime
-    //     // request->position_tolerance = 0.001;       // 1 mm
-    //     // request->orientation_tolerance = 0.01;     // ~0.5 gradi
-
-
-    //     // 4. Chiamata ed attesa sincrona della risposta
-    //     auto future_result = clik_client_->async_send_request(request);
-
-    //     // Attesa massima di 1 secondi per la risposta della CPU
-    //     if (future_result.wait_for(std::chrono::seconds(1)) != std::future_status::ready) {
-    //         RCLCPP_ERROR(this->get_logger(), "Timeout nell'attesa della risposta dal servizio CLIK!");
-    //         return false;
-    //     }
-
-    //     auto response = future_result.get();
-
-
-    //     // 5. Verifica dell'esito della Cinematica Inversa
-    //     if (!response->success) {
-    //         RCLCPP_ERROR(this->get_logger(), "Calcolo CLIK fallito: %s", response->message.c_str());
-    //         return false;
-    //     }
-
-
-    //     // 6. Estrazione della configurazione giunti calcolata
-    //     joint_config joint_target_positions = response->joint_state.position;
-
-
-    //     // Log delle posizioni trovate
-    //     RCLCPP_INFO(this->get_logger(), "Configurazione giunti trovata con successo via CLIK:");
-    //     for (size_t i = 0; i < joint_target_positions.size(); ++i) {
-    //         std::string j_name = (i < response->joint_state.name.size()) ? response->joint_state.name[i] : std::to_string(i);
-    //         RCLCPP_INFO(this->get_logger(), "  - %s: %.4f rad", j_name.c_str(), joint_target_positions[i]);
-    //     }
-
-        
-        // 7. Pianificazione ed esecuzione nello spazio giunti
-    //     return moveToJointConfig(joint_target_positions, planning_time);
-    // }
-
+    /*ALTRI METODI DI UTILITIES*/
 
     //metodi getter
-    double getDefCartesianPlanningTime() const { return def_cartesian_planning_time_; }
+    // double getDefJointPlanningTime() const { return def_joint_planning_time_; }
+    // double getDefCartesianPlanningTime() const { return def_cartesian_planning_time_; }
+
 
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
     void print_and_wait(const std::string & message)
@@ -446,12 +404,16 @@ class TaskNode : public rclcpp::Node
     char c_in; // variabile per input da terminale (usata in print_and_wait)
 
     // Parametri di pianificazione
-    double def_cartesian_planning_time_;          // tempo di pianificazione di default (secondi)
-    std::string joint_planning_algorithm_;      // planner per pianificazione in spazio giunti
-    std::string cartesian_planning_algorithm_;  // planner per pianificazione cartesiana
+    double def_cartesian_planning_time_;                // tempo di pianificazione di default (secondi)
+    double def_joint_planning_time_;                    // tempo di pianificazione di default (secondi)
+    double goal_joint_tolerance_;                       // tolleranza di giunto (radians)
+    double goal_position_tolerance_;                    // tolleranza di posizione (metri)
+    double goal_orientation_tolerance_;                 // tolleranza di orientamento (radians)
+    double max_velocity_acceleration_scaling_factor_;   // fattore di scala per velocità e accelerazione
+    std::string joint_planning_algorithm_;              // planner per pianificazione in spazio giunti
+    std::string cartesian_planning_algorithm_;          // planner per pianificazione cartesiana
 
 };
-
 
 
 
@@ -477,7 +439,7 @@ int main(int argc, char* argv[])
     // 1 - vado in pre-approach per approcciare la pallina
     {
         node->print_and_wait("Posizionamento in 'pre_approach");
-        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 5);
+        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
     }
     
     
@@ -486,14 +448,11 @@ int main(int argc, char* argv[])
     {
         node->print_and_wait("Pianificando verso approach alla pallina..");
 
-        Vector3d pos_pre_shot = Vector3d(0.02, 
-                                         0, 
-                                         0.02
-                                        );
+        Vector3d pos_pre_shot = Vector3d(-0.02, 0, 0.02 );
 
         // direzione d'impatto
         double alpha_latitude_rad = 10 * M_PI / 180;   //rotazione attorno asse y
-        double beta_longitude_rad = 0 * M_PI / 180;    //rotazione attorno asse z
+        double beta_longitude_rad = 20 * M_PI / 180;    //rotazione attorno asse z
 
         Quaternion Q_pre_shot(
                             RotationAxis(M_PI/2, Y_AXIS) *
@@ -501,7 +460,7 @@ int main(int argc, char* argv[])
                             RotationAxis(beta_longitude_rad, Z_AXIS)
                             );
 
-        node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME, node->getDefCartesianPlanningTime());
+        node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
 
         //node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, "left_rod_tip_virtual_link", 60);
     }

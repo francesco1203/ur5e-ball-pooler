@@ -8,11 +8,11 @@
                 <!-- Qui si ha una lista di plugin: decommentare quello che si vuole usare, e commentare gli altri. -->
 
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
-                <plugin>mock_components/GenericSystem</plugin>
+                <!-- <plugin>mock_components/GenericSystem</plugin> -->
 
                 <!-- PLUGIN PER MUJOCO -->
-                <!-- <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
-                <param name="mujoco_model">/home/francesco/Desktop/ProgettoRobotica/ws_ur5e_ballpool/src/mujoco_bridge/complete_scene.xml</param> -->
+                <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+                <param name="mujoco_model">/home/francesco/Desktop/ProgettoRobotica/ws_ur5e_ballpool/src/mujoco_bridge/complete_scene.xml</param>
 
                 <!-- PLUGIN PER HARDWARE REALE -->
                 <!-- ... TODO -->

@@ -282,10 +282,10 @@ class SceneBuilderNode : public rclcpp::Node
         for (const auto& [ball_id, color] : balls_to_find)
         {
             try {
-                // Attende fino a 3.0 secondi che la trasformata sia disponibile nel buffer TF.
+                // Attende fino a 1.0 secondi che la trasformata sia disponibile nel buffer TF.
                 // canTransform blocca l'esecuzione consentendo allo spinner di aggiornare il buffer TF interno.
            
-                if (tf_buffer_->canTransform(BILLIARD_TABLE_FRAME, ball_id, tf2::TimePointZero, tf2::durationFromSec(3.0)))
+                if (tf_buffer_->canTransform(BILLIARD_TABLE_FRAME, ball_id, tf2::TimePointZero, tf2::durationFromSec(1.0)))
                 
                 {
                     // Legge la trasformata della pallina rispetto al frame del tavolo/riferimento
@@ -307,7 +307,7 @@ class SceneBuilderNode : public rclcpp::Node
                 }
                 else
                 {
-                    RCLCPP_WARN(this->get_logger(), "Timeout: TF per [%s] rispetto a [%s] non trovata entro 3 secondi.", 
+                    RCLCPP_WARN(this->get_logger(), "Timeout: TF per [%s] rispetto a [%s] non trovata entro 1 secondo.", 
                                 ball_id.c_str(), BILLIARD_TABLE_FRAME.c_str());
                 }
 

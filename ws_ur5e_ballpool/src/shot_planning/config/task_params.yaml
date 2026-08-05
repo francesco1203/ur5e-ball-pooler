@@ -1,0 +1,38 @@
+task_node:
+  ros__parameters:
+    def_joint_planning_time: 5.0
+    def_cartesian_planning_time: 10.0
+    goal_joint_tolerance: 0.001                   # ~1/20 di grado (def moveit 0.001 ~1/200 di grado)
+    goal_position_tolerance: 0.002                # 2 mm (def moveit 0.0001 ~0.1 mm)
+    goal_orientation_tolerance: 0.02              # ~1 grado (def moveit 0.001 rad ~0.1° )
+    max_velocity_acceleration_scaling_factor: 0.3
+    joint_planning_algorithm: "RRTConnectkConfigDefault"
+    cartesian_planning_algorithm: "RRTstarkConfigDefault"
+
+
+    # SCELTE TRA ALGORITMI DI PLANNING (da ompl_planning.yaml):
+    # - APSConfigDefault
+    # - SBLkConfigDefault
+    # - ESTkConfigDefault
+    # - LBKPIECEkConfigDefault
+    # - BKPIECEkConfigDefault
+    # - KPIECEkConfigDefault
+    # - RRTkConfigDefault
+    # - RRTConnectkConfigDefault
+    # - RRTstarkConfigDefault
+    # - TRRTkConfigDefault
+    # - PRMkConfigDefault
+    # - PRMstarkConfigDefault
+    # - FMTkConfigDefault
+    # - BFMTkConfigDefault
+    # - PDSTkConfigDefault
+    # - STRIDEkConfigDefault
+    # - BiTRRTkConfigDefault
+    # - LBTRRTkConfigDefault
+    # - BiESTkConfigDefault
+    # - ProjESTkConfigDefault
+    # - LazyPRMkConfigDefault
+    # - LazyPRMstarkConfigDefault
+    # - SPARSkConfigDefault
+    # - SPARStwokConfigDefault
+    # - TrajOptDefault
