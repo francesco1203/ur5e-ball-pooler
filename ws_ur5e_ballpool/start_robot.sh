@@ -17,7 +17,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
     echo "Avvio MuJoCo con MoveIt..."
     echo "-> Assicurati di aver decommentato il plugin MuJoCo nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
-    gnome-terminal --tab --title="MuJoCo" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
+    gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
 
     sleep 10
 else
@@ -30,17 +30,17 @@ else
 fi
 
 
-echo "Avvio Fake Camera..."
-gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
+# echo "Avvio Fake Camera..."
+# gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
 
-sleep 3
+# sleep 3
 
-echo "Avvio Scene Builder..."
-gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
+# echo "Avvio Scene Builder..."
+# gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
 
-sleep 7
+# sleep 7
 
-echo "Avvio Shot Planning..."
-gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+# echo "Avvio Shot Planning..."
+# gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
 
 echo "Tutti i nodi sono stati avviati!"
