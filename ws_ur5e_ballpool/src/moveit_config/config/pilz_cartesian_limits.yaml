@@ -1,6 +1,6 @@
 # Limits for the Pilz planner
 cartesian_limits:
-  max_trans_vel: 1.0
-  max_trans_acc: 2.25
-  max_trans_dec: -5.0
-  max_rot_vel: 1.57
+  max_trans_vel: 4.0      #velocity limit for EE translation in m/s
+  max_trans_acc: 2.50     #acceleration limit for EE translation in m/s^2
+  max_trans_dec: -2.50    #deceleration limit for EE translation in m/s^2
+  max_rot_vel: 3.14       #velocity limit for EE rotation in rad/s (no info, used joint wrist limits)

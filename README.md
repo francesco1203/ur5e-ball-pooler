@@ -41,14 +41,19 @@ On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and to build use cmd:
 
 - colcon build --symlink-install
 
-then open cmd and execute the bash script:
+Give executing permission to the bash script:
+
+- chmod +x start_robot.sh
+
+Then, run it:
 
 - ./start_robot.sh
 
-### !!USING MUJOCO!!
+
+### Note about using MuJoCo!!
 You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the MuJoCo plugin (TODO: automatic upload)
 
-Then you should upload the positions all by hand, modifying directly mujoco_bridge/complete_scene.xml (TODO: automatic upload)
+Then you should upload the positions of the obstacles all by hand, modifying directly mujoco_bridge/complete_scene.xml (TODO: automatic upload)
 
 ---
 

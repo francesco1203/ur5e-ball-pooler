@@ -264,6 +264,7 @@
         <body name="left_forearm_link" pos="-0.425495 0 0" quat="1 0.000719104 -0.000251193 2.83361e-06">
           <inertial pos="-0.2422 0 0.0265" quat="0.501301 0.498381 0.510711 0.489375" mass="2.846" diaginertia="0.0787927 0.0785102 0.00397103"/>
           <joint name="left_elbow_joint" range="-3.14159 3.14159" pos="0 0 0" />
+          <!-- IMPORTANTE: LIMITE A -PI, PI PER ELBOW, DIVERSO DAGLI ALTRI -->
 
           <body name="left_wrist_1_link" pos="-0.39277 -0.000732057 0.133476" quat="0.999996 0.00274226 -0.000297394 1.89885e-06">
             <inertial pos="0 -0.01634 -0.0018" quat="0.960609 0.277707 0.00515042 -0.00913626" mass="1.37" diaginertia="0.00165502 0.00142363 0.00119868"/>
@@ -488,7 +489,8 @@
     <!-- Giunti Grandi: ereditano kp="2000", kv="400" e forcerange="-150 150" -->
     <position name="left_shoulder_pan" joint="left_shoulder_pan_joint" class="size3"/>
     <position name="left_shoulder_lift" joint="left_shoulder_lift_joint" class="size3"/>
-    <position name="left_elbow" joint="left_elbow_joint" class="size3"/>
+    <position name="left_elbow" joint="left_elbow_joint" ctrlrange="-3.14159 3.14159" class="size3"/>
+    <!-- IMPORTANTE: ELBOW HA RANGE DIVERSO DAGLI ALTRI, -PI, PI, GLI ALTRI HANNO -2PI, 2PI -->
 
     <!-- Giunti Polso: ereditano kp="500", kv="100" e forcerange="-28 28" -->
     <position name="left_wrist_1" joint="left_wrist_1_joint" class="size1"/>

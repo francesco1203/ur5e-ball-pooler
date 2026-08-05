@@ -10,31 +10,31 @@ default_acceleration_scaling_factor: 0.3
 joint_limits:
   left_elbow_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
   left_shoulder_lift_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
   left_shoulder_pan_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
   left_wrist_1_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
   left_wrist_2_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
   left_wrist_3_joint:
     has_velocity_limits: true
-    max_velocity: 3.1415926535897931
+    max_velocity: 3.1415926535897931  #180°/s
     has_acceleration_limits: true
-    max_acceleration: 3.1415926535897931
+    max_acceleration: 6.98131700798   #800°/s^2
