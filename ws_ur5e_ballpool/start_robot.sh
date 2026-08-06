@@ -7,27 +7,34 @@ if [ ! -d "install" ]; then
     exit 1
 fi
 
-echo "========================================"
-echo "      CONFIGURAZIONE AVVIO ROS 2        "
-echo "========================================"
-read -p "Vuoi avviare MuJoCo? (s/n): " scelta_mujoco
+# echo "========================================"
+# echo "      CONFIGURAZIONE AVVIO ROS 2        "
+# echo "========================================"
+# read -p "Vuoi avviare MuJoCo? (s/n): " scelta_mujoco
 
-# Gestione della scelta con if-else
-if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+# # Gestione della scelta con if-else
+# if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
-    echo "Avvio MuJoCo con MoveIt..."
-    echo "-> Assicurati di aver decommentato il plugin MuJoCo nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
-    gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
+#     echo "Avvio MuJoCo con MoveIt..."
+#     echo "-> Assicurati di aver decommentato il plugin MuJoCo nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
+#     gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
 
-    sleep 10
-else
-    echo "Avvio MoveIt..."
-    echo "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
-    gnome-terminal --tab --title="MoveIt" -- bash -c "source install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
+#     sleep 10
+# else
+#     echo "Avvio MoveIt..."
+#     echo "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
+#     gnome-terminal --tab --title="MoveIt" -- bash -c "source install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
 
-    sleep 10
+#     sleep 10
 
-fi
+# fi
+
+
+echo "Avvio MoveIt..."
+echo "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
+gnome-terminal --tab --title="MoveIt" -- bash -c "source install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
+
+sleep 10
 
 
 echo "Avvio Fake Camera..."

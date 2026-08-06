@@ -13,8 +13,9 @@
 // ============================================================
 
 #include <memory>
-#include <thread>
+// #include <thread>
 #include <vector>
+// #include <cmath>     //moveit già la include
 
 #include <rclcpp/rclcpp.hpp>
 // #include "rclcpp_action/rclcpp_action.hpp"
@@ -27,10 +28,18 @@
 
 #include <moveit/robot_model_loader/robot_model_loader.hpp>
 #include <moveit/robot_state/robot_state.hpp>
+ #include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
+
 
 #include "geometry_msgs/msg/pose_stamped.hpp" 
+#include "geometry_msgs/msg/pose.hpp" 
 #include "sensor_msgs/msg/joint_state.hpp"
 
+
+//tf
+#include <tf2_ros/buffer.hpp>
+#include <tf2_ros/transform_listener.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 // miei headers
 #include "shared_headers_pkg/eigen_utilities.hpp"
@@ -62,7 +71,9 @@ class TaskNode : public rclcpp::Node
 
     //Msh
     using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
+    using PoseMsg = geometry_msgs::msg::Pose;
     using JointStateMsg  = sensor_msgs::msg::JointState;   
+    using RobotTrajectoryMsg = moveit_msgs::msg::RobotTrajectory;
 
     //Service
     // using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
@@ -78,13 +89,13 @@ class TaskNode : public rclcpp::Node
     TaskNode(const rclcpp::NodeOptions& opt = rclcpp::NodeOptions())
         : rclcpp::Node("task_node", opt)
     {
-        // Planning parameters from task_param.yaml
+        /*PLANNING PARAMETERS from task_param.yaml*/ 
         this->declare_parameter<double>("def_cartesian_planning_time", 10.0);                           // default planning time in seconds
         this->declare_parameter<double>("def_joint_planning_time", 5.0);                                // default planning time in seconds
         this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians
         this->declare_parameter<double>("goal_position_tolerance", 0.002);                              // default position tolerance in meters
         this->declare_parameter<double>("goal_orientation_tolerance", 0.02);                            // default orientation tolerance in radians
-         this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
+        this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
         this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");   // def planner
         this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault");  // def planner
 
@@ -96,7 +107,6 @@ class TaskNode : public rclcpp::Node
         max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
         joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
         cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
-
 
 
         // MoveGroupInterface ha bisogno di shared_from_this(), che non è
@@ -141,7 +151,11 @@ class TaskNode : public rclcpp::Node
         /*SERVZIO CLIK*/
         //clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
 
- 
+
+        /*TF*/
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
 
         RCLCPP_INFO(this->get_logger(), "TaskNode pronto.");
         init_done_.set_value();  // sblocca il main — init completato
@@ -376,6 +390,103 @@ class TaskNode : public rclcpp::Node
     }
 
 
+    bool moveCartesianPath(const Vector3d& posizione, 
+                    const Quaternion& orientamento,
+                    const std::string& frame_id =   WORLD_FRAME)
+    {
+
+        // 1. Inizializza la posa originale come PoseStamped
+        PoseStampedMsg pose_stamped_in;
+        pose_stamped_in.header.frame_id = frame_id;
+        pose_stamped_in.header.stamp = this->get_clock()->now();
+
+        pose_stamped_in.pose.position.x = posizione.x();
+        pose_stamped_in.pose.position.y = posizione.y();
+        pose_stamped_in.pose.position.z = posizione.z();
+
+        Quaternion q_norm = orientamento.normalized();
+        pose_stamped_in.pose.orientation.w = q_norm.w();
+        pose_stamped_in.pose.orientation.x = q_norm.x();
+        pose_stamped_in.pose.orientation.y = q_norm.y();
+        pose_stamped_in.pose.orientation.z = q_norm.z();
+
+        //estraiamo Pose, che ci serve per costruire il vettore di waypoints per la pianificazione cartesiana
+        PoseMsg target_pose = pose_stamped_in.pose; // Posa di default
+
+
+        // 2. Moveit pianifica rispetto a world, quindi se il frame_id della posa target non è world, dobbiamo trasformare la posa nel frame di planning di MoveIt!
+        std::string planning_frame_moveit = move_group_->getPlanningFrame();
+        
+        if (frame_id != planning_frame_moveit) {
+            RCLCPP_INFO(this->get_logger(), "Trasformazione coordinate: da '%s' a '%s'...", 
+                        frame_id.c_str(), planning_frame_moveit.c_str());
+            try {
+                PoseStampedMsg pose_stamped_out;
+                
+                // Esegue la trasformazione (con un timeout di 100ms per aspettare che l'albero tf sia pronto)
+                pose_stamped_out = tf_buffer_->transform(
+                    pose_stamped_in, 
+                    planning_frame_moveit, 
+                    tf2::durationFromSec(0.1)
+                );
+                
+                // Aggiorna la target_pose con i valori trasformati
+                target_pose = pose_stamped_out.pose;
+                
+            } catch (const tf2::TransformException & ex) {
+                RCLCPP_ERROR(this->get_logger(), "Errore in tf2: impossibile trasformare la posa. %s", ex.what());
+                return false; // Interrompe il processo se non riesce a convertire
+            }
+        }
+
+
+         // 3. Calcola la traiettoria cartesiana grezza (senza temporizzazione) usando MoveIt!
+        std::vector<PoseMsg> waypoints;
+        waypoints.push_back(target_pose);
+
+       
+        RobotTrajectoryMsg raw_trajectory;
+        const double eef_step = 0.01;      // 1 cm di risoluzione
+
+
+        double fraction = move_group_->computeCartesianPath(waypoints, 
+                                                             eef_step, 
+                                                             raw_trajectory);
+        RCLCPP_INFO(this->get_logger(), "Traiettoria cartesiana calcolata al %.2f%%", fraction * 100.0);
+
+        // 4. Esecuzione se il percorso è completato (almeno al 95%)
+        if (fraction >= 0.95) 
+        // if (fraction >= 0.01)           //per debug, accettiamo anche frazioni basse, così vediamo se la pianificazione fallisce per collisione o limiti giunti
+        {
+            // --- GESTIONE DEL TEMPO E DELLA VELOCITÀ ---
+            // Convertiamo il messaggio in un oggetto robot_trajectory
+            robot_trajectory::RobotTrajectory rt(move_group_->getRobotModel(), move_group_->getName());
+            rt.setRobotTrajectoryMsg(*move_group_->getCurrentState(), raw_trajectory);
+
+            // Applichiamo la parametrizzazione del tempo (TimeOptimalTrajectoryGeneration o Ruckig)
+            // Scaliamo la velocità e l'accelerazione massima al 50% per un movimento fluido
+            trajectory_processing::TimeOptimalTrajectoryGeneration totg;
+            bool success = totg.computeTimeStamps(rt, 0.5, 0.5); 
+
+            if (!success) {
+                RCLCPP_ERROR(this->get_logger(), "Fallita la parametrizzazione temporale della traiettoria!");
+                return false;
+            }
+
+            // Riconvertiamo nel messaggio da inviare a MoveIt
+            Plan piano;
+            rt.getRobotTrajectoryMsg(piano.trajectory);
+            
+            move_group_->execute(piano);
+            return true;
+        } else {
+            RCLCPP_ERROR(this->get_logger(), "Pianificazione cartesiana fallita o interrotta dagli ostacoli/limiti giunti.");
+            return false;
+        }
+    }
+
+
+
     /*ALTRI METODI DI UTILITIES*/
 
     //metodi getter
@@ -399,11 +510,15 @@ class TaskNode : public rclcpp::Node
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
+    // tf2_ros
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
     //ComputeIkClikSrvClientPtr clik_client_;
 
     char c_in; // variabile per input da terminale (usata in print_and_wait)
 
-    // Parametri di pianificazione
+    // Parametri di pianificazione da yaml
     double def_cartesian_planning_time_;                // tempo di pianificazione di default (secondi)
     double def_joint_planning_time_;                    // tempo di pianificazione di default (secondi)
     double goal_joint_tolerance_;                       // tolleranza di giunto (radians)
@@ -412,6 +527,14 @@ class TaskNode : public rclcpp::Node
     double max_velocity_acceleration_scaling_factor_;   // fattore di scala per velocità e accelerazione
     std::string joint_planning_algorithm_;              // planner per pianificazione in spazio giunti
     std::string cartesian_planning_algorithm_;          // planner per pianificazione cartesiana
+
+    // // Parametri di tiro da yaml
+    // double approach_distance_from_ball_surface_;
+    // double shooting_distance_from_ball_surface_;
+    // double latitude_angle_deg_;
+    // double longitude_angle_deg_;
+    // double angle_pre_rotation_y_;
+    // double angle_pre_rotation_z_;
 
 };
 
@@ -433,6 +556,20 @@ int main(int argc, char* argv[])
     //adesso sono sicuro che start() ha inizializzato move_group_ e posso chiamare i metodi di movimento
 
 
+    
+    /* SHOT PLANNING PARAMETERS */
+        
+    node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
+    node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
+    node->declare_parameter<double>("impact_angle_deg", 10.0);
+    node->declare_parameter<double>("direction_angle_deg", 0.0);
+
+    double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
+    double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
+    double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
+    double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
+
+
     /* SEQUENZA DI TASK */
  
 
@@ -448,36 +585,87 @@ int main(int argc, char* argv[])
     {
         node->print_and_wait("Pianificando verso approach alla pallina..");
 
-        Vector3d pos_pre_shot = Vector3d(-0.02, 0, 0.02 );
-
         // direzione d'impatto
-        double alpha_latitude_rad = 10 * M_PI / 180;   //rotazione attorno asse y
-        double beta_longitude_rad = 20 * M_PI / 180;    //rotazione attorno asse z
+        double impact_angle_rad = impact_angle_deg_ * M_PI / 180;       // inclinazione asta -> rotazione attorno asse y
+        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;    // direzione asta -> rotazione attorno asse z
 
-        Quaternion Q_pre_shot(
-                            RotationAxis(M_PI/2, Y_AXIS) *
-                            RotationAxis(alpha_latitude_rad, Y_AXIS) * 
-                            RotationAxis(beta_longitude_rad, Z_AXIS)
-                            );
+        double distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
-        node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
 
-        //node->moveToCartesianPoseThroughJointSpace(pos_pre_shot, Q_pre_shot, "left_rod_tip_virtual_link", 60);
+        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
+        Vector3d pos_pre_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                         distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                         distance_from_ball_center * sin(impact_angle_rad));
+
+
+        // 1. Definisci la matrice di rotazione 3x3
+        Matrix3d R_base;
+        R_base <<  0,  0, -1,
+                   0, -1,  0,
+                   -1,  0,  0;
+
+        // 2. Converti la matrice in un Quaternione Eigen
+        Quaternion Q_base(R_base);
+
+        // 3. Calcola il Quaternione finale per pre_shot
+        Quaternion Q_pre_shot = Quaternion(
+            RotationAxis(direction_angle_rad, Z_AXIS) *
+            RotationAxis(-impact_angle_rad, Y_AXIS)                 //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
+        ) * Q_base;
+
+        // node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
+        node->moveCartesianPath(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
     }
 
 
+    // 3 - si allontana all'indietro per prendere velocità
+    {
+        node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
 
-    // 3 - eseguo tiro
+        // direzione d'impatto
+        double impact_angle_rad = impact_angle_deg_ * M_PI / 180;       // inclinazione asta -> rotazione attorno asse y
+        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;    // direzione asta -> rotazione attorno asse z
+
+        double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
+
+
+        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
+        Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                         distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                         distance_from_ball_center * sin(impact_angle_rad));
+
+         // 1. Definisci la matrice di rotazione 3x3
+        Matrix3d R_base;
+        R_base <<  0,  0, -1,
+                   0, -1,  0,
+                   -1,  0,  0;
+
+        // 2. Converti la matrice in un Quaternione Eigen
+        Quaternion Q_base(R_base);
+
+        // 3. Calcola il Quaternione finale per pre_shot
+        Quaternion Q_back_shot = Quaternion(
+            RotationAxis(direction_angle_rad, Z_AXIS) *
+            RotationAxis(-impact_angle_rad, Y_AXIS)                 //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
+        ) * Q_base;
+
+        // node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
+        node->moveCartesianPath(pos_back_shot, Q_back_shot, WHITE_SOLID_BALL_FRAME);
+
+    }
+
+
+    // 4 - eseguo tiro
     {
         //TODO..
     }
     
 
-    // 4 - vado in pre-approach per la prossima pallina
-    {
-        node->print_and_wait("Ritorno in 'pre_approach");
-        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
-    }
+    // 5 - vado in pre-approach per la prossima pallina
+    // {
+    //     node->print_and_wait("Ritorno in 'pre_approach");
+    //     node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
+    // }
 
 
 

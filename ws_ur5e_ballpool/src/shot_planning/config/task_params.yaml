@@ -1,5 +1,7 @@
 task_node:
   ros__parameters:
+
+    #PLANNING PARAMETERS
     def_joint_planning_time: 5.0
     def_cartesian_planning_time: 10.0
     goal_joint_tolerance: 0.001                   # ~1/20 di grado (def moveit 0.001 ~1/200 di grado)
@@ -8,6 +10,47 @@ task_node:
     max_velocity_acceleration_scaling_factor: 0.3
     joint_planning_algorithm: "RRTConnectkConfigDefault"
     cartesian_planning_algorithm: "RRTstarkConfigDefault"
+
+    # SHOT PLANNING PARAMETERS (temporary values, before introducing game-engine)
+    approach_distance_from_ball_surface: 0.02                        # distanza di avvicinamento alla pallina in metri (2 cm)
+    shooting_distance_from_ball_surface: 0.05                        # distanza di tiro dalla pallina in metri (5 cm)
+    impact_angle_deg: 10.0                                           # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
+    direction_angle_deg: 30.0                                        # angolo di rotazione dell'asta attorno alla pallina in gradi
+
+  
+    # Sezione per MoveIt (nell'URDF di ur_description non ci sono i limiti d'accelerazione che fanno fallire alcuni metodi)
+    robot_description_planning:
+      joint_limits:
+        left_elbow_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_shoulder_lift_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_shoulder_pan_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_1_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_2_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_3_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
 
 
     # SCELTE TRA ALGORITMI DI PLANNING (da ompl_planning.yaml):

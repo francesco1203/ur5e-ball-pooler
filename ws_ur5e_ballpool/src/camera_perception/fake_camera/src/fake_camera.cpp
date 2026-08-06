@@ -59,7 +59,7 @@ class FakeCamera : public rclcpp::Node
       t_table.transform.translation.z = POOL_TABLE_FIELD_HEIGHT; // sposto la terna sul campo
 
       tf2::Quaternion q_table;
-      q_table.setRPY(0, 0, table_yaw);
+      q_table.setRPY(0, 0, table_yaw + M_PI);     //CON M_PI rivolgo l'asse x verso il robot
       t_table.transform.rotation.x = q_table.x();
       t_table.transform.rotation.y = q_table.y();
       t_table.transform.rotation.z = q_table.z();

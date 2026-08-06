@@ -8,8 +8,10 @@ Panels:
         - /MotionPlanning1/Planning Request1
         - /MotionPlanning1/Planning Metrics1
         - /MotionPlanning1/Planned Path1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 144
+    Tree Height: 295
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -279,21 +281,82 @@ Visualization Manager:
       Value: true
       Velocity_Scaling_Factor: 0.1
     - Class: rviz_default_plugins/TF
-      Enabled: false
+      Enabled: true
       Filter (blacklist): ""
       Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
-        All Enabled: true
+        All Enabled: false
+        billiard_center_field:
+          Value: false
+        left_base:
+          Value: false
+        left_base_link:
+          Value: false
+        left_base_link_inertia:
+          Value: false
+        left_cut_rod_link:
+          Value: false
+        left_flange:
+          Value: false
+        left_forearm_link:
+          Value: false
+        left_ft_frame:
+          Value: false
+        left_holder_link:
+          Value: false
+        left_rod_tip_virtual_link:
+          Value: true
+        left_shoulder_link:
+          Value: false
+        left_tool0:
+          Value: false
+        left_upper_arm_link:
+          Value: false
+        left_wrist_1_link:
+          Value: false
+        left_wrist_2_link:
+          Value: false
+        left_wrist_3_link:
+          Value: false
+        wall_link:
+          Value: false
+        white_solid_ball:
+          Value: true
+        world:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          billiard_center_field:
+            white_solid_ball:
+              {}
+          left_base_link:
+            left_base:
+              {}
+            left_base_link_inertia:
+              left_shoulder_link:
+                left_upper_arm_link:
+                  left_forearm_link:
+                    left_wrist_1_link:
+                      left_wrist_2_link:
+                        left_wrist_3_link:
+                          left_flange:
+                            left_tool0:
+                              left_holder_link:
+                                left_cut_rod_link:
+                                  left_rod_tip_virtual_link:
+                                    {}
+                          left_ft_frame:
+                            {}
+          wall_link:
+            {}
       Update Interval: 0
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -312,41 +375,41 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 4.42136287689209
+      Distance: 1.8014209270477295
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.10000000149011612
-        Y: 0.25
-        Z: 0.30000001192092896
+        X: -0.24955739080905914
+        Y: 0.034602902829647064
+        Z: 0.2521883249282837
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.3949998617172241
+      Pitch: 0.2949996888637543
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.600183963775635
+      Yaw: 4.790189743041992
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: true
-  Height: 975
+  Height: 885
   Help:
     collapsed: false
   Hide Left Dock: true
   Hide Right Dock: false
   MotionPlanning:
-    collapsed: true
+    collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002b400000371fc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073000000003f00000116000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000015b000001a10000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a005600690065007700730000000302000000ae000000a900ffffff000004b00000037100000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000001000000000000026400000317fc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073000000003f000001ad000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000111000001960000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a0056006900650077007300000001f200000164000000a900ffffff0000028a0000031700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: true
-  Width: 1200
-  X: 166
-  Y: 82
+  Width: 650
+  X: 64
+  Y: 32
