@@ -2,17 +2,34 @@ task_node:
   ros__parameters:
 
     #PLANNING PARAMETERS
+
+    #generic
+    max_velocity_acceleration_scaling_factor: 0.3
+
+    #moveToJointConfig e moveToNamedTarget:
     def_joint_planning_time: 5.0
-    def_cartesian_planning_time: 10.0
+    joint_planning_algorithm: "RRTConnectkConfigDefault"
     goal_joint_tolerance: 0.001                   # ~1/20 di grado (def moveit 0.001 ~1/200 di grado)
+
+    #moveToPose:
+    def_cartesian_planning_time: 10.0
+    cartesian_planning_algorithm: "RRTstarkConfigDefault"
     goal_position_tolerance: 0.002                # 2 mm (def moveit 0.0001 ~0.1 mm)
     goal_orientation_tolerance: 0.02              # ~1 grado (def moveit 0.001 rad ~0.1° )
-    max_velocity_acceleration_scaling_factor: 0.3
-    joint_planning_algorithm: "RRTConnectkConfigDefault"
-    cartesian_planning_algorithm: "RRTstarkConfigDefault"
+    
+    #moveCartesianPath:
+    resolution_step: 0.01                         # passo di interpolazione in metri 1cm
+    success_threshold: 0.95                       # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
+    
+    #moveCartesianPathAsymmTriangle
+    resolution_step_Ruckig: 0.005                        # passo di interpolazione in metri 5mm
+    success_threshold_Ruckig: 0.95                       # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
+    Ruckig_dt: 0.01                                      # passo di lavoro di Ruckig in secondi (100Hz)
+    max_jerk: 50.0                                       # jerk massimo in m/s^3 (def moveit 10.0)
+
 
     # SHOT PLANNING PARAMETERS (temporary values, before introducing game-engine)
-    approach_distance_from_ball_surface: 0.02                        # distanza di avvicinamento alla pallina in metri (2 cm)
+    approach_distance_from_ball_surface: 0.01                        # distanza di avvicinamento alla pallina in metri (2 cm)
     shooting_distance_from_ball_surface: 0.05                        # distanza di tiro dalla pallina in metri (5 cm)
     impact_angle_deg: 10.0                                           # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
     direction_angle_deg: 30.0                                        # angolo di rotazione dell'asta attorno alla pallina in gradi

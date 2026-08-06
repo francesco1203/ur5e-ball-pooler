@@ -10,12 +10,12 @@
 //        ├── moveToJointConfig    → pianifica ed esegue verso una configurazione di giunti specifica
 //        ├── moveToNamedTarget()  → va a una posizione predefinita (es. "home")
 //        ├── moveToPose()         → va a una posa cartesiana (posizione + orientamento)
+//        └── moveCartesianPath()  → va a una posa cartesiana in linea retta (cartesian path)
 // ============================================================
 
 #include <memory>
-// #include <thread>
 #include <vector>
-// #include <cmath>     //moveit già la include
+
 
 #include <rclcpp/rclcpp.hpp>
 // #include "rclcpp_action/rclcpp_action.hpp"
@@ -28,7 +28,10 @@
 
 #include <moveit/robot_model_loader/robot_model_loader.hpp>
 #include <moveit/robot_state/robot_state.hpp>
- #include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
+#include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
+
+// Ruckig per traiettorie asimmetriche
+#include <ruckig/ruckig.hpp>
 
 
 #include "geometry_msgs/msg/pose_stamped.hpp" 
@@ -41,16 +44,11 @@
 #include <tf2_ros/transform_listener.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-// miei headers
+// my headers
 #include "shared_headers_pkg/eigen_utilities.hpp"
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
-
-
-
-// servizio
-// #include "interfaces_pkg/srv/compute_ik_clik.hpp"
 
 
 
@@ -69,15 +67,12 @@ class TaskNode : public rclcpp::Node
     using MoveGroupInterfacePtr = std::unique_ptr<MoveGroupInterface>;
     using Plan                  = MoveGroupInterface::Plan;
 
-    //Msh
+    //Msg
     using PoseStampedMsg = geometry_msgs::msg::PoseStamped;
     using PoseMsg = geometry_msgs::msg::Pose;
     using JointStateMsg  = sensor_msgs::msg::JointState;   
     using RobotTrajectoryMsg = moveit_msgs::msg::RobotTrajectory;
 
-    //Service
-    // using ComputeIkClikSrv = interfaces_pkg::srv::ComputeIkClik;
-    // using ComputeIkClikSrvClientPtr = rclcpp::Client<ComputeIkClikSrv>::SharedPtr;
 
     //Other
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -90,23 +85,52 @@ class TaskNode : public rclcpp::Node
         : rclcpp::Node("task_node", opt)
     {
         /*PLANNING PARAMETERS from task_param.yaml*/ 
-        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);                           // default planning time in seconds
+
+        //generic
+        this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
+
+        //moveToJointConfig e moveToNamedTarget:    
         this->declare_parameter<double>("def_joint_planning_time", 5.0);                                // default planning time in seconds
+        this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");   // def planner                        
         this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians
+
+        //moveToPose:
+        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);                           // default planning time in seconds
+        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault");  // def planner
         this->declare_parameter<double>("goal_position_tolerance", 0.002);                              // default position tolerance in meters
         this->declare_parameter<double>("goal_orientation_tolerance", 0.02);                            // default orientation tolerance in radians
-        this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
-        this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");   // def planner
-        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault");  // def planner
+        
+        //moveCartesianPath:
+        this->declare_parameter<double>("resolution_step", 0.01);                                       // default resolution step in meters
+        this->declare_parameter<double>("success_threshold", 0.95);                                       // default success threshold
 
-        def_cartesian_planning_time_ = this->get_parameter("def_cartesian_planning_time").as_double();
+        //moveCartesianPathAsymmTriangle
+        this->declare_parameter<double>("resolution_step_Ruckig", 0.005);                        // default resolution step in meters
+        this->declare_parameter<double>("success_threshold_Ruckig", 0.95);                       // default success threshold
+        this->declare_parameter<double>("Ruckig_dt", 0.01);                                      // default Ruckig working step in seconds
+        this->declare_parameter<double>("max_jerk", 50.0);                                       // default max jerk in m/s^3
+
+
+
+        max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
+
         def_joint_planning_time_ = this->get_parameter("def_joint_planning_time").as_double();
+        joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
         goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
+        
+        def_cartesian_planning_time_ = this->get_parameter("def_cartesian_planning_time").as_double();
+        cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
         goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
         goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
-        max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
-        joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
-        cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
+        
+        resolution_step_ = this->get_parameter("resolution_step").as_double();
+        success_threshold_ = this->get_parameter("success_threshold").as_double();
+
+        resolution_step_Ruckig_ = this->get_parameter("resolution_step_Ruckig").as_double();
+        success_threshold_Ruckig_ = this->get_parameter("success_threshold_Ruckig").as_double();
+        Ruckig_dt_ = this->get_parameter("Ruckig_dt").as_double();
+        max_jerk_ = this->get_parameter("max_jerk").as_double();
+        
 
 
         // MoveGroupInterface ha bisogno di shared_from_this(), che non è
@@ -145,12 +169,8 @@ class TaskNode : public rclcpp::Node
 
 
         //Scelta planner da usare
-        //NON LO FACCIAMO QUI, MA NEI METODI APPOSITI, PERCHÉ DISTINGUIAMO TRA PIANIFICAZIONE CARTESIANA E PIANIFICAZIONE IN SPAZIO GIUNTI
+        //NON LO FACCIAMO QUI, MA NEI METODI APPOSITI
       
-
-        /*SERVZIO CLIK*/
-        //clik_client_ = this->create_client<ComputeIkClikSrv>(CLIK_SERVICE);
-
 
         /*TF*/
         tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -180,7 +200,7 @@ class TaskNode : public rclcpp::Node
     // Muove il robot impostando direttamente una configurazione di giunti
     // desiderata (espressa in radianti).
     //
-    // INPUT:  joint_values → vettore di double contenente gli angoli dei giunti
+    // INPUT:  joint_values → vettore di double contenente gli angoli dei giunti desiderati
     //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveToJointConfig(const joint_config& joint_values, 
@@ -304,15 +324,14 @@ class TaskNode : public rclcpp::Node
 
 
     // ── moveToPose ───────────────────────────────────────────────────────
-    // Muove l'end-effector in una posa cartesiana specificata tramite:
-    //   - un vettore Eigen per la posizione (x, y, z) in metri
-    //   - un quaternione Eigen per l'orientamento
+    // Muove l'end-effector NON IN LINEA RETTA nella posa cartesiana specificata.
+    // 
+    // In pratica: MoveIt! calcola la IK internamente e pianifica in spazio dei joint.
     //
-    // MoveIt! calcola la IK internamente e pianifica in spazio dei joint.
     //
-    // INPUT:  posizione    → Vector3d {x, y, z} rispetto a "world"
+    // INPUT:  posizione    → Vector3d {x, y, z} rispetto a frame_id
     //         orientamento → Quaternion che descrive l'orientamento del EEF
-    //         terna di riferimento frame esplicito (world di default)
+    //         frame_id     → terna di riferimento (world di default)
     //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
     // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveToPose(const Vector3d& posizione, 
@@ -390,6 +409,17 @@ class TaskNode : public rclcpp::Node
     }
 
 
+    // ── moveCartesianPath ───────────────────────────────────────────────────────
+    // Muove l'end-effector IN LINEA RETTA verso una posa cartesiana specificata tramite:
+    // 
+    // In pratica: MoveIt fa un'interpolazione in cartesian space in linea retta, di tanti punti
+    //             che distano della risoluzione,. Poi calcola la IK internamente per ogni punto 
+    //             e pianifica in spazio dei joint ogni volta
+    //
+    // INPUT:  posizione    → Vector3d {x, y, z} rispetto a frame_id
+    //         orientamento → Quaternion che descrive l'orientamento del EEF
+    //         frame_id     → terna di riferimento frame esplicito (world di default)
+    // RETURN: true se pianificazione ed esecuzione hanno avuto successo
     bool moveCartesianPath(const Vector3d& posizione, 
                     const Quaternion& orientamento,
                     const std::string& frame_id =   WORLD_FRAME)
@@ -446,7 +476,7 @@ class TaskNode : public rclcpp::Node
 
        
         RobotTrajectoryMsg raw_trajectory;
-        const double eef_step = 0.01;      // 1 cm di risoluzione
+        const double eef_step = resolution_step_;      // 1 cm di risoluzione default
 
 
         double fraction = move_group_->computeCartesianPath(waypoints, 
@@ -454,9 +484,9 @@ class TaskNode : public rclcpp::Node
                                                              raw_trajectory);
         RCLCPP_INFO(this->get_logger(), "Traiettoria cartesiana calcolata al %.2f%%", fraction * 100.0);
 
-        // 4. Esecuzione se il percorso è completato (almeno al 95%)
-        if (fraction >= 0.95) 
-        // if (fraction >= 0.01)           //per debug, accettiamo anche frazioni basse, così vediamo se la pianificazione fallisce per collisione o limiti giunti
+        // 4. Esecuzione se il percorso è completato
+        //default: 0.95, ma per per debug, accettiamo anche frazioni basse, così vediamo se la pianificazione fallisce per collisione o limiti giunti
+        if (fraction >= success_threshold_) 
         {
             // --- GESTIONE DEL TEMPO E DELLA VELOCITÀ ---
             // Convertiamo il messaggio in un oggetto robot_trajectory
@@ -464,9 +494,11 @@ class TaskNode : public rclcpp::Node
             rt.setRobotTrajectoryMsg(*move_group_->getCurrentState(), raw_trajectory);
 
             // Applichiamo la parametrizzazione del tempo (TimeOptimalTrajectoryGeneration o Ruckig)
-            // Scaliamo la velocità e l'accelerazione massima al 50% per un movimento fluido
+            // Scaliamo la velocità e l'accelerazione massima 
             trajectory_processing::TimeOptimalTrajectoryGeneration totg;
-            bool success = totg.computeTimeStamps(rt, 0.5, 0.5); 
+            bool success = totg.computeTimeStamps(rt, 
+                                                  max_velocity_acceleration_scaling_factor_, 
+                                                  max_velocity_acceleration_scaling_factor_); 
 
             if (!success) {
                 RCLCPP_ERROR(this->get_logger(), "Fallita la parametrizzazione temporale della traiettoria!");
@@ -487,12 +519,169 @@ class TaskNode : public rclcpp::Node
 
 
 
+    // ── moveCartesianPathAsymmTriangle ─────────────────
+    // Genera la linea retta cartesiana e le applica un profilo triangolare (smussato ad S-curve) usando Ruckig
+    // In pratica: MoveIt fa un'interpolazione in cartesian space in linea retta, di tanti punti
+    //             che distano della risoluzione. Poi Ruckig assegna ad ogni punto un tempo di arrivo
+    //             così da realizzare esattamente il profilo richiesto (velocità massima, accelerazione e decelerazione asimmetriche).
+    //             Sotto, è tutto implementato in spazio giunti, quindi MoveIt! calcola la IK internamente per ogni punto
+    //
+    // INPUT:  posizione    → Vector3d {x, y, z} rispetto a frame_id
+    //         orientamento → Quaternion che descrive l'orientamento del EEF
+    //         frame_id     → terna di riferimento frame esplicito (world di default)
+    // RETURN: true se pianificazione ed esecuzione hanno avuto successo
+    // ──────────────────────────────────────────────────────────────────────
+    bool moveCartesianPathAsymmTriangle(const Vector3d& posizione, 
+                                        const Quaternion& orientamento,
+                                        const std::string& frame_id = WORLD_FRAME,
+                                        double vel_max = -1.0,
+                                        double acceleration = -1.0,
+                                        double deceleration = -1.0)
+    {
+        // 0. controllo preliminare dei parametri
+        if (deceleration <= 0.0 || acceleration <= 0.0 || vel_max <= 0.0) {
+            RCLCPP_ERROR(this->get_logger(), "Parametri di velocità/accelerazione/decelerazione non inseriti o non validi (inserire valori POSITIVI!)");
+            return false;
+        }
+
+        
+        // 1. Setup iniziale e trasformazione coordinate
+        PoseStampedMsg pose_stamped_in;
+        pose_stamped_in.header.frame_id = frame_id;
+        pose_stamped_in.header.stamp = this->get_clock()->now();
+        pose_stamped_in.pose.position.x = posizione.x();
+        pose_stamped_in.pose.position.y = posizione.y();
+        pose_stamped_in.pose.position.z = posizione.z();
+        Quaternion q_norm = orientamento.normalized();
+        pose_stamped_in.pose.orientation.w = q_norm.w();
+        pose_stamped_in.pose.orientation.x = q_norm.x();
+        pose_stamped_in.pose.orientation.y = q_norm.y();
+        pose_stamped_in.pose.orientation.z = q_norm.z();
+
+        PoseMsg target_pose = pose_stamped_in.pose; 
+
+        std::string planning_frame_moveit = move_group_->getPlanningFrame();
+        if (frame_id != planning_frame_moveit) {
+            try {
+                PoseStampedMsg pose_stamped_out = tf_buffer_->transform(
+                    pose_stamped_in, planning_frame_moveit, tf2::durationFromSec(0.1));
+                target_pose = pose_stamped_out.pose;
+            } catch (const tf2::TransformException & ex) {
+                RCLCPP_ERROR(this->get_logger(), "Errore in tf2: %s", ex.what());
+                return false; 
+            }
+        }
+
+        // 2. Calcola i waypoint geometrici puri con MoveIt (senza tempi, solo percorso)
+        std::vector<PoseMsg> waypoints;
+        waypoints.push_back(target_pose);
+        RobotTrajectoryMsg raw_trajectory;
+        const double eef_step = resolution_step_Ruckig_; // (più fitto è meglio per l'interpolazione)
+        
+        double fraction = move_group_->computeCartesianPath(waypoints, eef_step, raw_trajectory);
+        RCLCPP_INFO(this->get_logger(), "Traiettoria geometrica calcolata al %.2f%%", fraction * 100.0);
+
+        if (fraction < success_threshold_Ruckig_) {
+            RCLCPP_ERROR(this->get_logger(), "Pianificazione cartesiana interrotta. Ostacoli o limiti cinematici.");
+            return false;
+        }
+
+
+        // --- 3. PARAMETRIZZAZIONE TEMPORALE ASIMMETRICA CON RUCKIG  ---
+        const size_t num_waypoints = raw_trajectory.joint_trajectory.points.size();
+        if (num_waypoints < 2) return false;            //se ci sono meno di due punti sulla traiettoria, non ha senso parametrizzare il tempo
+
+        const double total_distance = (num_waypoints - 1) * eef_step;       //numero di stemp per risoluzione step = distanza totale percorsa lungo la linea retta
+
+        // Impostiamo Ruckig per uno spazio a 1-Dimensione (lungo la linea del tiro)
+        // dt a 0.01s (100Hz) è sufficiente per generare una traiettoria fluida
+        const double dt = Ruckig_dt_;            //passo di lavoro di Ruckig in secondi (default 0.01s)
+        ruckig::Ruckig<1> otg(dt);              //optimal trajectory generator per 1D
+        ruckig::InputParameter<1> input;
+        ruckig::OutputParameter<1> output;
+
+        // Partiamo da fermi
+        input.current_position = {0.0};
+        input.current_velocity = {0.0};
+        input.current_acceleration = {0.0};
+
+        // Vogliamo arrivare fermi alla fine della linea
+        input.target_position = {total_distance};
+        input.target_velocity = {0.0};
+        input.target_acceleration = {0.0};
+
+        // I LIMITI ASIMMETRICI: La magia per il colpo di biliardo
+        input.max_velocity = {vel_max};             // (m/s) Velocità massima raggiunta all'impatto
+        input.max_acceleration = {acceleration};    // (m/s^2) Accelerazione di carica: lenta e progressiva
+        input.min_acceleration = {-deceleration};   // (m/s^2) Decelerazione: frenata brusca e immediata dopo l'impatto
+        input.max_jerk = {max_jerk_};               // (m/s^3) Limite dello strattone
+
+        // Prepariamo il messaggio finale
+        moveit_msgs::msg::RobotTrajectory timed_traj;
+        timed_traj.joint_trajectory.joint_names = raw_trajectory.joint_trajectory.joint_names;
+
+        //ruckig lavora a stati, iterativamente 
+        ruckig::Result result = ruckig::Result::Working;
+        double current_time = 0.0;
+
+        // Generiamo i punti temporali passo-passo
+        while (result == ruckig::Result::Working) {
+            result = otg.update(input, output);         //stato ottimare al prossimo (attuale nel ciclo) dt
+
+            double s = output.new_position[0];          // Posizione corrente lungo la linea (metri)
+            double v = output.new_velocity[0];          // Velocità corrente lungo la linea (m/s)
+
+            // Troviamo quali waypoint di MoveIt corrispondono alla posizione "s"
+            double exact_idx = (s / total_distance) * (num_waypoints - 1);
+            size_t idx_low = std::floor(exact_idx);
+            size_t idx_high = std::ceil(exact_idx);
+
+            // Evitiamo overflow per approssimazioni in virgola mobile
+            if (idx_low >= num_waypoints) idx_low = num_waypoints - 1;
+            if (idx_high >= num_waypoints) idx_high = num_waypoints - 1;
+
+            double t_interp = exact_idx - idx_low; // Valore tra [0, 1] per l'interpolazione
+
+            trajectory_msgs::msg::JointTrajectoryPoint pt;
+            pt.time_from_start = rclcpp::Duration::from_seconds(current_time);
+
+            // Mappiamo lo stato cartesiano 1D nei 6 giunti dell'UR5e
+            for (size_t j = 0; j < timed_traj.joint_trajectory.joint_names.size(); ++j) {
+                double q_low = raw_trajectory.joint_trajectory.points[idx_low].positions[j];
+                double q_high = raw_trajectory.joint_trajectory.points[idx_high].positions[j];
+                
+                // Interpolazione lineare della posizione del giunto
+                double q = q_low + t_interp * (q_high - q_low);
+                pt.positions.push_back(q);
+
+                // Regola della catena per la velocità del giunto: dq/dt = (dq/ds) * (ds/dt)
+                double dq_ds = (idx_high == idx_low) ? 0.0 : (q_high - q_low) / eef_step;
+                pt.velocities.push_back(dq_ds * v);
+            }
+
+            timed_traj.joint_trajectory.points.push_back(pt);
+
+            // Prepariamo lo step successivo
+            output.pass_to_input(input);
+            current_time += dt;
+        }
+
+        // 4. Esecuzione
+        Plan piano;
+        piano.trajectory = timed_traj;
+        
+        RCLCPP_INFO(this->get_logger(), "Esecuzione tiro asimmetrico in corso...");
+        move_group_->execute(piano);
+        return true;
+    }
+
+
+
+    /* METODI DI TIRO */
+    // TODO
+
+
     /*ALTRI METODI DI UTILITIES*/
-
-    //metodi getter
-    // double getDefJointPlanningTime() const { return def_joint_planning_time_; }
-    // double getDefCartesianPlanningTime() const { return def_cartesian_planning_time_; }
-
 
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
     void print_and_wait(const std::string & message)
@@ -505,6 +694,7 @@ class TaskNode : public rclcpp::Node
         std::cin.ignore(); // pulisce il '\n' rimasto nel buffer
     }
 
+
   private:
     MoveGroupInterfacePtr move_group_; // interfaccia MoveIt! per il gruppo "left_arm"
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
@@ -514,28 +704,28 @@ class TaskNode : public rclcpp::Node
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-    //ComputeIkClikSrvClientPtr clik_client_;
 
     char c_in; // variabile per input da terminale (usata in print_and_wait)
 
-    // Parametri di pianificazione da yaml
-    double def_cartesian_planning_time_;                // tempo di pianificazione di default (secondi)
+    /* PARAMETRI DI PIANIFICAZIONE */
+    double max_velocity_acceleration_scaling_factor_;   // fattore di scala per velocità e accelerazione
+
     double def_joint_planning_time_;                    // tempo di pianificazione di default (secondi)
+    std::string joint_planning_algorithm_;              // planner per pianificazione in spazio giunti
     double goal_joint_tolerance_;                       // tolleranza di giunto (radians)
+
+    double def_cartesian_planning_time_;                // tempo di pianificazione di default (secondi)
+    std::string cartesian_planning_algorithm_;          // planner per pianificazione cartesiana
     double goal_position_tolerance_;                    // tolleranza di posizione (metri)
     double goal_orientation_tolerance_;                 // tolleranza di orientamento (radians)
-    double max_velocity_acceleration_scaling_factor_;   // fattore di scala per velocità e accelerazione
-    std::string joint_planning_algorithm_;              // planner per pianificazione in spazio giunti
-    std::string cartesian_planning_algorithm_;          // planner per pianificazione cartesiana
+   
+    double resolution_step_;                             // passo di risoluzione per pianificazione cartesian path (metri)
+    double success_threshold_;                           // soglia di successo per pianificazione cartesian path (0.0 - 1.0) 
 
-    // // Parametri di tiro da yaml
-    // double approach_distance_from_ball_surface_;
-    // double shooting_distance_from_ball_surface_;
-    // double latitude_angle_deg_;
-    // double longitude_angle_deg_;
-    // double angle_pre_rotation_y_;
-    // double angle_pre_rotation_z_;
-
+    double resolution_step_Ruckig_;                      // passo di risoluzione per pianificazione cartesian path con Ruckig (metri)
+    double success_threshold_Ruckig_;                    // soglia di successo per pianificazione cartesian path con Ruckig (0.0 - 1.0)
+    double Ruckig_dt_;                                   // passo di lavoro per Ruckig (secondi)
+    double max_jerk_;                                    // limite di jerk per pianificazione cartesian path con Ruckig (m/s^3)
 };
 
 
@@ -558,7 +748,6 @@ int main(int argc, char* argv[])
 
     
     /* SHOT PLANNING PARAMETERS */
-        
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("impact_angle_deg", 10.0);
@@ -570,8 +759,39 @@ int main(int argc, char* argv[])
     double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
 
 
+    /* ORIENTAMENTO STECCA*/
+    // orientamento è costante in molte fasi, dall'approach all'esecuzione tiro.. lo calcolo una sola volta
+
+
+    //NOTA: impact_angle_deg_ e direction_angle_deg_ sono angoli in gradi che dovranno essere restituiti dal motore di gioco
+    //      per ora, in assenza del motore di gioco, li abbiamo presi simulati da config yaml file
+
+
+    //direzione d'impatto
+    double impact_angle_rad = impact_angle_deg_ * M_PI / 180;           // inclinazione asta -> rotazione attorno asse y (latitudine)
+    double direction_angle_rad = direction_angle_deg_ * M_PI / 180;     // direzione asta -> rotazione attorno asse z (longitudine)
+
+    // matrice di rotazione di base che allinea z' -> x, y' --> -y, x' --> -z (da posa di approach a colpo)
+    Matrix3d R_base;
+    R_base <<  0,  0, -1,
+               0, -1,  0,
+              -1,  0,  0;
+
+    Quaternion Q_base(R_base);  //converto in quaternione
+
+    // calcolo il quaternione dell'orientamento stecca
+    Quaternion Q_shot = Quaternion(
+        RotationAxis(direction_angle_rad, Z_AXIS) *
+        RotationAxis(-impact_angle_rad, Y_AXIS)           //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
+    ) * Q_base;
+
+
+    //Risultato: d'ora in avanti Q_shot è l'orientamento per tutte le sequenze di tiro, dall'approach all'esecuzione del tiro stesso
+
+
+
     /* SEQUENZA DI TASK */
- 
+
 
     // 1 - vado in pre-approach per approcciare la pallina
     {
@@ -583,12 +803,9 @@ int main(int argc, char* argv[])
 
     // 2 - approach alla pallina
     {
-        node->print_and_wait("Pianificando verso approach alla pallina..");
+        node->print_and_wait("Approach alla pallina..");
 
-        // direzione d'impatto
-        double impact_angle_rad = impact_angle_deg_ * M_PI / 180;       // inclinazione asta -> rotazione attorno asse y
-        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;    // direzione asta -> rotazione attorno asse z
-
+        //distanza
         double distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
@@ -598,60 +815,26 @@ int main(int argc, char* argv[])
                                          distance_from_ball_center * sin(impact_angle_rad));
 
 
-        // 1. Definisci la matrice di rotazione 3x3
-        Matrix3d R_base;
-        R_base <<  0,  0, -1,
-                   0, -1,  0,
-                   -1,  0,  0;
-
-        // 2. Converti la matrice in un Quaternione Eigen
-        Quaternion Q_base(R_base);
-
-        // 3. Calcola il Quaternione finale per pre_shot
-        Quaternion Q_pre_shot = Quaternion(
-            RotationAxis(direction_angle_rad, Z_AXIS) *
-            RotationAxis(-impact_angle_rad, Y_AXIS)                 //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
-        ) * Q_base;
-
-        // node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
-        node->moveCartesianPath(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
+        node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
     }
+
 
 
     // 3 - si allontana all'indietro per prendere velocità
     {
         node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
 
-        // direzione d'impatto
-        double impact_angle_rad = impact_angle_deg_ * M_PI / 180;       // inclinazione asta -> rotazione attorno asse y
-        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;    // direzione asta -> rotazione attorno asse z
-
+        //distanza
         double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
         //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
         Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
-                                         distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                         distance_from_ball_center * sin(impact_angle_rad));
+                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                          distance_from_ball_center * sin(impact_angle_rad));
 
-         // 1. Definisci la matrice di rotazione 3x3
-        Matrix3d R_base;
-        R_base <<  0,  0, -1,
-                   0, -1,  0,
-                   -1,  0,  0;
 
-        // 2. Converti la matrice in un Quaternione Eigen
-        Quaternion Q_base(R_base);
-
-        // 3. Calcola il Quaternione finale per pre_shot
-        Quaternion Q_back_shot = Quaternion(
-            RotationAxis(direction_angle_rad, Z_AXIS) *
-            RotationAxis(-impact_angle_rad, Y_AXIS)                 //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
-        ) * Q_base;
-
-        // node->moveToPose(pos_pre_shot, Q_pre_shot, WHITE_SOLID_BALL_FRAME);
-        node->moveCartesianPath(pos_back_shot, Q_back_shot, WHITE_SOLID_BALL_FRAME);
-
+        node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
     }
 
 
@@ -662,10 +845,10 @@ int main(int argc, char* argv[])
     
 
     // 5 - vado in pre-approach per la prossima pallina
-    // {
-    //     node->print_and_wait("Ritorno in 'pre_approach");
-    //     node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
-    // }
+    {
+        node->print_and_wait("Ritorno in 'pre_approach per prossimo tiro");
+        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
+    }
 
 
 
