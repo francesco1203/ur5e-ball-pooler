@@ -80,11 +80,15 @@
         <geom group="3" contype="1" conaffinity="6"/>
     </default>
 
+
+    <!-- !!! NOTA: PARAMETRI FRICTION DA TARARE CON ESPERIMENTI REALI -->
+
+
     <!-- PALLINA BIANCA (contype=2): collide con Biliardo (1), Bianca (2), Colorate (4) ed EE (8) -> conaffinity = 15 -->
     <default class="pallina_bianca_collision">
         <geom type="sphere" size="0.0125" mass="0.010"
               contype="2" conaffinity="15"
-              friction="0.01 0.005 0.0001"
+              friction="0.4 0.005 0.005"    
               group="3"/>
     </default>
 
@@ -93,7 +97,7 @@
     <default class="pallina_colorata_collision">
         <geom type="sphere" size="0.0125" mass="0.015"
               contype="4" conaffinity="7"
-              friction="0.01 0.005 0.0001"
+              friction="0.4 0.005 0.005"
               group="3"/>
     </default>
     
@@ -386,7 +390,7 @@
 
     <!-- BILIARDO E PALLINE -->
     
-    <body name="tavolo_biliardo" pos="0 -0.20 0">
+    <body name="tavolo_biliardo" pos="-0.3 -0.3 0">
         
         <!-- grafica: visuale pura -->
         <geom class="visual_environment" type="mesh" mesh="campo_biliardo" material="verde_biliardo"/>
@@ -445,35 +449,36 @@
 
     <!-- NOTA -->
     <!-- PER QUESTIONI LEGATE A MUJOCO, LE PALLINE NON SONO POTUTE ESSERE INSERITE COME FIGLIE DI BILIARDO -->
-    <!-- QUINDI, VA CALCOLATA LA POSIZONE ASSOLUTA AGGIUNGENDO pos = posizione del biliardo = 0 -0.2 0 -->
+    <!-- QUINDI, VA CALCOLATA LA POSIZONE ASSOLUTA AGGIUNGENDO LA POSIZIONE DEL CENTRO BILIARDO -->
+    <!-- POS_CENTRO_BILIARDO = -0.3 -0.3 0.06 -->
 
-    <!-- pallina bianca -->
-    <body name="white_ball" pos="0.0 -0.2 0.075">
+    <!-- pallina bianca pos_relativa = 0 0 0 -->
+    <body name="white_ball" pos="-0.2 -0.25 0.06">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
-    <!-- pallina rossaì-->
-    <body name="red_ball" pos="0.08 -0.21 0.075">
+    <!-- pallina rossa-->
+    <!-- <body name="red_ball" pos="0.08 -0.21 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.12 -0.18 0.075">
+    <!-- <body name="blue_ball" pos="-0.12 -0.18 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="0.18 -0.10 0.075">
+    <!-- <body name="yellow_ball" pos="0.18 -0.10 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
     
 
     <!-- PUNTI DI INTERESSE -->

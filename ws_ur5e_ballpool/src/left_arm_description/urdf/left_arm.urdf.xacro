@@ -175,7 +175,7 @@
         <child link="$(arg tf_prefix_left)rod_tip_virtual_link" />
         <!-- Traslazione in metri: x = -120mm, z = 81mm -->
         <!-- Rotazione: pitch di -90 gradi (-pi/2) per allineare asse Z su asse -X -->
-        <origin xyz="-0.120 0 0.081" rpy="0 ${-pi/2} 0" />
+        <origin xyz="-0.118 0 0.081" rpy="0 ${-pi/2} 0" />
     </joint>
 
     <!-- NOTA: ANDRÀ TARATO REALISTIACAMENTE CON IL METODO DEL PIVOT!! -->

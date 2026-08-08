@@ -30,6 +30,9 @@
 #include <moveit/robot_state/robot_state.hpp>
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
 
+#include <moveit_msgs/srv/apply_planning_scene.hpp>
+#include <moveit_msgs/msg/allowed_collision_entry.hpp>
+
 // Ruckig per traiettorie asimmetriche
 #include <ruckig/ruckig.hpp>
 
@@ -46,7 +49,7 @@
 
 // my headers
 #include "shared_headers_pkg/eigen_utilities.hpp"
-#include "shared_headers_pkg/ros2_architecture.hpp"
+// #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
 
@@ -171,6 +174,10 @@ class TaskNode : public rclcpp::Node
         //Scelta planner da usare
         //NON LO FACCIAMO QUI, MA NEI METODI APPOSITI
       
+
+        /* CLIENT PLANNING SCENE */
+        planning_scene_diff_cli_ = this->create_client<moveit_msgs::srv::ApplyPlanningScene>("/apply_planning_scene");
+
 
         /*TF*/
         tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -478,10 +485,16 @@ class TaskNode : public rclcpp::Node
         RobotTrajectoryMsg raw_trajectory;
         const double eef_step = resolution_step_;      // 1 cm di risoluzione default
 
+        // Passiamo un oggetto Constraints vuoto per poter accedere al parametro "avoid_collisions"
+        moveit_msgs::msg::Constraints empty_constraints;
+
 
         double fraction = move_group_->computeCartesianPath(waypoints, 
                                                              eef_step, 
-                                                             raw_trajectory);
+                                                             raw_trajectory,
+                                                             empty_constraints,
+                                                             !ignore_cartesian_collisions_);
+                                                             
         RCLCPP_INFO(this->get_logger(), "Traiettoria cartesiana calcolata al %.2f%%", fraction * 100.0);
 
         // 4. Esecuzione se il percorso è completato
@@ -578,7 +591,17 @@ class TaskNode : public rclcpp::Node
         RobotTrajectoryMsg raw_trajectory;
         const double eef_step = resolution_step_Ruckig_; // (più fitto è meglio per l'interpolazione)
         
-        double fraction = move_group_->computeCartesianPath(waypoints, eef_step, raw_trajectory);
+
+        // Passiamo un oggetto Constraints vuoto per poter accedere al parametro "avoid_collisions"
+        moveit_msgs::msg::Constraints empty_constraints;
+
+
+        double fraction = move_group_->computeCartesianPath(waypoints, 
+                                                            eef_step, 
+                                                            raw_trajectory,
+                                                            empty_constraints,
+                                                            !ignore_cartesian_collisions_);
+                                                            
         RCLCPP_INFO(this->get_logger(), "Traiettoria geometrica calcolata al %.2f%%", fraction * 100.0);
 
         if (fraction < success_threshold_Ruckig_) {
@@ -677,10 +700,59 @@ class TaskNode : public rclcpp::Node
 
 
 
-    /* METODI DI TIRO */
-    // TODO
+    /* METODI PER IL TIRO */
+    bool ExecuteShot(const Vector3d& posizione_arresto,        //fine tiro, dove si ferma
+                     const Quaternion& orientamento,
+                     const std::string& frame_id = WORLD_FRAME,
+                     double vel_impact = -1.0,
+                     double distance_acceleration = -1.0,
+                     double distance_deceleration = -1.0)
+    {
+       // 0. controllo preliminare dei parametri
+        if (distance_deceleration <= 0.0 || distance_acceleration <= 0.0 || vel_impact <= 0.0) {
+            RCLCPP_ERROR(this->get_logger(), "Parametri di velocità d'impatto e distanza di accelerazione/decelerazione non inseriti o non validi (inserire valori POSITIVI!)");
+            return false;
+        }
 
 
+        // 1. calcolo, accelerazione e decelerazione in base alle distanze fornite per il profilo triangolare
+        double accel = vel_impact * vel_impact / (2.0 * distance_acceleration); // a = v^2 / (2 * d)
+        double decel = vel_impact * vel_impact / (2.0 * distance_deceleration); // a = v^2 / (2 * d)
+
+
+        // 2. faccio un controllo di fattibilità in base ai limiti fisici del robot
+        if(vel_impact > MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_ || 
+           accel > MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_ ||
+           decel > abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_) {
+            RCLCPP_ERROR(this->get_logger(), "Profilo di tiro non fattibile: superati i limiti fisici del robot");
+            return false;
+        }
+
+
+        // 3. eseguo il tiro con profilo asimmetrico
+        return moveCartesianPathAsymmTriangle(posizione_arresto, orientamento, frame_id, 
+                                              vel_impact, 
+                                              accel, decel); 
+    }
+
+    // Disabilita la collisione tra asta e pallina bianca
+    bool disable_white_ball_collision() 
+    { 
+        RCLCPP_INFO(this->get_logger(), "Disattivazione collisioni per l'esecuzione del tiro...");
+        ignore_cartesian_collisions_ = true;
+        return true;
+    }
+    
+
+    // Abilita la collisione tra asta e pallina bianca
+     bool enable_white_ball_collision() 
+    { 
+        RCLCPP_INFO(this->get_logger(), "Riattivazione controlli di collisione ambientali...");
+        ignore_cartesian_collisions_ = false;
+        return true;
+    }
+
+    
     /*ALTRI METODI DI UTILITIES*/
 
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
@@ -694,18 +766,19 @@ class TaskNode : public rclcpp::Node
         std::cin.ignore(); // pulisce il '\n' rimasto nel buffer
     }
 
-
+   
   private:
     MoveGroupInterfacePtr move_group_; // interfaccia MoveIt! per il gruppo "left_arm"
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
+    // Client per modificare la scena di pianificazione
+    rclcpp::Client<moveit_msgs::srv::ApplyPlanningScene>::SharedPtr planning_scene_diff_cli_;
+
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
-
-    char c_in; // variabile per input da terminale (usata in print_and_wait)
 
     /* PARAMETRI DI PIANIFICAZIONE */
     double max_velocity_acceleration_scaling_factor_;   // fattore di scala per velocità e accelerazione
@@ -726,6 +799,13 @@ class TaskNode : public rclcpp::Node
     double success_threshold_Ruckig_;                    // soglia di successo per pianificazione cartesian path con Ruckig (0.0 - 1.0)
     double Ruckig_dt_;                                   // passo di lavoro per Ruckig (secondi)
     double max_jerk_;                                    // limite di jerk per pianificazione cartesian path con Ruckig (m/s^3)
+
+
+    //temporanee
+    char c_in; // variabile per input da terminale (usata in print_and_wait)
+    bool ignore_cartesian_collisions_ = false; // Flag per abilitare/disabilitare collisioni nel tiro
+
+
 };
 
 
@@ -752,11 +832,14 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("impact_angle_deg", 10.0);
     node->declare_parameter<double>("direction_angle_deg", 0.0);
+    node->declare_parameter<double>("impact_shot_velocity", 0.1); 
 
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
     double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
+    double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();
+
 
 
     /* ORIENTAMENTO STECCA*/
@@ -795,7 +878,7 @@ int main(int argc, char* argv[])
 
     // 1 - vado in pre-approach per approcciare la pallina
     {
-        node->print_and_wait("Posizionamento in 'pre_approach");
+        node->print_and_wait("Posizionamento in 'pre_approach..");
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
     }
     
@@ -840,15 +923,50 @@ int main(int argc, char* argv[])
 
     // 4 - eseguo tiro
     {
-        //TODO..
+        node->print_and_wait("Esecuzione tiro..");
+
+        //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
+        node->disable_white_ball_collision() ;
+
+
+        //parametri del tiro
+        Vector3d pos_arresto = Vector3d(0, 0, 0);   //per semplicità finisco il tiro nel centro della sfera dunque..
+        double accel_distance = shooting_distance_from_ball_surface_; // distanza di accelerazione (dalla posizione all'indietro fino al contatto con la pallina)
+        double decel_distance = BALL_RADIUS;                          // distanza di decelerazione (dal contatto alla frenata, centro pallina, scelta progettuale)
+
+
+        
+        node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
+                          impact_shot_velocity_,
+                          accel_distance, decel_distance);
+    }
+
+    // 5 - torno subito indietro alla posa di carica
+    {
+        node->print_and_wait("Torno indietro..");
+
+        
+        //distanza
+        double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
+
+
+        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
+        Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                          distance_from_ball_center * sin(impact_angle_rad));
+
+
+        node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
+
+        node->enable_white_ball_collision() ; //riattivo collisione tra asta e pallina bianca
     }
     
 
-    // 5 - vado in pre-approach per la prossima pallina
-    {
-        node->print_and_wait("Ritorno in 'pre_approach per prossimo tiro");
-        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
-    }
+    // // 6 - vado in pre-approach per la prossima pallina
+    // {
+    //     node->print_and_wait("Ritorno in 'pre_approach per prossimo tiro");
+    //     node->moveToNamedTarget(READY_TO_APPROACH_CONFIG, 10);
+    // }
 
 
 

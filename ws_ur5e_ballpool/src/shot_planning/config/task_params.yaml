@@ -1,5 +1,14 @@
 task_node:
   ros__parameters:
+    use_sim_time: true 
+
+    # SHOT PARAMETERS (temporary values, before introducing game-engine)
+    approach_distance_from_ball_surface: 0.01             # distanza di avvicinamento alla pallina in metri (2 cm)
+    shooting_distance_from_ball_surface: 0.05             # distanza di tiro dalla pallina in metri (5 cm)
+    impact_angle_deg: 10.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
+    direction_angle_deg: 30.0                             # angolo di rotazione dell'asta attorno alla pallina in gradi
+    impact_shot_velocity: 0.1                             # velocità di impatto del tiro con la pallina in m/s (0.1 m/s)  
+
 
     #PLANNING PARAMETERS
 
@@ -27,12 +36,6 @@ task_node:
     Ruckig_dt: 0.01                                      # passo di lavoro di Ruckig in secondi (100Hz)
     max_jerk: 50.0                                       # jerk massimo in m/s^3 (def moveit 10.0)
 
-
-    # SHOT PLANNING PARAMETERS (temporary values, before introducing game-engine)
-    approach_distance_from_ball_surface: 0.01                        # distanza di avvicinamento alla pallina in metri (2 cm)
-    shooting_distance_from_ball_surface: 0.05                        # distanza di tiro dalla pallina in metri (5 cm)
-    impact_angle_deg: 10.0                                           # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
-    direction_angle_deg: 30.0                                        # angolo di rotazione dell'asta attorno alla pallina in gradi
 
   
     # Sezione per MoveIt (nell'URDF di ur_description non ci sono i limiti d'accelerazione che fanno fallire alcuni metodi)

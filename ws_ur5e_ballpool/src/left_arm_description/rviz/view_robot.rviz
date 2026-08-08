@@ -5,6 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /RobotModel1/Description Topic1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 454
   - Class: rviz_common/Selection
@@ -72,6 +74,11 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        left_cut_rod_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         left_flange:
           Alpha: 1
           Show Axes: false
@@ -90,6 +97,10 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        left_rod_tip_virtual_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         left_shoulder_link:
           Alpha: 1
           Show Axes: false
@@ -137,6 +148,76 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Filter (blacklist): ""
+      Filter (whitelist): ""
+      Frame Timeout: 15
+      Frames:
+        All Enabled: false
+        left_base:
+          Value: false
+        left_base_link:
+          Value: false
+        left_base_link_inertia:
+          Value: false
+        left_cut_rod_link:
+          Value: false
+        left_flange:
+          Value: false
+        left_forearm_link:
+          Value: false
+        left_ft_frame:
+          Value: false
+        left_holder_link:
+          Value: false
+        left_rod_tip_virtual_link:
+          Value: true
+        left_shoulder_link:
+          Value: false
+        left_tool0:
+          Value: false
+        left_upper_arm_link:
+          Value: false
+        left_wrist_1_link:
+          Value: false
+        left_wrist_2_link:
+          Value: false
+        left_wrist_3_link:
+          Value: false
+        wall_link:
+          Value: false
+        world:
+          Value: false
+      Marker Scale: 0.15000000596046448
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      Tree:
+        world:
+          left_base_link:
+            left_base:
+              {}
+            left_base_link_inertia:
+              left_shoulder_link:
+                left_upper_arm_link:
+                  left_forearm_link:
+                    left_wrist_1_link:
+                      left_wrist_2_link:
+                        left_wrist_3_link:
+                          left_flange:
+                            left_tool0:
+                              left_holder_link:
+                                left_cut_rod_link:
+                                  left_rod_tip_virtual_link:
+                                    {}
+                          left_ft_frame:
+                            {}
+          wall_link:
+            {}
+      Update Interval: 0
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -183,39 +264,39 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 3.493516445159912
+      Distance: 0.30673229694366455
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.0457618348300457
-        Y: -0.07058511674404144
-        Z: 0.49734944105148315
+        X: -0.44480475783348083
+        Y: -0.664760947227478
+        Z: 0.7482285499572754
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.2703980803489685
+      Pitch: 0.16753588616847992
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.8585638999938965
+      Yaw: 5.252989768981934
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
   Height: 699
   Hide Left Dock: false
-  Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000016a0000025dfc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003f0000025d000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001100000025dfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003f0000025d000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d006501000000000000045000000000000000000000028e0000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Hide Right Dock: true
+  QMainWindow State: 000000ff00000000fd00000004000000000000016a0000025dfc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005d00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003f0000025d000000cc00fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c0000026100000001000001100000025dfc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003f0000025d000000a900fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000003a40000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: false
+    collapsed: true
   Width: 1300
   X: 66
   Y: 32

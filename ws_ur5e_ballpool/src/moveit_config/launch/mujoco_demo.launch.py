@@ -28,7 +28,7 @@ def generate_launch_description():
     static_virtual_joint_tfs = include("static_virtual_joint_tfs.launch.py")
     rsp = include("rsp.launch.py")
     move_group = include("move_group.launch.py")
-    moveit_rviz = include("moveit_rviz.launch.py")
+    # moveit_rviz = include("moveit_rviz.launch.py")
     spawn_controllers = include("spawn_controllers.launch.py")
 
     controllers_file = os.path.join(
@@ -63,7 +63,7 @@ def generate_launch_description():
             rsp,
             mujoco_ros2_control_node,
             move_group,
-            moveit_rviz,
+            # moveit_rviz,
             spawn_controllers,
         ]
     )
