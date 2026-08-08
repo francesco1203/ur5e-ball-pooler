@@ -8,6 +8,7 @@ task_node:
     impact_angle_deg: 10.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
     direction_angle_deg: 30.0                             # angolo di rotazione dell'asta attorno alla pallina in gradi
     impact_shot_velocity: 0.1                             # velocità di impatto del tiro con la pallina in m/s (0.1 m/s)  
+    offset_correction_center: 0.005                       # correzione dell'offset del centro della pallina, per far colpire la zona 'alta' della pallina
 
 
     #PLANNING PARAMETERS

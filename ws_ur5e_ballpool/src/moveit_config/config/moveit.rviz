@@ -306,7 +306,7 @@ Visualization Manager:
         left_holder_link:
           Value: false
         left_rod_tip_virtual_link:
-          Value: false
+          Value: true
         left_shoulder_link:
           Value: false
         left_tool0:
@@ -322,10 +322,10 @@ Visualization Manager:
         wall_link:
           Value: false
         white_solid_ball:
-          Value: false
+          Value: true
         world:
           Value: false
-      Marker Scale: 1
+      Marker Scale: 0.20000000298023224
       Name: TF
       Show Arrows: true
       Show Axes: true

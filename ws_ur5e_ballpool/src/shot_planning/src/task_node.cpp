@@ -467,6 +467,17 @@ class TaskNode : public rclcpp::Node
                     tf2::durationFromSec(0.1)
                 );
                 
+                // -------------------------------------
+                // --- AGGIUNGI QUESTO BLOCCO DI LOG ---
+                RCLCPP_INFO(this->get_logger(), 
+                            "Posa trasformata nel frame '%s': pos[%.3f, %.3f, %.3f]",
+                            planning_frame_moveit.c_str(),
+                            pose_stamped_out.pose.position.x,
+                            pose_stamped_out.pose.position.y,
+                            pose_stamped_out.pose.position.z);
+                           
+                // -------------------------------------
+
                 // Aggiorna la target_pose con i valori trasformati
                 target_pose = pose_stamped_out.pose;
                 
@@ -833,12 +844,14 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("impact_angle_deg", 10.0);
     node->declare_parameter<double>("direction_angle_deg", 0.0);
     node->declare_parameter<double>("impact_shot_velocity", 0.1); 
+    node->declare_parameter<double>("offset_correction_center", 0.002);
 
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
     double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
     double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();
+    double offset_correction_center_ = node->get_parameter("offset_correction_center").as_double();
 
 
 
@@ -895,7 +908,8 @@ int main(int argc, char* argv[])
         //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
         Vector3d pos_pre_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                         distance_from_ball_center * sin(impact_angle_rad));
+                                         distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+                                        );
 
 
         node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
@@ -914,7 +928,8 @@ int main(int argc, char* argv[])
         //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
         Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                           distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          distance_from_ball_center * sin(impact_angle_rad));
+                                          distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+                                          );
 
 
         node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
@@ -930,7 +945,7 @@ int main(int argc, char* argv[])
 
 
         //parametri del tiro
-        Vector3d pos_arresto = Vector3d(0, 0, 0);   //per semplicità finisco il tiro nel centro della sfera dunque..
+        Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);   //per semplicità finisco il tiro nel centro (corretto) della sfera dunque..
         double accel_distance = shooting_distance_from_ball_surface_; // distanza di accelerazione (dalla posizione all'indietro fino al contatto con la pallina)
         double decel_distance = BALL_RADIUS;                          // distanza di decelerazione (dal contatto alla frenata, centro pallina, scelta progettuale)
 
@@ -953,7 +968,8 @@ int main(int argc, char* argv[])
         //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
         Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                           distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          distance_from_ball_center * sin(impact_angle_rad));
+                                          distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+                                         );
 
 
         node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
