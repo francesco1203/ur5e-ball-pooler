@@ -390,7 +390,7 @@
 
     <!-- BILIARDO E PALLINE -->
     
-    <body name="tavolo_biliardo" pos="-0.3 -0.3 0.0" euler="0 0 0.0"> 
+    <body name="tavolo_biliardo" pos="{tavolo_pos}" euler="0 0 {tavolo_yaw}"> 
         
         <!-- grafica: visuale pura -->
         <geom class="visual_environment" type="mesh" mesh="campo_biliardo" material="verde_biliardo"/>
@@ -448,28 +448,28 @@
     </body>
 
     <!-- pallina bianca-->
-    <body name="white_ball" pos="-0.20000 -0.25000 0.06">
+    <body name="white_ball" pos="{white_pos}">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="0 0 -5">
+    <body name="red_ball" pos="{red_pos}">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.22000 -0.35000 0.06">
+    <body name="blue_ball" pos="{blue_pos}">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="-0.45000 -0.25000 0.06">
+    <body name="yellow_ball" pos="{yellow_pos}">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>

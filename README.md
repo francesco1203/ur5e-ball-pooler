@@ -31,7 +31,7 @@ Work in progress..
 - ROS2Jazzy environment (source)
 - ur_description (Ros2 standard package)
 - moveit2 (Ros2 standard package)
-- mujoco_ros2_control (Ros2 package) + mujoco + python >= 3.12
+- mujoco_ros2_control (Ros2 package) + mujoco + python3-yaml
 
 ---
 
@@ -53,14 +53,17 @@ Then, run it:
 ### Note about using MuJoCo!!
 You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the MuJoCo plugin (TODO: automatic upload)
 
-Then you should upload the positions of the obstacles all by hand, modifying directly mujoco_bridge/complete_scene.xml (TODO: automatic upload)
-
 ---
 
 ### Structure
 
-- meshes
 - ws_ur5_ball_pooler: ros2 workspace
+- src/camera_perception
+- src/left_arm_description
+- src/moveit_config
+- src/scene_description
+- src/shared_headers_pkg
+- src/shot_planning
 
 ---
 

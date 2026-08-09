@@ -390,7 +390,7 @@
 
     <!-- BILIARDO E PALLINE -->
     
-    <body name="tavolo_biliardo" pos="-0.3 -0.3 0.0" euler="0 0 0.0"> 
+    <body name="tavolo_biliardo" pos="-0.3 -0.3 0">
         
         <!-- grafica: visuale pura -->
         <geom class="visual_environment" type="mesh" mesh="campo_biliardo" material="verde_biliardo"/>
@@ -447,33 +447,38 @@
             size="0.25 0.15 0.005" pos="0.0 0.0 -0.05" rgba="0.3 0.3 0.3 1"/>
     </body>
 
-    <!-- pallina bianca-->
-    <body name="white_ball" pos="-0.20000 -0.25000 0.06">
+    <!-- NOTA -->
+    <!-- PER QUESTIONI LEGATE A MUJOCO, LE PALLINE NON SONO POTUTE ESSERE INSERITE COME FIGLIE DI BILIARDO -->
+    <!-- QUINDI, VA CALCOLATA LA POSIZONE ASSOLUTA AGGIUNGENDO LA POSIZIONE DEL CENTRO BILIARDO -->
+    <!-- POS_CENTRO_BILIARDO = -0.3 -0.3 0.06 -->
+
+    <!-- pallina bianca pos_relativa = 0 0 0 -->
+    <body name="white_ball" pos="-0.2 -0.25 0.06">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="0 0 -5">
+    <!-- <body name="red_ball" pos="0.08 -0.21 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.22000 -0.35000 0.06">
+    <!-- <body name="blue_ball" pos="-0.12 -0.18 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="-0.45000 -0.25000 0.06">
+    <!-- <body name="yellow_ball" pos="0.18 -0.10 0.075">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>
-    </body>
+    </body> -->
     
 
     <!-- PUNTI DI INTERESSE -->
