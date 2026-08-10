@@ -105,8 +105,7 @@ class TaskNode : public rclcpp::Node
         
         //moveCartesianPath:
         this->declare_parameter<double>("resolution_step", 0.01);                                       // default resolution step in meters
-        this->declare_parameter<double>("success_threshold", 0.95);                                       // default success threshold
-
+        
         //moveCartesianPathAsymmTriangle
         this->declare_parameter<double>("resolution_step_Ruckig", 0.005);                        // default resolution step in meters
         this->declare_parameter<double>("success_threshold_Ruckig", 0.95);                       // default success threshold
@@ -127,8 +126,7 @@ class TaskNode : public rclcpp::Node
         goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
         
         resolution_step_ = this->get_parameter("resolution_step").as_double();
-        success_threshold_ = this->get_parameter("success_threshold").as_double();
-
+        
         resolution_step_Ruckig_ = this->get_parameter("resolution_step_Ruckig").as_double();
         success_threshold_Ruckig_ = this->get_parameter("success_threshold_Ruckig").as_double();
         Ruckig_dt_ = this->get_parameter("Ruckig_dt").as_double();
@@ -426,10 +424,12 @@ class TaskNode : public rclcpp::Node
     // INPUT:  posizione    → Vector3d {x, y, z} rispetto a frame_id
     //         orientamento → Quaternion che descrive l'orientamento del EEF
     //         frame_id     → terna di riferimento frame esplicito (world di default)
-    // RETURN: true se pianificazione ed esecuzione hanno avuto successo
-    bool moveCartesianPath(const Vector3d& posizione, 
+    //         success_execute_threshold → percentuale minima di traiettoria che dev'essere eseguita (se non trova almeno questa percentuale, fallisce)
+    // RETURN: percentuale di pianificazione della traiettoria, -1 se fallita interamente
+    double moveCartesianPath(const Vector3d& posizione, 
                     const Quaternion& orientamento,
-                    const std::string& frame_id =   WORLD_FRAME)
+                    const std::string& frame_id =   WORLD_FRAME,
+                    double success_execute_threshold = 0.00)        //se non indicato, default 0.00 (esegue sempre quello che trova)
     {
 
         // 1. Inizializza la posa originale come PoseStamped
@@ -483,7 +483,7 @@ class TaskNode : public rclcpp::Node
                 
             } catch (const tf2::TransformException & ex) {
                 RCLCPP_ERROR(this->get_logger(), "Errore in tf2: impossibile trasformare la posa. %s", ex.what());
-                return false; // Interrompe il processo se non riesce a convertire
+                return -1.0; // Interrompe il processo se non riesce a convertire
             }
         }
 
@@ -508,9 +508,8 @@ class TaskNode : public rclcpp::Node
                                                              
         RCLCPP_INFO(this->get_logger(), "Traiettoria cartesiana calcolata al %.2f%%", fraction * 100.0);
 
-        // 4. Esecuzione se il percorso è completato
-        //default: 0.95, ma per per debug, accettiamo anche frazioni basse, così vediamo se la pianificazione fallisce per collisione o limiti giunti
-        if (fraction >= success_threshold_) 
+        // 4. Esecuzione se il percorso trovato è soddisfacente (superiore alla soglia di successo)
+        if (fraction >= success_execute_threshold) 
         {
             // --- GESTIONE DEL TEMPO E DELLA VELOCITÀ ---
             // Convertiamo il messaggio in un oggetto robot_trajectory
@@ -526,7 +525,7 @@ class TaskNode : public rclcpp::Node
 
             if (!success) {
                 RCLCPP_ERROR(this->get_logger(), "Fallita la parametrizzazione temporale della traiettoria!");
-                return false;
+                return -1.0;
             }
 
             // Riconvertiamo nel messaggio da inviare a MoveIt
@@ -534,10 +533,12 @@ class TaskNode : public rclcpp::Node
             rt.getRobotTrajectoryMsg(piano.trajectory);
             
             move_group_->execute(piano);
-            return true;
+            RCLCPP_INFO(this->get_logger(), "Esecuzione della traiettoria cartesiana completata al %.2f%%.", fraction * 100.0);
+            
+            return fraction; // Ritorna la percentuale di traiettoria pianificata
         } else {
-            RCLCPP_ERROR(this->get_logger(), "Pianificazione cartesiana fallita o interrotta dagli ostacoli/limiti giunti.");
-            return false;
+            RCLCPP_ERROR(this->get_logger(), "Pianificazione cartesiana fallita o interrotta dagli ostacoli/limiti giunti al %.2f%%.", fraction * 100.0);
+            return fraction; // Ritorna la percentuale di traiettoria pianificata, anche se non sufficiente
         }
     }
 
@@ -746,17 +747,18 @@ class TaskNode : public rclcpp::Node
                                               accel, decel); 
     }
 
-    // Disabilita la collisione tra asta e pallina bianca
-    bool disable_white_ball_collision() 
+
+    // Disabilita la collisioni
+    bool disable_collision() 
     { 
-        RCLCPP_INFO(this->get_logger(), "Disattivazione collisioni per l'esecuzione del tiro...");
+        RCLCPP_INFO(this->get_logger(), "Disattivazione collisioni...");
         ignore_cartesian_collisions_ = true;
         return true;
     }
     
 
     // Abilita la collisione tra asta e pallina bianca
-     bool enable_white_ball_collision() 
+     bool enable_collision() 
     { 
         RCLCPP_INFO(this->get_logger(), "Riattivazione controlli di collisione ambientali...");
         ignore_cartesian_collisions_ = false;
@@ -804,8 +806,7 @@ class TaskNode : public rclcpp::Node
     double goal_orientation_tolerance_;                 // tolleranza di orientamento (radians)
    
     double resolution_step_;                             // passo di risoluzione per pianificazione cartesian path (metri)
-    double success_threshold_;                           // soglia di successo per pianificazione cartesian path (0.0 - 1.0) 
-
+    
     double resolution_step_Ruckig_;                      // passo di risoluzione per pianificazione cartesian path con Ruckig (metri)
     double success_threshold_Ruckig_;                    // soglia di successo per pianificazione cartesian path con Ruckig (0.0 - 1.0)
     double Ruckig_dt_;                                   // passo di lavoro per Ruckig (secondi)
@@ -845,6 +846,10 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("direction_angle_deg", 0.0);
     node->declare_parameter<double>("impact_shot_velocity", 0.1); 
     node->declare_parameter<double>("offset_correction_center", 0.002);
+    node->declare_parameter<double>("elevation_escape", 0.05);
+    node->declare_parameter<double>("success_threshold_approach", 0.95);
+    node->declare_parameter<double>("success_threshold_shooting", 0.20);
+
 
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
@@ -852,6 +857,13 @@ int main(int argc, char* argv[])
     double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
     double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();
     double offset_correction_center_ = node->get_parameter("offset_correction_center").as_double();
+    double elevation_escape_ = node->get_parameter("elevation_escape").as_double();
+    double success_threshold_approach_ = node->get_parameter("success_threshold_approach").as_double();
+    double success_threshold_shooting_ = node->get_parameter("success_threshold_shooting").as_double();
+
+
+    /* VARIABILI DELL'ESECUZIONE */
+    double perc_success;                // percentuale di successo della pianificazione (0.0 - 1.0)
 
 
 
@@ -905,14 +917,22 @@ int main(int argc, char* argv[])
         double distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
-        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
+        //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
         Vector3d pos_pre_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
                                          distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
                                         );
 
 
-        node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
+        perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
+                                                      success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
+
+        if(perc_success < success_threshold_approach_) {
+            RCLCPP_ERROR(node->get_logger(), "Approach alla pallina fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
+            rclcpp::shutdown();
+            spinner.join();
+            return -1;
+        }
     }
 
 
@@ -925,14 +945,21 @@ int main(int argc, char* argv[])
         double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
-        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
+        //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
         Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                           distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
                                           distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
                                           );
 
 
-        node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
+        perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
+                                                      success_threshold_shooting_);                 //soglia di successo 20%, perché è almeno 1 cm di allontanamento, fondamentale che ci arrivi
+        if(perc_success < success_threshold_shooting_) {
+            RCLCPP_ERROR(node->get_logger(), "Allontanamento all'indietro fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
+            rclcpp::shutdown();
+            spinner.join();
+            return -1;
+        }
     }
 
 
@@ -941,14 +968,14 @@ int main(int argc, char* argv[])
         node->print_and_wait("Esecuzione tiro..");
 
         //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
-        node->disable_white_ball_collision() ;
+        node->disable_collision() ;
 
 
         //parametri del tiro
-        Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);   //per semplicità finisco il tiro nel centro (corretto) della sfera dunque..
-        double accel_distance = shooting_distance_from_ball_surface_; // distanza di accelerazione (dalla posizione all'indietro fino al contatto con la pallina)
-        double decel_distance = BALL_RADIUS;                          // distanza di decelerazione (dal contatto alla frenata, centro pallina, scelta progettuale)
-
+        Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);        //per semplicità finisco il tiro nel centro (corretto) della sfera
+        double accel_distance = perc_success * shooting_distance_from_ball_surface_; // distanza di accelerazione (dalla posizione all'indietro a cui sono riuscito ad arrivare, fino al contatto con la pallina)
+        double decel_distance = BALL_RADIUS;                                         // distanza di decelerazione (dal contatto alla frenata, centro pallina, scelta progettuale)
+        
 
         
         node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
@@ -956,25 +983,19 @@ int main(int argc, char* argv[])
                           accel_distance, decel_distance);
     }
 
-    // 5 - torno subito indietro alla posa di carica
+    // 5 - mi alzo un po' per liberare il campo
     {
         node->print_and_wait("Torno indietro..");
 
         
-        //distanza
-        double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
-
-        //uso coordinate sferiche per calcolare la posizione in 3D della punta dell'asta
-        Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
-                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
-                                         );
+        //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
+        Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);
 
 
         node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
 
-        node->enable_white_ball_collision() ; //riattivo collisione tra asta e pallina bianca
+        node->enable_collision() ; //riattivo collisione tra asta e pallina bianca
     }
     
 
