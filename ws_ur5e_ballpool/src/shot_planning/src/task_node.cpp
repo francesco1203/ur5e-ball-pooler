@@ -838,7 +838,11 @@ int main(int argc, char* argv[])
     //adesso sono sicuro che start() ha inizializzato move_group_ e posso chiamare i metodi di movimento
 
 
-    
+    /*EXECUTION PARAMETERS*/
+    node->declare_parameter<bool>("control_execution_by_user_input", true);
+    bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
+
+
     /* SHOT PLANNING PARAMETERS */
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
@@ -903,7 +907,14 @@ int main(int argc, char* argv[])
 
     // 1 - vado in pre-approach per approcciare la pallina
     {
-        node->print_and_wait("Posizionamento in 'pre_approach..");
+        if(control_execution_by_user_input_){
+            node->print_and_wait("Posizionamento in 'pre_approach..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "Posizionamento in 'pre_approach..");
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+        }
+
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
     }
     
@@ -911,7 +922,14 @@ int main(int argc, char* argv[])
 
     // 2 - approach alla pallina
     {
-        node->print_and_wait("Approach alla pallina..");
+        if(control_execution_by_user_input_){
+            node->print_and_wait("Approach alla pallina..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "Approach alla pallina..");
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+        }
+        
 
         //distanza
         double distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
@@ -939,7 +957,13 @@ int main(int argc, char* argv[])
 
     // 3 - si allontana all'indietro per prendere velocità
     {
-        node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
+        if(control_execution_by_user_input_){
+            node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "Allontanamento all'indietro per prendere velocità..");
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+        }
 
         //distanza
         double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
@@ -965,7 +989,13 @@ int main(int argc, char* argv[])
 
     // 4 - eseguo tiro
     {
-        node->print_and_wait("Esecuzione tiro..");
+        if(control_execution_by_user_input_){
+            node->print_and_wait("Esecuzione tiro..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "Esecuzione tiro..");
+            //node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+        }
 
         //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
         node->disable_collision() ;
@@ -985,9 +1015,14 @@ int main(int argc, char* argv[])
 
     // 5 - mi alzo un po' per liberare il campo
     {
-        node->print_and_wait("Torno indietro..");
+        if(control_execution_by_user_input_){
+            node->print_and_wait("Torno indietro..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "Torno indietro..");
+            //node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+        }
 
-        
 
         //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
         Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);

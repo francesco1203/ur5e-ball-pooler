@@ -77,7 +77,8 @@
 
     <!-- BILIARDO (contype=1): collide con Bianca (2) e Colorate (4) -> conaffinity = 2 + 4 = 6 -->
     <default class="biliardo_collision">
-        <geom group="3" contype="1" conaffinity="6"/>
+        <geom group="3" contype="1" conaffinity="6"
+              solref="0.002 1.0" solimp="0.99 0.999 0.001"/>
     </default>
 
 
@@ -88,7 +89,8 @@
     <default class="pallina_bianca_collision">
         <geom type="sphere" size="0.0125" mass="0.010"
               contype="2" conaffinity="15"
-              friction="0.4 0.005 0.005"    
+              friction="0.1 0.005 0.0001"    
+              solref="0.002 1.0" solimp="0.99 0.999 0.001"    
               group="3"/>
     </default>
 
@@ -97,7 +99,8 @@
     <default class="pallina_colorata_collision">
         <geom type="sphere" size="0.0125" mass="0.015"
               contype="4" conaffinity="7"
-              friction="0.4 0.005 0.005"
+              friction="0.1 0.005 0.0001"
+              solref="0.002 1.0" solimp="0.99 0.999 0.001"
               group="3"/>
     </default>
     
@@ -434,13 +437,47 @@
         <geom mesh="sponde_collision_31" type="mesh" rgba="1 1 1 1" class="biliardo_collision" pos="" quat=""/>
 
 
+        <!-- PIANO DI GIOCO: ALTERNATIVA 1-->
+        <!-- PIANO DI GIOCO SENZA BUCHE, COPRE L'INTERA SUPERFICIE -->
+        <!-- <geom name="panno_centro" class="biliardo_collision" type="box" 
+            size="0.25 0.15 0.01" pos="0.0 0.0 0.05" rgba="1 0 0 0.5"/> -->
 
-        <!-- Per il campo uso un box unico, che copre tutta la superficie di gioco.-->
-        <!-- TODO una possibile implementazione è gestire le buche via script -->
 
-        <!-- PIANO DI GIOCO (copre l'intera superficie) -->
-        <geom name="panno_centro" class="biliardo_collision" type="box" 
-            size="0.25 0.15 0.01" pos="0.0 0.0 0.05" rgba="1 0 0 0.5"/>
+        <!-- PIANO DI GIOCO: ALTERNATIVA 2-->
+        <!-- COLLISIONI PIANO GIOCO (I 7 BLOCCHI)       -->
+
+        <!-- 1. BLOCCO CENTRALE (Verde) -->
+        <!-- Ora è più corto in X: si ferma prima delle buche d'angolo (a 0.195) -->
+        <geom name="piano_centro" class="biliardo_collision" type="box" 
+              size="0.2025 0.1075 0.005" pos="0 0 0.055" rgba="0 1 0 0.5"/>
+        
+        <!-- SPONDE LUNGHE (I tuoi 4 blocchi invariati) -->
+        <!-- 2. Alto-SX (Rosso) -->
+        <geom name="piano_alto_sx" class="biliardo_collision" type="box" 
+              size="0.09 0.01575 0.005" pos="-0.105 0.1225 0.055" rgba="1 0 0 0.5"/>
+
+        <!-- 3. Alto-DX (Blu) -->
+        <geom name="piano_alto_dx" class="biliardo_collision" type="box" 
+              size="0.09 0.01575 0.005" pos="0.105 0.1225 0.055" rgba="0 0 1 0.5"/>
+
+        <!-- 4. Basso-SX (Giallo) -->
+        <geom name="piano_basso_sx" class="biliardo_collision" type="box" 
+              size="0.09 0.01575 0.005" pos="-0.105 -0.1225 0.055" rgba="1 1 0 0.5"/>
+
+        <!-- 5. Basso-DX (Azzurro) -->
+        <geom name="piano_basso_dx" class="biliardo_collision" type="box" 
+              size="0.09 0.01575 0.005" pos="0.105 -0.1225 0.055" rgba="0 1 1 0.5"/>
+
+        <!-- 6. Lato Corto SINISTRO (Viola) -->
+        <!-- Inizia dove finisce il verde (X=-0.195) e va alla fine del tavolo (X=-0.225). Centro: -0.210 -->
+        <geom name="piano_corto_sx" class="biliardo_collision" type="box" 
+              size="0.01225 0.10 0.005" pos="-0.215 0 0.055" rgba="1 0 1 0.5"/>
+
+        <!-- 7. Lato Corto DESTRO (Arancione) -->
+        <!-- Inizia dove finisce il verde (X=0.195) e va alla fine del tavolo (X=0.225). Centro: 0.210 -->
+        <geom name="piano_corto_dx" class="biliardo_collision" type="box" 
+              size="0.01225 0.10 0.005" pos="0.215 0 0.055" rgba="1 0.5 0 0.5"/>
+
 
         <!-- PIANO RACCOLTA -->
         <geom name="fondo_buche" class="biliardo_collision" type="box" 

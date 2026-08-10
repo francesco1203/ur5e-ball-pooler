@@ -34,8 +34,10 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     read -p "Vuoi avviare anche RViz? (s/n): " scelta_rviz
     if [[ "$scelta_rviz" =~ ^[sS][iI]?$ ]]; then
         gnome-terminal --tab --title="Moveit+MuJoCo+Rviz" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_and_rviz_demo.launch.py; exec bash"
+        sleep 10
     else
         gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
+        sleep 5
     fi
 
 else
@@ -43,15 +45,15 @@ else
     echo "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
-
+    sleep 10
 fi
-sleep 10
+
 
 
 echo "Avvio Fake Camera..."
 gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
 
-sleep 5
+sleep 3
 
 echo "Avvio Scene Builder..."
 gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
