@@ -40,3 +40,5 @@ Thumbs.db
 #ws_ur5e_ballpool/src/move_commands
 # turco_file
 codice_da_parte
+ws_ur5e_ballpool/src/shot_planning/src/task_node.cpp
+ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml

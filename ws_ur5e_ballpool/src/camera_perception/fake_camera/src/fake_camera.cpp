@@ -97,6 +97,42 @@ class FakeCamera : public rclcpp::Node
           transforms.push_back(t_ball);
         }
       }
+
+      
+      // --- TF 3: billiard_table -> holes (buche) ---
+      double half_l = POOL_TABLE_FIELD_LENGTH / 2.0;
+      double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
+
+      // Definiamo un array o vector con i nomi e le coordinate relative delle 6 buche
+      struct HoleDef { std::string name; double x; double y; };
+      std::vector<HoleDef> holes = {
+          {"hole_top_left",     -half_l, -half_w},
+          {"hole_top_right",    -half_l,  half_w},
+          {"hole_mid_left",      0.0,    -half_w},
+          {"hole_mid_right",     0.0,     half_w},
+          {"hole_bottom_left",   half_l, -half_w},
+          {"hole_bottom_right",  half_l,  half_w}
+      };
+
+      for (const auto& hole : holes) {
+          TransformStampedMsg t_hole;
+          t_hole.header.stamp = now;
+          t_hole.header.frame_id = BILLIARD_TABLE_FRAME;
+          t_hole.child_frame_id = hole.name;
+
+          t_hole.transform.translation.x = hole.x;
+          t_hole.transform.translation.y = hole.y;
+          // Z = 0.0 rispetto a BILLIARD_TABLE_FRAME che è già ad altezza campo
+          t_hole.transform.translation.z = 0.0; 
+
+          // Manteniamo la stessa rotazione del tavolo
+          t_hole.transform.rotation.x = 0.0;
+          t_hole.transform.rotation.y = 0.0;
+          t_hole.transform.rotation.z = 0.0;
+          t_hole.transform.rotation.w = 1.0;
+
+          transforms.push_back(t_hole);
+      }
       
       RCLCPP_INFO(this->get_logger(), "--------------------------------------------------"); // Separatore visivo per ogni ciclo
 

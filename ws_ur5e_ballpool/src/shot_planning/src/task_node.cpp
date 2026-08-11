@@ -9,7 +9,7 @@
 //    - TaskNode (classe nodo ROS2)
 //        ├── moveToJointConfig    → pianifica ed esegue verso una configurazione di giunti specifica
 //        ├── moveToNamedTarget()  → va a una posizione predefinita (es. "home")
-//        ├── moveToPose()         → va a una posa cartesiana (posizione + orientamento)
+//            moveCartesianPathAsymmTriangle
 //        └── moveCartesianPath()  → va a una posa cartesiana in linea retta (cartesian path)
 // ============================================================
 
@@ -53,6 +53,8 @@
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
 
+// my interfaces
+#include "shot_msgs/msg/shot_params.hpp" 
 
 
 using namespace std::chrono_literals;
@@ -76,6 +78,7 @@ class TaskNode : public rclcpp::Node
     using JointStateMsg  = sensor_msgs::msg::JointState;   
     using RobotTrajectoryMsg = moveit_msgs::msg::RobotTrajectory;
 
+    using ShotParamsMsg = shot_msgs::msg::ShotParams;   //Msg definito da me
 
     //Other
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -134,6 +137,12 @@ class TaskNode : public rclcpp::Node
         
 
 
+        // Subscriber ai parametri di tiro
+        param_sub_ = this->create_subscription<ShotParamsMsg>(
+            "shot_params", 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
+
+
+
         // MoveGroupInterface ha bisogno di shared_from_this(), che non è
         // disponibile dentro il costruttore → usiamo un timer one-shot (WORKAROUND)
         start_timer_ = this->create_wall_timer(
@@ -187,6 +196,8 @@ class TaskNode : public rclcpp::Node
     }
 
 
+    /* METODI DI SINCRONIZZAZIONE DI FLUSSO*/
+    //attesa nel main che moveit sia inizializzato
     void waitInit()
     {
         // Blocca il chiamante finché start() non ha completato l'inizializzazione.
@@ -197,6 +208,10 @@ class TaskNode : public rclcpp::Node
     //      per assicurarsi che start() abbia completato l'inizializzazione di move_group_ 
     //      e altri componenti necessari, senza i quali i metodi di movimento non funzionerebbero correttamente.
 
+     // Attesa nel main che arrivi una mossa valida
+    void waitForParams() {
+        params_promise_.get_future().wait();
+    }
 
 
     /* METODI DI PLANNING */
@@ -319,92 +334,6 @@ class TaskNode : public rclcpp::Node
             // Stampiamo il codice numerico esatto per capire se è collisione, IK fallita o altro
             RCLCPP_ERROR(this->get_logger(), 
                          "Pianificazione fallita per il target richiesto. Codice errore MoveIt: %d", 
-                         error_code.val);
-        }
- 
-        move_group_->clearPoseTargets();
- 
-        return ok;
-    }
-
-
-    // ── moveToPose ───────────────────────────────────────────────────────
-    // Muove l'end-effector NON IN LINEA RETTA nella posa cartesiana specificata.
-    // 
-    // In pratica: MoveIt! calcola la IK internamente e pianifica in spazio dei joint.
-    //
-    //
-    // INPUT:  posizione    → Vector3d {x, y, z} rispetto a frame_id
-    //         orientamento → Quaternion che descrive l'orientamento del EEF
-    //         frame_id     → terna di riferimento (world di default)
-    //         planning_time → tempo massimo di pianificazione (in secondi). Se <0, usa il valore di default
-    // RETURN: true se pianificazione ed esecuzione hanno avuto successo
-    bool moveToPose(const Vector3d& posizione, 
-                    const Quaternion& orientamento,
-                    const std::string& frame_id = WORLD_FRAME, 
-                    double planning_time = -1.0)
-    {
-        //setting moveit
-        move_group_->setPlannerId(cartesian_planning_algorithm_);
-
-        // Se non è stato specificato (valore sentinella -1.0), usa il membro di classe
-        double real_planning_time = (planning_time < 0.0) ? def_cartesian_planning_time_ : planning_time;
-        move_group_->setPlanningTime(real_planning_time);
-        
-
-        RCLCPP_INFO(this->get_logger(),
-                    "→ Planning verso posa cartesiana: [%.3f, %.3f, %.3f] con orientamento [w: %.3f, x: %.3f, y: %.3f, z: %.3f] in frame '%s'",
-                    posizione.x(), posizione.y(), posizione.z(), 
-                    orientamento.normalized().w(), orientamento.normalized().x(), orientamento.normalized().y(), orientamento.normalized().z(), 
-                    frame_id.c_str());
-
-
-        // Costruisco il messaggio ROS2 della posa target a partire da posizione e orientamento desiderati
-        // NOTA: ho bisogno di stamped per specificare anche il frame di riferimento, altrimenti
-        //       MoveIt! assume che la posa sia espressa nel frame di default del robot (probabilmente base_link)
-        PoseStampedMsg target_pose;
-
-        target_pose.header.frame_id = frame_id;
-
-        target_pose.header.stamp = this->get_clock()->now();
-
-        target_pose.pose.position.x = posizione.x();
-        target_pose.pose.position.y = posizione.y();
-        target_pose.pose.position.z = posizione.z();
- 
-        Quaternion q_norm = orientamento.normalized();
-        target_pose.pose.orientation.w = q_norm.w();
-        target_pose.pose.orientation.x = q_norm.x();
-        target_pose.pose.orientation.y = q_norm.y();
-        target_pose.pose.orientation.z = q_norm.z();
-        
-
-        // 3. Forziamo l'aggiornamento dello stato (funziona solo se c'è uno spinner attivo!)
-        move_group_->setStartStateToCurrentState();
-        move_group_->clearPoseTargets();
-
-
-        // 4. (Opzionale ma raccomandato) Specifica esplicitamente l'end-effector
-        move_group_->setEndEffectorLink(EE_LINK);
-
-
-        move_group_->setPoseTarget(target_pose);
- 
-        //pianifico ed eseguo se trovo soluzione
-        Plan piano;
-
-
-        // Catturiamo il codice di errore dettagliato
-        moveit::core::MoveItErrorCode error_code = move_group_->plan(piano);
- 
-        bool ok = (error_code == moveit::core::MoveItErrorCode::SUCCESS);
-
-        if (ok) {
-            move_group_->execute(piano);
-        } else {
-            // Stampiamo il codice numerico esatto per capire se è collisione, IK fallita o altro
-            RCLCPP_ERROR(this->get_logger(), 
-                         "Pianificazione fallita per la posa cartesiana richiesta. Codice errore MoveIt: %d", 
                          error_code.val);
         }
  
@@ -766,6 +695,7 @@ class TaskNode : public rclcpp::Node
     }
 
     
+
     /*ALTRI METODI DI UTILITIES*/
 
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
@@ -780,6 +710,7 @@ class TaskNode : public rclcpp::Node
     }
 
    
+
   private:
     MoveGroupInterfacePtr move_group_; // interfaccia MoveIt! per il gruppo "left_arm"
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
@@ -787,6 +718,9 @@ class TaskNode : public rclcpp::Node
 
     // Client per modificare la scena di pianificazione
     rclcpp::Client<moveit_msgs::srv::ApplyPlanningScene>::SharedPtr planning_scene_diff_cli_;
+
+    //subscriber a ShotParam (da game engine)
+    rclcpp::Subscription<ShotParamsMsg>::SharedPtr param_sub_;
 
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -813,10 +747,34 @@ class TaskNode : public rclcpp::Node
     double max_jerk_;                                    // limite di jerk per pianificazione cartesian path con Ruckig (m/s^3)
 
 
+    //lettura da subscriber per mossa da motore di gioco
+    std::promise<void> params_promise_;
+    bool params_received_ = false;
+    double direction_angle_deg_;
+    double impact_shot_velocity_;
+
+
     //temporanee
     char c_in; // variabile per input da terminale (usata in print_and_wait)
     bool ignore_cartesian_collisions_ = false; // Flag per abilitare/disabilitare collisioni nel tiro
 
+
+    /*METODI PRIVATI*/
+
+    // Callback subscriber che riceve i parametri
+    void paramsCallback(const ShotParamsMsg::SharedPtr msg) {
+        if (!params_received_) {
+            direction_angle_deg_ = msg->direction_angle_deg;
+            impact_shot_velocity_ = msg->impact_shot_velocity;
+            params_received_ = true;
+            
+            RCLCPP_INFO(this->get_logger(), "Parametri ricevuti: Angle=%.2f, Velocity=%.2f", 
+                        direction_angle_deg_, impact_shot_velocity_);
+            
+            // Sblocca il main se stavamo aspettando
+            params_promise_.set_value();
+        }
+    }
 
 };
 
@@ -833,9 +791,24 @@ int main(int argc, char* argv[])
     executor.add_node(node);
     auto spinner = std::thread([&executor]() { executor.spin(); });
  
-    // Aspetta che start() abbia completato l'inizializzazione — sincronizzazione
+
+
+    // Aspetta che start() abbia completato l'inizializzazione di moveit — sincronizzazione
     node->waitInit();
     //adesso sono sicuro che start() ha inizializzato move_group_ e posso chiamare i metodi di movimento
+
+
+    
+    /* LETTURA MOSSA DI GIOCO*/
+    RCLCPP_INFO(node->get_logger(), "In attesa che arrivino i parametri di tiro...");
+
+    // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
+    node->waitForParams();  
+
+    // Adesso posso usarli
+    double direction_angle_deg_ = node->getDirectionAngle(); 
+    double impact_shot_velocity_ = node->getImpactVelocity();
+
 
 
     /*EXECUTION PARAMETERS*/
@@ -847,8 +820,8 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("impact_angle_deg", 10.0);
-    node->declare_parameter<double>("direction_angle_deg", 0.0);
-    node->declare_parameter<double>("impact_shot_velocity", 0.1); 
+    // node->declare_parameter<double>("direction_angle_deg", 0.0);     //letto da topic
+    // node->declare_parameter<double>("impact_shot_velocity", 0.1);    //letto da topic
     node->declare_parameter<double>("offset_correction_center", 0.002);
     node->declare_parameter<double>("elevation_escape", 0.05);
     node->declare_parameter<double>("success_threshold_approach", 0.95);
@@ -858,8 +831,8 @@ int main(int argc, char* argv[])
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
-    double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();
-    double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();
+    // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //letto da topic
+    // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //letto da topic
     double offset_correction_center_ = node->get_parameter("offset_correction_center").as_double();
     double elevation_escape_ = node->get_parameter("elevation_escape").as_double();
     double success_threshold_approach_ = node->get_parameter("success_threshold_approach").as_double();

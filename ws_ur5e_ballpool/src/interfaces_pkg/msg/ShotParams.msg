@@ -1,0 +1,2 @@
+float64 direction_angle_deg
+float64 impact_shot_velocity

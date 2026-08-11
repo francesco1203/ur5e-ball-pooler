@@ -506,7 +506,7 @@
     </body>
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="-0.45000 -0.25000 0.06">
+    <body name="yellow_ball" pos="0 0 -5">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>

@@ -6,10 +6,10 @@ balls:
   - color: "white"
     pos: [0.0, 0.0]                     # Posizione rispetto al centro del tavolo
   - color: "red"
-    pos: [0.07, 0.05]
+    pos: [-0.07, -0.05]
   # - color: "blue"
   #   pos: [-0.08, 0.05]
-  - color: "yellow"
-    pos: [0.15, -0.05]
+  # - color: "yellow"
+  #   pos: [0.15, -0.05]
 
 #per ora usiamo solo palline piene, futura implementazione -> type: "solid" o "striped"
