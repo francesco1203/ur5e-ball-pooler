@@ -6,14 +6,8 @@
 
 /*TOPIC*/
 
-   //from simulator
-    const std::string READING_JOINT_STATES_TOPIC = "/joint_states";
-    const std::string PUBLISH_JOINT_COMMAND_TOPIC = "/cmd/joint_position";
-
-    //clik e cartesian control (creati)
-    const std::string CARTESIAN_DESIRED_POSE_TOPIC = "/clik/desired_cartesian_pose";
-    const std::string CLIK_RESULT = "/clik/result";
+   //created
+    const std::string SHOT_PARAMS_TOPIC = "shot_params";  // topic per i parametri di tiro (direction_angle_deg, impact_shot_velocity) --- IGNORE ---
 
 
-/*SERVIZI*/
-    const std::string CLIK_SERVICE  = "compute_ik_clik";
+   

@@ -42,7 +42,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
 else
     echo "Avvio MoveIt con RViz..."
-    echo "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
+    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware...\n"
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
     sleep 10
@@ -55,6 +55,7 @@ gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash
 
 sleep 3
 
+
 echo "Avvio Scene Builder..."
 gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
 
@@ -63,5 +64,12 @@ sleep 5
 
 echo "Avvio Shot Planning..."
 gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+
+sleep 5
+
+
+echo "Avvio Fake Game Engine..."
+gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+
 
 echo "Tutti i nodi sono stati avviati!"

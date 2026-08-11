@@ -13,6 +13,9 @@
   <!-- dipendenza mia libreria di headers .hpp -->
   <depend>shared_headers_pkg</depend>
 
+  <!-- dipendenza mia libreria di interfaces -->
+  <depend>interfaces_pkg</depend>
+
 
   <depend>rclcpp</depend>
   <depend>geometry_msgs</depend>

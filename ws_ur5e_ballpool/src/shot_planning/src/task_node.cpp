@@ -1,17 +1,17 @@
 // ============================================================
 //  task_node.cpp
-//  Nodo ROS2 che pianifica e ESEGUE movimenti del braccio
-//  usando MoveIt! MoveGroupInterface.
+//  Nodo ROS2 che pianifica e ESEGUE movimenti del braccio usando MoveIt! MoveGroupInterface.
 //
 //  Eseguire con: ros2 run shot_planning task_node --ros-args --params-file $(ros2 pkg prefix shot_planning)/share/shot_planning/config/task_params.yaml
 //
-//  Struttura:
+//  Struttura e metodi più importanti:
 //    - TaskNode (classe nodo ROS2)
 //        ├── moveToJointConfig    → pianifica ed esegue verso una configurazione di giunti specifica
 //        ├── moveToNamedTarget()  → va a una posizione predefinita (es. "home")
-//            moveCartesianPathAsymmTriangle
-//        └── moveCartesianPath()  → va a una posa cartesiana in linea retta (cartesian path)
+//        ├── moveCartesianPath()  → va a una posa cartesiana in linea retta (cartesian path) con parametrizzazione temporale ignota
+//        ├── moveCartesianPathAsymmTriangle → va a una posa cartesiana in linea retta (cartesian path) con profilo di velocità triangolare smussato (ad S) asimmetrico (Ruckig)
 // ============================================================
+
 
 #include <memory>
 #include <vector>
@@ -49,12 +49,12 @@
 
 // my headers
 #include "shared_headers_pkg/eigen_utilities.hpp"
-// #include "shared_headers_pkg/ros2_architecture.hpp"
+#include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
 
 // my interfaces
-#include "shot_msgs/msg/shot_params.hpp" 
+#include "interfaces_pkg/msg/shot_params.hpp" 
 
 
 using namespace std::chrono_literals;
@@ -78,7 +78,10 @@ class TaskNode : public rclcpp::Node
     using JointStateMsg  = sensor_msgs::msg::JointState;   
     using RobotTrajectoryMsg = moveit_msgs::msg::RobotTrajectory;
 
-    using ShotParamsMsg = shot_msgs::msg::ShotParams;   //Msg definito da me
+    using ShotParamsMsg = interfaces_pkg::msg::ShotParams;                          //Msg definito da me
+
+    //Subscription
+    using ShotParamsSubscription = rclcpp::Subscription<ShotParamsMsg>::SharedPtr;
 
     //Other
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -100,12 +103,6 @@ class TaskNode : public rclcpp::Node
         this->declare_parameter<std::string>("joint_planning_algorithm", "RRTConnectkConfigDefault");   // def planner                        
         this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians
 
-        //moveToPose:
-        this->declare_parameter<double>("def_cartesian_planning_time", 10.0);                           // default planning time in seconds
-        this->declare_parameter<std::string>("cartesian_planning_algorithm", "RRTstarkConfigDefault");  // def planner
-        this->declare_parameter<double>("goal_position_tolerance", 0.002);                              // default position tolerance in meters
-        this->declare_parameter<double>("goal_orientation_tolerance", 0.02);                            // default orientation tolerance in radians
-        
         //moveCartesianPath:
         this->declare_parameter<double>("resolution_step", 0.01);                                       // default resolution step in meters
         
@@ -123,11 +120,6 @@ class TaskNode : public rclcpp::Node
         joint_planning_algorithm_ = this->get_parameter("joint_planning_algorithm").as_string();
         goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
         
-        def_cartesian_planning_time_ = this->get_parameter("def_cartesian_planning_time").as_double();
-        cartesian_planning_algorithm_ = this->get_parameter("cartesian_planning_algorithm").as_string();
-        goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
-        goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
-        
         resolution_step_ = this->get_parameter("resolution_step").as_double();
         
         resolution_step_Ruckig_ = this->get_parameter("resolution_step_Ruckig").as_double();
@@ -139,7 +131,7 @@ class TaskNode : public rclcpp::Node
 
         // Subscriber ai parametri di tiro
         param_sub_ = this->create_subscription<ShotParamsMsg>(
-            "shot_params", 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
+            SHOT_PARAMS_TOPIC, 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
 
 
 
@@ -677,6 +669,10 @@ class TaskNode : public rclcpp::Node
     }
 
 
+    //getter
+    double getDirectionAngle() const { return direction_angle_deg_; }
+    double getImpactShotVelocity() const { return impact_shot_velocity_; }
+
     // Disabilita la collisioni
     bool disable_collision() 
     { 
@@ -720,7 +716,7 @@ class TaskNode : public rclcpp::Node
     rclcpp::Client<moveit_msgs::srv::ApplyPlanningScene>::SharedPtr planning_scene_diff_cli_;
 
     //subscriber a ShotParam (da game engine)
-    rclcpp::Subscription<ShotParamsMsg>::SharedPtr param_sub_;
+    ShotParamsSubscription param_sub_;
 
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -807,13 +803,8 @@ int main(int argc, char* argv[])
 
     // Adesso posso usarli
     double direction_angle_deg_ = node->getDirectionAngle(); 
-    double impact_shot_velocity_ = node->getImpactVelocity();
+    double impact_shot_velocity_ = node->getImpactShotVelocity();
 
-
-
-    /*EXECUTION PARAMETERS*/
-    node->declare_parameter<bool>("control_execution_by_user_input", true);
-    bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
 
 
     /* SHOT PLANNING PARAMETERS */
@@ -839,6 +830,13 @@ int main(int argc, char* argv[])
     double success_threshold_shooting_ = node->get_parameter("success_threshold_shooting").as_double();
 
 
+
+    /*CONTROL EXECUTION PARAMETERS*/
+    node->declare_parameter<bool>("control_execution_by_user_input", true);
+    bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
+
+
+
     /* VARIABILI DELL'ESECUZIONE */
     double perc_success;                // percentuale di successo della pianificazione (0.0 - 1.0)
 
@@ -847,22 +845,19 @@ int main(int argc, char* argv[])
     /* ORIENTAMENTO STECCA*/
     // orientamento è costante in molte fasi, dall'approach all'esecuzione tiro.. lo calcolo una sola volta
 
-
-    //NOTA: impact_angle_deg_ e direction_angle_deg_ sono angoli in gradi che dovranno essere restituiti dal motore di gioco
-    //      per ora, in assenza del motore di gioco, li abbiamo presi simulati da config yaml file
-
-
-    //direzione d'impatto
-    double impact_angle_rad = impact_angle_deg_ * M_PI / 180;           // inclinazione asta -> rotazione attorno asse y (latitudine)
-    double direction_angle_rad = direction_angle_deg_ * M_PI / 180;     // direzione asta -> rotazione attorno asse z (longitudine)
-
-    // matrice di rotazione di base che allinea z' -> x, y' --> -y, x' --> -z (da posa di approach a colpo)
+    // matrice di rotazione di base che allinea z' -> x, y' --> -y, x' --> -z (da posa di pre approach ad approach base)
     Matrix3d R_base;
     R_base <<  0,  0, -1,
                0, -1,  0,
               -1,  0,  0;
 
     Quaternion Q_base(R_base);  //converto in quaternione
+
+
+    //direzione d'impatto
+    double impact_angle_rad = impact_angle_deg_ * M_PI / 180;           // inclinazione asta -> rotazione attorno asse y (latitudine)
+    double direction_angle_rad = direction_angle_deg_ * M_PI / 180;     // direzione asta -> rotazione attorno asse z (longitudine)
+
 
     // calcolo il quaternione dell'orientamento stecca
     Quaternion Q_shot = Quaternion(
@@ -875,6 +870,7 @@ int main(int argc, char* argv[])
 
 
 
+    
     /* SEQUENZA DI TASK */
 
 

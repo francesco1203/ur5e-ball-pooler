@@ -13,7 +13,7 @@ find_package(moveit_core REQUIRED)
 find_package(moveit_ros_planning_interface REQUIRED)
 
 find_package(shared_headers_pkg REQUIRED)  #mia libreria di headers .hpp
-# find_package(interfaces_pkg REQUIRED)     #mia libreria di interfaces per servizi e azioni
+find_package(interfaces_pkg REQUIRED)      #mia libreria di interfaces
 
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
@@ -38,10 +38,21 @@ ament_target_dependencies(
   "tf2_ros"
   "tf2_geometry_msgs"
   "ruckig"
+  "interfaces_pkg"
 )
+
+add_executable(fake_game_engine src/fake_game_engine.cpp)
+ament_target_dependencies(
+  fake_game_engine
+  "rclcpp"
+  "shared_headers_pkg"
+  "interfaces_pkg"
+)
+
 
 install(TARGETS 
   task_node
+  fake_game_engine
 DESTINATION lib/${PROJECT_NAME})
 
 ########## INSTALL the config files ############

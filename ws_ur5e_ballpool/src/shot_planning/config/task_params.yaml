@@ -1,22 +1,30 @@
+fake_game_engine:
+  ros__parameters:
+    use_sim_time: true 
+    
+    # SHOT PARAMETERS (for simulate game engine, used by fake_game_engine)
+    direction_angle_deg: 35.0                         # angolo di direzione del tiro rispetto all'asse x del campo in gradi
+    impact_shot_velocity: 0.10                        # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
+
+
 task_node:
   ros__parameters:
 
     # EXECUTION PARAMETERS
     use_sim_time: true 
-    control_execution_by_user_input: true
+    control_execution_by_user_input: false                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
 
 
-    # SHOT PARAMETERS (some are temporary values, before introducing game-engine)
+    # SHOT PARAMETERS (out of game engine)
     approach_distance_from_ball_surface: 0.01             # distanza di avvicinamento alla pallina in metri (2 cm)
     shooting_distance_from_ball_surface: 0.05             # distanza di tiro dalla pallina in metri (5 cm)
     impact_angle_deg: 15.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
-    direction_angle_deg: 90.0                             # angolo di rotazione dell'asta attorno alla pallina in gradi
-    impact_shot_velocity: 0.1                             # velocità di impatto del tiro con la pallina in m/s (0.1 m/s)  
     offset_correction_center: 0.005                       # correzione dell'offset del centro della pallina, per far colpire la zona 'alta' della pallina
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
     success_threshold_approach: 0.95                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_shooting: 0.20                      # soglia di successo moveCartesianPath per l'arretramento del tiro
     
+
 
     #PLANNING PARAMETERS
 
@@ -28,12 +36,7 @@ task_node:
     joint_planning_algorithm: "RRTConnectkConfigDefault"
     goal_joint_tolerance: 0.001                   # ~1/20 di grado (def moveit 0.001 ~1/200 di grado)
 
-    #moveToPose:
-    def_cartesian_planning_time: 10.0
-    cartesian_planning_algorithm: "RRTstarkConfigDefault"
-    goal_position_tolerance: 0.002                # 2 mm (def moveit 0.0001 ~0.1 mm)
-    goal_orientation_tolerance: 0.02              # ~1 grado (def moveit 0.001 rad ~0.1° )
-    
+
     #moveCartesianPath:
     resolution_step: 0.01                         # passo di interpolazione in metri 1cm
    
