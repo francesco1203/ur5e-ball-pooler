@@ -49,10 +49,22 @@ ament_target_dependencies(
   "interfaces_pkg"
 )
 
+add_executable(shot_generator src/shot_generator.cpp)
+ament_target_dependencies(
+  shot_generator
+  "rclcpp"
+  "shared_headers_pkg"
+  "interfaces_pkg"
+  "tf2_ros"
+  "tf2_geometry_msgs"
+  "geometry_msgs"
+)
+
 
 install(TARGETS 
   task_node
   fake_game_engine
+  shot_generator
 DESTINATION lib/${PROJECT_NAME})
 
 ########## INSTALL the config files ############
