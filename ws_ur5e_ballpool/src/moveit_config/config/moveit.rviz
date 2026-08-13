@@ -11,7 +11,7 @@ Panels:
         - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 243
+    Tree Height: 296
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -288,7 +288,19 @@ Visualization Manager:
       Frames:
         All Enabled: false
         billiard_center_field:
-          Value: true
+          Value: false
+        hole_bottom_left:
+          Value: false
+        hole_bottom_right:
+          Value: false
+        hole_mid_left:
+          Value: false
+        hole_mid_right:
+          Value: false
+        hole_top_left:
+          Value: false
+        hole_top_right:
+          Value: false
         left_base:
           Value: false
         left_base_link:
@@ -319,6 +331,8 @@ Visualization Manager:
           Value: false
         left_wrist_3_link:
           Value: false
+        red_solid_ball:
+          Value: false
         wall_link:
           Value: false
         white_solid_ball:
@@ -333,6 +347,20 @@ Visualization Manager:
       Tree:
         world:
           billiard_center_field:
+            hole_bottom_left:
+              {}
+            hole_bottom_right:
+              {}
+            hole_mid_left:
+              {}
+            hole_mid_right:
+              {}
+            hole_top_left:
+              {}
+            hole_top_right:
+              {}
+            red_solid_ball:
+              {}
             white_solid_ball:
               {}
           left_base_link:
@@ -368,6 +396,7 @@ Visualization Manager:
       Hide Inactive Objects: true
     - Class: rviz_default_plugins/MoveCamera
     - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
   Transformation:
     Current:
       Class: rviz_default_plugins/TF
@@ -375,25 +404,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.8014209270477295
+      Distance: 0.8696137070655823
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.24955739080905914
-        Y: 0.034602902829647064
-        Z: 0.2521883249282837
+        X: -0.3004390001296997
+        Y: -0.1304110884666443
+        Z: 0.0004970729351043701
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.2949996888637543
+      Pitch: 0.9431216716766357
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 4.790189743041992
+      Yaw: 4.8151116371154785
     Saved: ~
 Window Geometry:
   Displays:
@@ -407,7 +436,7 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002640000025dfc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073000000003f00000179000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000111000001960000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a0056006900650077007300000001be000000de000000a900ffffff0000028a0000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000002640000025dfc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073000000003f000001ae000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000111000001960000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a0056006900650077007300000001f3000000a9000000a900ffffff0000028a0000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: true
   Width: 650

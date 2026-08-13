@@ -227,7 +227,7 @@ class SceneBuilderNode : public rclcpp::Node
         // 4. Invia alla Planning Scene
         planning_scene_interface_->applyCollisionObject(collision_object);
 
-        this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
+        //this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
     }
 
     void addSPHERE(double radius,
@@ -260,7 +260,7 @@ class SceneBuilderNode : public rclcpp::Node
 
         planning_scene_interface_->applyCollisionObject(collision_object);
 
-        this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
+        //this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
     }
     
     /*individuazione palline dalle terne pubblicate dalla telecamera*/

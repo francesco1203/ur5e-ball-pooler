@@ -10,44 +10,81 @@ fake_game_engine:
 task_node:
   ros__parameters:
 
+    #----------------------------------------------
     # EXECUTION PARAMETERS
+
     use_sim_time: true 
-    control_execution_by_user_input: false                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
+    control_execution_by_user_input: true                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
+    #----------------------------------------------
 
 
+
+    #----------------------------------------------
     # SHOT PARAMETERS (out of game engine)
+
     approach_distance_from_ball_surface: 0.01             # distanza di avvicinamento alla pallina in metri (2 cm)
     shooting_distance_from_ball_surface: 0.05             # distanza di tiro dalla pallina in metri (5 cm)
     impact_angle_deg: 15.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
-    offset_correction_center: 0.005                       # correzione dell'offset del centro della pallina, per far colpire la zona 'alta' della pallina
+    offset_correction_center: 0.000                       # correzione dell'offset del centro della pallina, per far colpire la zona 'alta' della pallina
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
     success_threshold_approach: 0.95                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_shooting: 0.20                      # soglia di successo moveCartesianPath per l'arretramento del tiro
-    
+    #----------------------------------------------
 
 
+
+    #----------------------------------------------
     #PLANNING PARAMETERS
 
     #generic
-    max_velocity_acceleration_scaling_factor: 0.3
+    max_velocity_acceleration_scaling_factor: 0.7
+    goal_joint_tolerance: 0.001                   # tolleranza di giunto in obiettivi di giunto (radians) -> 1/20 di grado
+    goal_position_tolerance: 0.001                # tolleranza di posizione in obiettivi cartesiani (metri) -> 1 mm
+    goal_orientation_tolerance: 0.001              # tolleranza di orientamento in obiettivi cartesiani (radians) -> 1/20 di grado
 
     #moveToJointConfig e moveToNamedTarget:
     def_joint_planning_time: 5.0
     joint_planning_algorithm: "RRTConnectkConfigDefault"
-    goal_joint_tolerance: 0.001                   # ~1/20 di grado (def moveit 0.001 ~1/200 di grado)
-
-
+  
     #moveCartesianPath:
     resolution_step: 0.01                         # passo di interpolazione in metri 1cm
    
     #moveCartesianPathAsymmTriangle
-    resolution_step_Ruckig: 0.005                        # passo di interpolazione in metri 5mm
+    resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1mm
     success_threshold_Ruckig: 0.95                       # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
-    Ruckig_dt: 0.01                                      # passo di lavoro di Ruckig in secondi (100Hz)
+    Ruckig_dt: 0.001                                      # passo di lavoro di Ruckig in secondi 
     max_jerk: 50.0                                       # jerk massimo in m/s^3 (def moveit 10.0)
+    #-----------------------------------------------
 
 
-  
+
+    #----------------------------------------------
+    # SHOT MONITORING PARAMETERS (log on file)
+
+    #fase1 -> andare in posa pre-approach
+    joints_logging_enabled_1: true
+    cartesian_logging_enabled_1: false
+
+    #fase2 -> approach alla pallina
+    joints_logging_enabled_2: false
+    cartesian_logging_enabled_2: false
+
+    #fase3 -> allontanamento all'indietro per prendere velocità
+    joints_logging_enabled_3: false
+    cartesian_logging_enabled_3: true
+
+    #fase4 -> tiro
+    joints_logging_enabled_4: false
+    cartesian_logging_enabled_4: true
+
+    #fase5 -> alzata per liberare il campo
+    joints_logging_enabled_5: false
+    cartesian_logging_enabled_5: false
+    #--------------------------------
+
+
+
+    #----------------------------------------------
     # Sezione per MoveIt (nell'URDF di ur_description non ci sono i limiti d'accelerazione che fanno fallire alcuni metodi)
     robot_description_planning:
       joint_limits:

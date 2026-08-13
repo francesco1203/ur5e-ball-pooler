@@ -1,0 +1,5 @@
+# LogOnFile.srv
+bool enable
+string filename
+---
+bool logging_state_on

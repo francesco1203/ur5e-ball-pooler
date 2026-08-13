@@ -7,6 +7,11 @@ if [ ! -d "install" ]; then
     exit 1
 fi
 
+# Parametri di personalizzazione off-line
+use_real_game_engine="true"
+build_scene_rviz="true"
+
+
 echo "========================================"
 echo "      CONFIGURAZIONE AVVIO ROS 2        "
 echo "========================================"
@@ -53,13 +58,22 @@ fi
 echo "Avvio Fake Camera..."
 gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
 
-sleep 3
+sleep 2
 
 
-echo "Avvio Scene Builder..."
-gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
+# building scena RViz
+if [[ "$build_scene_rviz" == "true" ]]; then
+    echo "Avvio Scene Builder..."
+    gnome-terminal --tab --title="Scene Builder" -- bash -c "source install/setup.bash && ros2 run scene_description scene_builder; exec bash"
 
-sleep 5
+    sleep 2
+fi
+
+
+echo "Avvio Nodi logger..."
+gnome-terminal --tab --title="Nodi di logging" -- bash -c "source install/setup.bash && ros2 launch execution_monitoring loggers.launch.py; exec bash"
+
+sleep 2
 
 
 echo "Avvio Shot Planning..."
@@ -68,8 +82,13 @@ gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.ba
 sleep 5
 
 
-echo "Avvio Fake Game Engine..."
-gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
-
+# Game engine: se la variabile è vera, avvio il game engine reale, altrimenti quello fake
+if [[ "$use_real_game_engine" == "true" ]]; then
+    echo "Avvio Fake Game Engine..."
+    gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+else
+    echo "Avvio Game Engine..."
+    gnome-terminal --tab --title="Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine; exec bash"
+fi
 
 echo "Tutti i nodi sono stati avviati!"
