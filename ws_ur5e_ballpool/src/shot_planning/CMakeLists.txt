@@ -64,10 +64,7 @@ ament_target_dependencies(
 install(TARGETS 
   task_node
   game_engine
-<<<<<<< HEAD
   fake_game_engine
-=======
->>>>>>> 09d3f85 (correct Game engine)
 DESTINATION lib/${PROJECT_NAME})
 
 ########## INSTALL the config files ############
