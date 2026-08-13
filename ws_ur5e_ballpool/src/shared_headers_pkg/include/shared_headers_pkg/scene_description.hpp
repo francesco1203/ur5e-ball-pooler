@@ -60,3 +60,9 @@
     //masse
     constexpr double WHITE_BALL_MASS = 0.010;                      // massa pallina da biliardo (in kg)
     constexpr double COLORED_BALL_MASS = 0.015;                    // massa pallina da biliardo (in kg)
+
+    //gravità
+    constexpr double GRAVITY = 9.81;                               // accelerazione di gravità
+
+    //attributi fisici del panno del tavolo da biliardo
+    constexpr double CLOTH_SLIDING_FRICTION = 0.05;                // coefficiente di attrito radente tra panno e pallina da biliardo

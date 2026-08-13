@@ -1,4 +1,5 @@
 // ============================================================
+<<<<<<< HEAD
 //  game_engine.cpp
 //  Nodo ROS2 che calcola e pubblica i parametri di tiro leggendo le TF.
 // ============================================================
@@ -11,12 +12,37 @@
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
+=======
+//  fake_game_engine.cpp
+//  Nodo ROS2 che simula il comportamento di un motore di gioco per la pianificazione dei colpi.
+//
+//  Eseguire con: ros2 run shot_planning fake_game_engine --ros-args --params-file $(ros2 pkg prefix shot_planning)/share/shot_planning/config/fake_game_engine_params.yaml
+//
+// ============================================================
+
+
+#include <chrono>
+#include <memory>
+#include "rclcpp/rclcpp.hpp"
+
+<<<<<<<< HEAD:ws_ur5e_ballpool/src/shot_planning/src/fake_game_engine.cpp
+#include "shared_headers_pkg/ros2_architecture.hpp"     // header per topic name
+#include "interfaces_pkg/msg/shot_params.hpp"                // custom message
+
+
+using namespace std::chrono_literals;
+
+
+class FakeGameEngine : public rclcpp::Node
+========
+>>>>>>> 09d3f85 (correct Game engine)
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 #include "interfaces_pkg/msg/shot_params.hpp"
 
 using namespace std::chrono_literals;
 
+<<<<<<< HEAD
 
 const double CLOTH_SLIDING_FRICTION = 0.005; // u_s
 const double GRAVITY = 9.81;               // g (m/s^2)
@@ -29,6 +55,27 @@ class GameEngine : public rclcpp::Node
         using ShotParamsMsg = interfaces_pkg::msg::ShotParams;   
         using ShotParamsPublisher = rclcpp::Publisher<ShotParamsMsg>::SharedPtr;
 
+=======
+class GameEngine : public rclcpp::Node
+>>>>>>>> 09d3f85 (correct Game engine):ws_ur5e_ballpool/src/shot_planning/src/game_engine.cpp
+{
+    public:
+        /*Alias*/
+        using ShotParamsMsg = interfaces_pkg::msg::ShotParams;   
+        using ShotParamsPublisher = rclcpp::Publisher<ShotParamsMsg>::SharedPtr;
+
+<<<<<<<< HEAD:ws_ur5e_ballpool/src/shot_planning/src/fake_game_engine.cpp
+        /* Builder */
+        FakeGameEngine() : Node("fake_game_engine")
+        {
+            // Dichiara e leggi i parametri (verranno presi dal file YAML)
+            this->declare_parameter<double>("direction_angle_deg", 35.0);
+            this->declare_parameter<double>("impact_shot_velocity", 0.10);
+
+            direction_ = this->get_parameter("direction_angle_deg").as_double();
+            velocity_ = this->get_parameter("impact_shot_velocity").as_double();
+========
+>>>>>>> 09d3f85 (correct Game engine)
 
         /* Costruttore */
         GameEngine() : Node("game_engine")
@@ -36,6 +83,7 @@ class GameEngine : public rclcpp::Node
             // 2. Inizializzazione Listener TF2
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+<<<<<<< HEAD
 
             // 3. Publisher del messaggio
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC, 10);
@@ -57,6 +105,38 @@ class GameEngine : public rclcpp::Node
         // Callback di pubblicazione
         void publish_params()
         {
+=======
+>>>>>>>> 09d3f85 (correct Game engine):ws_ur5e_ballpool/src/shot_planning/src/game_engine.cpp
+
+            RCLCPP_INFO(this->get_logger(), "Fake Engine avviato. Direction: %.2f, Velocity: %.2f", direction_, velocity_);
+
+            // Crea il publisher
+            publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC , 10);
+
+            // Timer per pubblicare il tiro a ogni 2s
+            timer_ = this->create_wall_timer(
+<<<<<<<< HEAD:ws_ur5e_ballpool/src/shot_planning/src/fake_game_engine.cpp
+                2000ms, std::bind(&FakeGameEngine::publish_params, this));
+========
+                2000ms, std::bind(&GameEngine::publish_params, this));
+
+            RCLCPP_INFO(this->get_logger(), "Game Engine avviato. In attesa delle TF per il calcolo...");
+>>>>>>>> 09d3f85 (correct Game engine):ws_ur5e_ballpool/src/shot_planning/src/game_engine.cpp
+        }
+
+    private:
+        /*ATTRIBUTI*/
+        ShotParamsPublisher publisher_;
+        rclcpp::TimerBase::SharedPtr timer_;
+        double direction_;
+        double velocity_;
+        
+        //callback di pubblication
+        void publish_params()
+        {
+<<<<<<<< HEAD:ws_ur5e_ballpool/src/shot_planning/src/fake_game_engine.cpp
+========
+>>>>>>> 09d3f85 (correct Game engine)
             geometry_msgs::msg::TransformStamped tf_white, tf_red, tf_pocket;
 
             // --- 1. LETTURA POSE TRAMITE TF2 ---
@@ -80,6 +160,13 @@ class GameEngine : public rclcpp::Node
             double pocket_x = tf_pocket.transform.translation.x;
             double pocket_y = tf_pocket.transform.translation.y;
 
+<<<<<<< HEAD
+=======
+            // Lettura parametri fisici
+            // double m1 = this->get_parameter(WHITE_BALL_MASS).as_double();
+            // double m2 = this->get_parameter(COLORED_BALL_MASS).as_double();
+
+>>>>>>> 09d3f85 (correct Game engine)
 
             // --- 2. GEOMETRIA: Vettori e Angoli ---
             double dx_pocket = pocket_x - t_x;
@@ -114,6 +201,7 @@ class GameEngine : public rclcpp::Node
             double v1i_impact =  (v2f / cos_alpha);
 
             double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * cue_distance);
+<<<<<<< HEAD
             double shot_velocity = v_white_start;
             double direction_deg = (cue_angle_rad * (180.0 / M_PI))+180;
 
@@ -127,6 +215,21 @@ class GameEngine : public rclcpp::Node
             RCLCPP_INFO(this->get_logger(), 
                 "Tiro Pubblicato! Vel: %.3f m/s, Dir: %.2f deg", shot_velocity, direction_deg);
         }
+=======
+            double shot_velocity = 0.11* v_white_start;
+            double direction_deg = (cue_angle_rad * (180.0 / M_PI))+180;
+
+            // --- 4. POPOLAZIONE E PUBBLICAZIONE MESSAGGIO ---
+>>>>>>>> 09d3f85 (correct Game engine):ws_ur5e_ballpool/src/shot_planning/src/game_engine.cpp
+            auto msg = ShotParamsMsg();
+            msg.direction_angle_deg = direction_;
+            msg.impact_shot_velocity = velocity_;
+            
+            publisher_->publish(msg);
+            RCLCPP_DEBUG(this->get_logger(), "Parametri di tiro pubblicati.");
+        }
+
+>>>>>>> 09d3f85 (correct Game engine)
 };
 
 int main(int argc, char * argv[])
