@@ -42,3 +42,4 @@ Thumbs.db
 # codice_da_parte
 ws_ur5e_ballpool/src/execution_monitoring/data/cartesian_logging/*
 ws_ur5e_ballpool/src/execution_monitoring/data/joint_logging/*
+ws_ur5e_ballpool/src/shot_planning/debug/ruckig_logging/*

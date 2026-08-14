@@ -41,6 +41,9 @@
     constexpr double POOL_TABLE_FIELD_HEIGHT = 0.060;   // altezza del campo (in metri)
     
 
+    // attrito volvente panno con le biglie
+    constexpr double CLOTH_SLIDING_FRICTION = 0.005; // u_s
+    constexpr double GRAVITY = 9.81;                 // m/s^2
 
 
 /*BALLS*/

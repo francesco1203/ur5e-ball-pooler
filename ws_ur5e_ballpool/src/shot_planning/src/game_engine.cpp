@@ -32,6 +32,13 @@ class GameEngine : public rclcpp::Node
         /* Costruttore */
         GameEngine() : Node("game_engine")
         {
+<<<<<<< HEAD
+=======
+            //iperaparametri
+            this->declare_parameter<double>("velocity_factor", 1.2);
+            velocity_factor_ = this->get_parameter("velocity_factor").as_double();
+
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
             // Inizializzazione Listener TF2
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -64,6 +71,11 @@ class GameEngine : public rclcpp::Node
         std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
         std::vector<std::string> pocket_frames_;
 
+<<<<<<< HEAD
+=======
+        double velocity_factor_;
+
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
         // Utility per normalizzare l'angolo tra -PI e +PI
         double normalize_angle(double angle)
         {
@@ -97,6 +109,16 @@ class GameEngine : public rclcpp::Node
             // Limiti geometrici del campo da biliardo (sponde)
             double half_field_length = POOL_TABLE_FIELD_LENGTH / 2.0;
             double half_field_width  = POOL_TABLE_FIELD_WIDTH / 2.0;
+<<<<<<< HEAD
+=======
+
+            // Variabili per tracciare il tiro migliore
+            std::string best_pocket = "";
+            double best_cost = std::numeric_limits<double>::max();
+            double best_shot_velocity = 0.0;
+            double best_direction_deg = 0.0;
+            bool valid_shot_found = false;
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
 
             // Variabili per tracciare il tiro migliore
             std::string best_pocket = "";
@@ -121,13 +143,29 @@ class GameEngine : public rclcpp::Node
                 // Geometria Rossa -> Buca
                 double dx_pocket = pocket_x - t_x;
                 double dy_pocket = pocket_y - t_y;
+<<<<<<< HEAD
                 double pocket_distance = std::hypot(dx_pocket, dy_pocket);
+=======
+                double pocket_distance = std::hypot(dx_pocket, dy_pocket);      //distanza rossa buca
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
                 double pocket_angle_rad = std::atan2(dy_pocket, dx_pocket);
 
                 // Calcolo posizione della "Ghost Ball" (Punto di contatto sulla Rossa)
                 double ball_diameter = BALL_RADIUS * 2.0;
                 double contact_x = t_x - ball_diameter * std::cos(pocket_angle_rad);
                 double contact_y = t_y - ball_diameter * std::sin(pocket_angle_rad);
+
+<<<<<<< HEAD
+                // --- CONTROLLO SPONDE (Cushions) ---
+                // Se il punto di contatto esce dal campo o si incastra nella sponda, il tiro è impossibile
+                double margin = BALL_RADIUS; // Margine di sicurezza dalle sponde
+                if (std::abs(contact_x) >= (half_field_length - margin) || 
+                    std::abs(contact_y) >= (half_field_width - margin)) 
+                {
+                    continue; // Tiro scartato: la Ghost Ball interseca la sponda
+                }
+
+=======
 
                 // --- CONTROLLO SPONDE (Cushions) ---
                 // Se il punto di contatto esce dal campo o si incastra nella sponda, il tiro è impossibile
@@ -138,6 +176,7 @@ class GameEngine : public rclcpp::Node
                     continue; // Tiro scartato: la Ghost Ball interseca la sponda
                 }
 
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
                 // Vettore Bianca -> Ghost Ball
                 double dx_cue = contact_x - w_x;
                 double dy_cue = contact_y - w_y;
@@ -177,12 +216,21 @@ class GameEngine : public rclcpp::Node
                 double cos_alpha = std::cos(cut_angle_rad);
                 if (std::abs(cos_alpha) < 0.001) continue;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
                 double v2f = std::sqrt(2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * pocket_distance);
                 double v1i_impact = (v2f / cos_alpha);
                 double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * cue_distance);
 
+<<<<<<< HEAD
                 // Applicazione dello scaling di sicurezza per MoveIt (es. max ~0.1 m/s)
                 double shot_velocity = 0.11 * v_white_start; 
+=======
+                // Applicazione dello scaling di sicurezza per MoveIt
+                double shot_velocity = velocity_factor_ * v_white_start;            //aumentato di un coefficiente velocity_factor
+>>>>>>> 06a6cc6 (solved balls rolling and add game engine with pocket selection)
                 double direction_deg = normalize_angle(cue_angle_rad + M_PI) * (180.0 / M_PI);
 
                 // Aggiornamento del tiro ottimale se questo ha il costo minore

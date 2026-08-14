@@ -36,7 +36,7 @@ with open(PATH_CONFIG, "r") as f:
 tavolo_x, tavolo_y = config['billiard_table']['pos']
 tavolo_yaw = config['billiard_table']['yaw_angle_rad']
 tavolo_z = 0.0
-z_palline = 0.06
+z_palline = 0.0725
 
 # Prepariamo un dizionario con i valori finali da iniettare
 valori_da_iniettare = {

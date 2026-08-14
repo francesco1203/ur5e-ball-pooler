@@ -1,11 +1,18 @@
+game_engine:
+  ros__parameters:
+    use_sim_time: true 
+    
+    #shot parameters
+    velocity_factor: 1.2                              # fattore di moltiplicazione della velocità di tiro
+
+
 fake_game_engine:
   ros__parameters:
     use_sim_time: true 
     
     # SHOT PARAMETERS (for simulate game engine, used by fake_game_engine)
-    direction_angle_deg: 35.0                         # angolo di direzione del tiro rispetto all'asse x del campo in gradi
-    impact_shot_velocity: 0.10                        # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
-
+    direction_angle_deg: 0.0                         # angolo di direzione del tiro rispetto all'asse x del campo in gradi
+    impact_shot_velocity: 0.30                       # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
 
 task_node:
   ros__parameters:
@@ -15,6 +22,7 @@ task_node:
 
     use_sim_time: true 
     control_execution_by_user_input: true                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
+    using_mujoco_simulation: true                      # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
     #----------------------------------------------
 
 
@@ -24,7 +32,7 @@ task_node:
 
     approach_distance_from_ball_surface: 0.01             # distanza di avvicinamento alla pallina in metri (2 cm)
     shooting_distance_from_ball_surface: 0.05             # distanza di tiro dalla pallina in metri (5 cm)
-    impact_angle_deg: 15.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
+    impact_angle_deg: 10.0                                # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi
     offset_correction_center: 0.000                       # correzione dell'offset del centro della pallina, per far colpire la zona 'alta' della pallina
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
     success_threshold_approach: 0.95                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
@@ -37,7 +45,7 @@ task_node:
     #PLANNING PARAMETERS
 
     #generic
-    max_velocity_acceleration_scaling_factor: 0.7
+    max_velocity_acceleration_scaling_factor: 0.9
     goal_joint_tolerance: 0.001                   # tolleranza di giunto in obiettivi di giunto (radians) -> 1/20 di grado
     goal_position_tolerance: 0.001                # tolleranza di posizione in obiettivi cartesiani (metri) -> 1 mm
     goal_orientation_tolerance: 0.001              # tolleranza di orientamento in obiettivi cartesiani (radians) -> 1/20 di grado
@@ -50,19 +58,26 @@ task_node:
     resolution_step: 0.01                         # passo di interpolazione in metri 1cm
    
     #moveCartesianPathAsymmTriangle
-    resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1mm
-    success_threshold_Ruckig: 0.95                       # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
-    Ruckig_dt: 0.001                                      # passo di lavoro di Ruckig in secondi 
-    max_jerk: 50.0                                       # jerk massimo in m/s^3 (def moveit 10.0)
+    resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
+    success_threshold_Ruckig: 0.95                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
+    Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
+    max_jerk: 80.0                                      # jerk massimo in m/s^3 
+
+    #shot method 
+    vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo
+    accel_decel_factor_for_jerk_compensation: 1.0       # fattore di moltiplicazione per accelerazione e decelerazione per compensare il jerk massimo 
     #-----------------------------------------------
 
 
 
     #----------------------------------------------
-    # SHOT MONITORING PARAMETERS (log on file)
+    # SHOT MONITORING, LOGGING AND DEBUG PARAMETERS
+
+    print_EEF_distance_and_position: true  # stampa della distanza e della posizione relativa tra tip dell'asta e pallina bianca alla fine dei movimenti
+    log_ruckig_trajectory: true            # log in file della traiettoria calcolata da Ruckig (in moveCartesianPathAsymmTriangle)
 
     #fase1 -> andare in posa pre-approach
-    joints_logging_enabled_1: true
+    joints_logging_enabled_1: false
     cartesian_logging_enabled_1: false
 
     #fase2 -> approach alla pallina
@@ -71,7 +86,7 @@ task_node:
 
     #fase3 -> allontanamento all'indietro per prendere velocità
     joints_logging_enabled_3: false
-    cartesian_logging_enabled_3: true
+    cartesian_logging_enabled_3: false
 
     #fase4 -> tiro
     joints_logging_enabled_4: false

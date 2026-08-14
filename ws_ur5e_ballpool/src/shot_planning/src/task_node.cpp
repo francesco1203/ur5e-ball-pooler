@@ -16,6 +16,7 @@
 #include <memory>
 #include <vector>
 
+#include <fstream>
 
 #include <rclcpp/rclcpp.hpp>
 // #include "rclcpp_action/rclcpp_action.hpp"
@@ -64,9 +65,10 @@ using namespace std::chrono_literals;
 using joint_config          = std::vector<double>;      //globale
 
 
-//Costanti
+//Path salvataggio file di log
 const std::string LOG_CARTESIAN_PATH = "src/execution_monitoring/data/cartesian_logging/";
 const std::string LOG_JOINT_PATH = "src/execution_monitoring/data/joint_logging/";
+const std::string LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
 
 
 class TaskNode : public rclcpp::Node
@@ -125,6 +127,10 @@ class TaskNode : public rclcpp::Node
         this->declare_parameter<double>("Ruckig_dt", 0.01);                                      // default Ruckig working step in seconds
         this->declare_parameter<double>("max_jerk", 50.0);                                       // default max jerk in m/s^3
 
+        //shot method
+        this->declare_parameter<double>("vel_factor_for_jerk_compensation", 1.0);                 // default factor to compensate for jerk
+        this->declare_parameter<double>("accel_decel_factor_for_jerk_compensation", 1.0);        // default factor to compensate for jerk
+
 
         max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
         goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
@@ -140,6 +146,9 @@ class TaskNode : public rclcpp::Node
         success_threshold_Ruckig_ = this->get_parameter("success_threshold_Ruckig").as_double();
         Ruckig_dt_ = this->get_parameter("Ruckig_dt").as_double();
         max_jerk_ = this->get_parameter("max_jerk").as_double();
+
+        vel_factor_for_jerk_compensation_ = this->get_parameter("vel_factor_for_jerk_compensation").as_double();
+        accel_decel_factor_for_jerk_compensation_ = this->get_parameter("accel_decel_factor_for_jerk_compensation").as_double();
         //-----------------------------------------------------------------------
 
         
@@ -396,8 +405,8 @@ class TaskNode : public rclcpp::Node
         std::string planning_frame_moveit = move_group_->getPlanningFrame();
         
         if (frame_id != planning_frame_moveit) {
-            RCLCPP_INFO(this->get_logger(), "Trasformazione coordinate: da '%s' a '%s'...", 
-                        frame_id.c_str(), planning_frame_moveit.c_str());
+            // RCLCPP_INFO(this->get_logger(), "Trasformazione coordinate: da '%s' a '%s'...", 
+            //             frame_id.c_str(), planning_frame_moveit.c_str());
             try {
                 PoseStampedMsg pose_stamped_out;
                 
@@ -408,16 +417,15 @@ class TaskNode : public rclcpp::Node
                     tf2::durationFromSec(0.1)
                 );
                 
-                // -------------------------------------
-                // --- AGGIUNGI QUESTO BLOCCO DI LOG ---
-                RCLCPP_INFO(this->get_logger(), 
-                            "Posa trasformata nel frame '%s': pos[%.3f, %.3f, %.3f]",
-                            planning_frame_moveit.c_str(),
-                            pose_stamped_out.pose.position.x,
-                            pose_stamped_out.pose.position.y,
-                            pose_stamped_out.pose.position.z);
-                           
-                // -------------------------------------
+                // // -------------------------------------
+                // // --- BLOCCO DI LOG ---
+                // RCLCPP_INFO(this->get_logger(), 
+                //             "Posa trasformata nel frame '%s': pos[%.3f, %.3f, %.3f]",
+                //             planning_frame_moveit.c_str(),
+                //             pose_stamped_out.pose.position.x,
+                //             pose_stamped_out.pose.position.y,
+                //             pose_stamped_out.pose.position.z);                         
+                // // -------------------------------------
 
                 // Aggiorna la target_pose con i valori trasformati
                 target_pose = pose_stamped_out.pose;
@@ -430,6 +438,9 @@ class TaskNode : public rclcpp::Node
 
 
          // 3. Calcola la traiettoria cartesiana grezza (senza temporizzazione) usando MoveIt!
+
+        move_group_->setStartStateToCurrentState(); 
+
         std::vector<PoseMsg> waypoints;
         waypoints.push_back(target_pose);
 
@@ -539,6 +550,10 @@ class TaskNode : public rclcpp::Node
         }
 
         // 2. Calcola i waypoint geometrici puri con MoveIt (senza tempi, solo percorso)
+
+        // Legge lo stato corrente (reale) da /joint_states e lo imposta come punto di partenza
+        move_group_->setStartStateToCurrentState(); 
+
         std::vector<PoseMsg> waypoints;
         waypoints.push_back(target_pose);
         RobotTrajectoryMsg raw_trajectory;
@@ -600,12 +615,33 @@ class TaskNode : public rclcpp::Node
         ruckig::Result result = ruckig::Result::Working;
         double current_time = 0.0;
 
+        //if (log_ruckig_trajectory_) {
+        std::ofstream ruckig_log_file(LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
+    
+        if (ruckig_log_file.is_open()) {
+            // Scriviamo l'intestazione del CSV
+            ruckig_log_file << "Time_s,Position_m,Velocity_ms,Acceleration_ms2\n";
+        } else {
+            RCLCPP_WARN(this->get_logger(), "Impossibile aprire il file di log per Ruckig");
+        }
+        //}
+
+
         // Generiamo i punti temporali passo-passo
         while (result == ruckig::Result::Working) {
             result = otg.update(input, output);         //stato ottimare al prossimo (attuale nel ciclo) dt
 
             double s = output.new_position[0];          // Posizione corrente lungo la linea (metri)
             double v = output.new_velocity[0];          // Velocità corrente lungo la linea (m/s)
+            double a = output.new_acceleration[0];      // Accelerazione corrente lungo la linea (m/s^2)
+
+            // SCRIVIAMO I DATI SUL FILE CSV
+            if (ruckig_log_file.is_open()) {
+                ruckig_log_file << current_time << "," 
+                                << s << "," 
+                                << v << "," 
+                                << a << "\n";
+            }
 
             // Troviamo quali waypoint di MoveIt corrispondono alla posizione "s"
             double exact_idx = (s / total_distance) * (num_waypoints - 1);
@@ -642,6 +678,11 @@ class TaskNode : public rclcpp::Node
             current_time += dt;
         }
 
+        if (ruckig_log_file.is_open()) {
+            ruckig_log_file.close();
+            RCLCPP_INFO(this->get_logger(), "Profilo ideale di Ruckig salvato");
+        }
+
         // 4. Esecuzione
         Plan piano;
         piano.trajectory = timed_traj;
@@ -674,18 +715,62 @@ class TaskNode : public rclcpp::Node
 
 
         // 2. faccio un controllo di fattibilità in base ai limiti fisici del robot
-        if(vel_impact > MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_ || 
-           accel > MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_ ||
-           decel > abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_) {
-            RCLCPP_ERROR(this->get_logger(), "Profilo di tiro non fattibile: superati i limiti fisici del robot");
+        double vel_limite = MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_;
+        double accel_limite = MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_;
+        double decel_limite = abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_;
+
+
+        RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DEL TIRO--------------------");
+
+        if (vel_impact < vel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Velocità di tiro: %.3f m/s (< limite = %.3f m/s con scaling = %.2f usato)", 
+                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di velocità superato: %.3f m/s > limite = %.3f m/s (con scaling = %.2f usato)", 
+                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+
+                return false;
+        }
+
+        if (accel < accel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Accelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else{
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di accelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
+            
             return false;
         }
+
+        if (decel < decel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Decelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else{
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di decelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
+
+            return false;
+        }
+
+        RCLCPP_INFO(this->get_logger(), "\n--------------------PARAMETRI DEL TIRO--------------------\n");
 
 
         // 3. eseguo il tiro con profilo asimmetrico
         return moveCartesianPathAsymmTriangle(posizione_arresto, orientamento, frame_id, 
-                                              vel_impact, 
-                                              accel, decel); 
+                                              vel_impact * vel_factor_for_jerk_compensation_, 
+                                              accel * accel_decel_factor_for_jerk_compensation_, 
+                                              decel * accel_decel_factor_for_jerk_compensation_); 
+                                              
     }
 
 
@@ -746,11 +831,90 @@ class TaskNode : public rclcpp::Node
 
     /*ALTRI METODI DI UTILITIES*/
 
-    //getter
+    /*metodi getter*/
     double getDirectionAngle() const { return direction_angle_deg_; }
     double getImpactShotVelocity() const { return impact_shot_velocity_; }
 
 
+    /* PER CALCOLO GEOMETRICO */
+
+    // calcolo della distanza tra il tip dell'asta e il centro della pallina bianca
+    double getEEFDistance()
+    {
+        try {
+            // Cerchiamo la trasformazione dal sistema di riferimento della pallina a quello della punta della stecca.
+            // In altre parole: "Dove si trova EE_LINK rispetto a WHITE_SOLID_BALL_FRAME?"
+            geometry_msgs::msg::TransformStamped t = tf_buffer_->lookupTransform(
+                WHITE_SOLID_BALL_FRAME, // target frame (il centro della pallina)
+                EE_LINK,                // source frame (il tip dell'asta)
+                tf2::TimePointZero,       // prendi l'ultima trasformazione disponibile
+                tf2::durationFromSec(1.0) // timeout
+            );
+
+            double x = t.transform.translation.x;
+            double y = t.transform.translation.y;
+            double z = t.transform.translation.z;
+            
+            // Calcolo la distanza euclidea (modulo del vettore)
+            double distance = std::sqrt(x*x + y*y + z*z);
+            return distance;
+                
+        } catch (const tf2::TransformException & ex) {
+            RCLCPP_WARN(this->get_logger(), 
+                "Impossibile leggere la TF tra pallina ed EE_LINK: %s", 
+                ex.what());
+            return -1.0; // ritorna un valore negativo per indicare errore
+        }
+    }
+
+
+    // Calcolo della posizione relativa tra tip dell'asta e pallina bianca (in formato Eigen::Vector3d)
+    Vector3d getEEFRelativePosition()
+    {
+        try {
+            // Cerchiamo la trasformazione dal sistema di riferimento della pallina a quello della punta della stecca.
+            geometry_msgs::msg::TransformStamped t = tf_buffer_->lookupTransform(
+                WHITE_SOLID_BALL_FRAME, // target frame (il centro della pallina)
+                EE_LINK,                // source frame (il tip dell'asta)
+                tf2::TimePointZero,       // prendi l'ultima trasformazione disponibile
+                tf2::durationFromSec(1.0) // timeout
+            );
+
+            double x = t.transform.translation.x;
+            double y = t.transform.translation.y;
+            double z = t.transform.translation.z;
+            
+            // Restituisce direttamente un Vector3d di Eigen
+            return Vector3d(x, y, z);
+                
+        } catch (const tf2::TransformException & ex) {
+            RCLCPP_WARN(this->get_logger(), 
+                "Impossibile leggere la TF tra pallina ed EE_LINK: %s", 
+                ex.what());
+            // Ritorna un vettore con valori NaN (Not a Number) per indicare chiaramente l'errore
+            return Vector3d(Vector3d::Constant(std::numeric_limits<double>::quiet_NaN()));
+        }
+    }
+
+    /* PER DEBUG*/
+    // Metodo di utilità per stampare informazioni sulla poszione dell'EE rispetto la pallina
+    void printEEFDebugInfo()
+    {
+        double distance = getEEFDistance();
+        Vector3d rel_pos = getEEFRelativePosition();
+
+        // Stampiamo i dati usando il logger se non ci sono errori
+        if (distance >= 0.0 && !rel_pos.hasNaN()) {
+            RCLCPP_INFO(this->get_logger(), 
+                "[DEBUG EEF] Distanza: %.4f m | Posizione relativa -> X: %.4f, Y: %.4f, Z: %.4f", 
+                distance, rel_pos.x(), rel_pos.y(), rel_pos.z());
+        } else {
+            RCLCPP_WARN(this->get_logger(), 
+                "[DEBUG EEF] Impossibile recuperare correttamente la distanza o la posizione relativa del tip dell'asta.");
+        }
+    }
+
+    /* PER CONTROLLO ESECUZIONE*/
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
     void print_and_wait(const std::string & message)
     {
@@ -806,6 +970,8 @@ class TaskNode : public rclcpp::Node
     bool params_received_ = false;
     double direction_angle_deg_;
     double impact_shot_velocity_;
+    double vel_factor_for_jerk_compensation_;
+    double accel_decel_factor_for_jerk_compensation_;
 
 
     //temporanee
@@ -939,12 +1105,19 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
     /*CONTROL EXECUTION PARAMETERS*/
     node->declare_parameter<bool>("control_execution_by_user_input", true);
+    node->declare_parameter<bool>("using_mujoco_simulation", false);
+
     bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
+    bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
     //------------------------------------------------------
 
 
     //------------------------------------------------------
-    /*MONITORING PARAMETERS*/
+    /*MONITORING PARAMETERS debug + logging on file*/
+
+    node->declare_parameter<bool>("print_EEF_distance_and_position", true);
+    bool print_EEF_distance_and_position_ = node->get_parameter("print_EEF_distance_and_position").as_bool();
+
     node->declare_parameter<bool>("cartesian_logging_enabled_1", false);
     node->declare_parameter<bool>("cartesian_logging_enabled_2", false);
     node->declare_parameter<bool>("cartesian_logging_enabled_3", false);
@@ -1018,7 +1191,6 @@ int main(int argc, char* argv[])
         }
         else{
             RCLCPP_INFO(node->get_logger(), "Posizionamento in 'pre_approach..");
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
         }
 
         //logging
@@ -1027,6 +1199,13 @@ int main(int argc, char* argv[])
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
 
+        if(using_mujoco_simulation_){
+            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+
+            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        }
+        
         if(joints_logging_enabled_1) node->stopJointLogging();
         if(cartesian_logging_enabled_1) node->stopCartesianLogging();
     }
@@ -1040,18 +1219,17 @@ int main(int argc, char* argv[])
         }
         else{
             RCLCPP_INFO(node->get_logger(), "Approach alla pallina..");
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
         }
         
 
-        //distanza
-        double distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
+        //distanza desiderata dal centro della pallina (per allontanarsi)
+        double desired_distance_from_ball_center = approach_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
         //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
-        Vector3d pos_pre_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
-                                         distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                         distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+        Vector3d pos_pre_shot = Vector3d(desired_distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                         desired_distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                         desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
                                         );
 
 
@@ -1063,9 +1241,20 @@ int main(int argc, char* argv[])
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
 
+        if(using_mujoco_simulation_){
+            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+
+            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        }
+
         if(joints_logging_enabled_2) node->stopJointLogging();
         if(cartesian_logging_enabled_2) node->stopCartesianLogging();
 
+        if(print_EEF_distance_and_position_) {
+            //prima di procedere, stampo la distanza e la posizione relativa tra tip dell'asta e pallina bianca, utile per debug
+            node->printEEFDebugInfo();
+        }
 
         //controllo se l'approach è andato a buon fine
         if(perc_success < success_threshold_approach_) {
@@ -1080,6 +1269,7 @@ int main(int argc, char* argv[])
 
     // FASE 3 - si allontana all'indietro per prendere velocità
     {
+  
         if(control_execution_by_user_input_){
             node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
         }
@@ -1088,14 +1278,14 @@ int main(int argc, char* argv[])
             node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
         }
 
-        //distanza
-        double distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
+        //distanza desiderata dal centro della pallina (per allontanarsi)
+        double desired_distance_from_ball_center = shooting_distance_from_ball_surface_ + BALL_RADIUS; // distanza posizionamento dal centro della pallina
 
 
         //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
-        Vector3d pos_back_shot = Vector3d(distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
-                                          distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+        Vector3d pos_back_shot = Vector3d(desired_distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                          desired_distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                          desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
                                           );
 
         //logging
@@ -1106,9 +1296,23 @@ int main(int argc, char* argv[])
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_shooting_);                 //soglia di successo 20%, perché è almeno 1 cm di allontanamento, fondamentale che ci arrivi
 
+        
+        if(using_mujoco_simulation_){
+            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+
+            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        }
+
 
         if(joints_logging_enabled_3) node->stopJointLogging();
         if(cartesian_logging_enabled_3) node->stopCartesianLogging();
+
+
+        if(print_EEF_distance_and_position_) {
+            //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
+            node->printEEFDebugInfo();
+        }
 
 
         //controllo se l'allontanamento è andato a buon fine
@@ -1118,25 +1322,33 @@ int main(int argc, char* argv[])
             spinner.join();
             return -1;
         }
+
+        
     }
 
 
     // FASE 4 - eseguo tiro
     {
+       
         if(control_execution_by_user_input_){
             node->print_and_wait("Esecuzione tiro..");
         }
         else{
             RCLCPP_INFO(node->get_logger(), "Esecuzione tiro..");
-            //node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
         }
 
 
         //parametri del tiro
-        Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);        //per semplicità finisco il tiro nel centro (corretto) della sfera
-        double accel_distance = perc_success * shooting_distance_from_ball_surface_; // distanza di accelerazione (dalla posizione all'indietro a cui sono riuscito ad arrivare, fino al contatto con la pallina)
-        double decel_distance = BALL_RADIUS;                                         // distanza di decelerazione (dal contatto alla frenata, centro pallina, scelta progettuale)
-        
+        double accel_distance = node->getEEFDistance() - BALL_RADIUS;                // distanza di accelerazione (dalla posizione all'indietro a cui sono riuscito ad arrivare, fino al contatto con la pallina)
+        double decel_distance = 2*BALL_RADIUS;                                         // distanza di decelerazione (dal contatto al centro della pallina, scelta progettuale)
+
+        //Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);        //per semplicità finisco il tiro nel centro (corretto) della sfera
+        Vector3d pos_arresto = Vector3d(      
+                                          -BALL_RADIUS * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                          -BALL_RADIUS * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                          -BALL_RADIUS * sin(impact_angle_rad) + offset_correction_center_
+                                        );
+
         //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
         node->disable_collision();
 
@@ -1150,22 +1362,35 @@ int main(int argc, char* argv[])
                           impact_shot_velocity_,
                           accel_distance, decel_distance);
 
+        
+        if(using_mujoco_simulation_){
+            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+
+            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        }
+
 
         if(joints_logging_enabled_4) node->stopJointLogging();
         if(cartesian_logging_enabled_4) node->stopCartesianLogging();
+
+        if(print_EEF_distance_and_position_) {
+            //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
+            node->printEEFDebugInfo();
+        }
     }
 
 
     // FASE 5 - mi alzo un po' per liberare il campo (ma lo faccio solo se ho fatto il tiro)
     {
+    
         if(shot_success) {
 
             if(control_execution_by_user_input_){
-                node->print_and_wait("Torno indietro..");
+                node->print_and_wait("Mi alzo..");
             }
             else{
-                RCLCPP_INFO(node->get_logger(), "Torno indietro..");
-                //node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
+                RCLCPP_INFO(node->get_logger(), "Mi alzo..");
             }
 
 
@@ -1180,15 +1405,26 @@ int main(int argc, char* argv[])
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
 
 
+            if(using_mujoco_simulation_){
+                //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+
+                //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+            }
+
             if(joints_logging_enabled_5) node->stopJointLogging();
             if(cartesian_logging_enabled_5) node->stopCartesianLogging();
 
+            if(print_EEF_distance_and_position_) {
+                //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
+                node->printEEFDebugInfo();
+            }
         }
         else {
             RCLCPP_WARN(node->get_logger(), "Tiro non eseguito, salto la fase di alzata.");
         }
 
-            node->enable_collision() ; //riattivo collisione tra asta e pallina bianca
+        node->enable_collision() ; //riattivo collisione tra asta e pallina bianca
     }
     
 
