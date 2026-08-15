@@ -59,6 +59,9 @@ ament_target_dependencies(
   "shared_headers_pkg"
   "interfaces_pkg"
   "geometry_msgs"
+  "tf2_ros"
+   "tf2_geometry_msgs"
+  "geometry_msgs"
 )
 
 install(TARGETS 

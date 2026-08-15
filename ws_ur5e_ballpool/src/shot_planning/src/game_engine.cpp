@@ -15,6 +15,7 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2/LinearMath/Vector3.h>
 
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
@@ -25,26 +26,26 @@ using namespace std::chrono_literals;
 class GameEngine : public rclcpp::Node
 {
     public:
-        /* Alias */
         using ShotParamsMsg = interfaces_pkg::msg::ShotParams;   
         using ShotParamsPublisher = rclcpp::Publisher<ShotParamsMsg>::SharedPtr;
 
-        /* Costruttore */
         GameEngine() : Node("game_engine")
         {
-
-            //iperaparametri
             this->declare_parameter<double>("velocity_factor", 1.2);
-            velocity_factor_ = this->get_parameter("velocity_factor").as_double();
+            
+            // Offset di yaw del tip. 
+            // Se asse blu (Z) del tip va verso destra e rosso (X) verso il basso, 
+            // questo parametro compensa l'orientamento per MoveIt.
+            this->declare_parameter<double>("tip_yaw_offset_deg", 180.0); 
 
-            // Inizializzazione Listener TF2
+            velocity_factor_ = this->get_parameter("velocity_factor").as_double();
+            tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
+
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-            // Publisher del messaggio
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC, 10);
 
-            // Lista delle 6 buche sul tavolo
             pocket_frames_ = {
                 HOLE_TOP_RIGHT_FRAME,
                 HOLE_TOP_LEFT_FRAME,
@@ -54,26 +55,22 @@ class GameEngine : public rclcpp::Node
                 HOLE_BOTTOM_LEFT_FRAME
             };
 
-            // Timer per il calcolo e la pubblicazione ogni 2 secondi
             timer_ = this->create_wall_timer(
                 2000ms, std::bind(&GameEngine::publish_params, this));
 
-            RCLCPP_INFO(this->get_logger(), "Game Engine avviato. Valutazione buche e sponde attiva.");
+            RCLCPP_INFO(this->get_logger(), "Game Engine avviato. Valutazione basata su Vettori.");
         }
 
     private:
-        /* ATTRIBUTI */
         ShotParamsPublisher publisher_;
         rclcpp::TimerBase::SharedPtr timer_;
         std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
         std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
         std::vector<std::string> pocket_frames_;
 
-
         double velocity_factor_;
+        double tip_yaw_offset_deg_;
 
-
-        // Utility per normalizzare l'angolo tra -PI e +PI
         double normalize_angle(double angle)
         {
             while (angle > M_PI) angle -= 2.0 * M_PI;
@@ -81,125 +78,112 @@ class GameEngine : public rclcpp::Node
             return angle;
         }
 
-        // Callback di pubblicazione
         void publish_params()
         {
             geometry_msgs::msg::TransformStamped tf_white, tf_red;
 
-            // --- 1. LETTURA POSE PALLINE TRAMITE TF2 ---
             try {
                 tf_white = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, WHITE_SOLID_BALL_FRAME, tf2::TimePointZero);
                 tf_red   = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, RED_SOLID_BALL_FRAME,   tf2::TimePointZero);
             } catch (const tf2::TransformException & ex) {
-                RCLCPP_WARN_THROTTLE(
-                    this->get_logger(), *this->get_clock(), 2000,
-                    "In attesa delle TF per le palline: %s", ex.what());
                 return;
             }
 
-            double w_x = tf_white.transform.translation.x;
-            double w_y = tf_white.transform.translation.y;
+            // Trasformazione in Vettori (Elimina errori umani su coordinate X, Y separate)
+            tf2::Vector3 pos_white(tf_white.transform.translation.x, tf_white.transform.translation.y, 0.0);
+            tf2::Vector3 pos_red(tf_red.transform.translation.x, tf_red.transform.translation.y, 0.0);
 
-            double t_x = tf_red.transform.translation.x;
-            double t_y = tf_red.transform.translation.y;
-
-            // Limiti geometrici del campo da biliardo (sponde)
             double half_field_length = POOL_TABLE_FIELD_LENGTH / 2.0;
             double half_field_width  = POOL_TABLE_FIELD_WIDTH / 2.0;
+            double ball_diameter = BALL_RADIUS * 2.0;
 
-
-            // Variabili per tracciare il tiro migliore
             std::string best_pocket = "";
             double best_cost = std::numeric_limits<double>::max();
             double best_shot_velocity = 0.0;
             double best_direction_deg = 0.0;
             bool valid_shot_found = false;
 
-            // --- 2. VALUTAZIONE DI OGNI BUCA ---
             for (const auto& pocket_frame : pocket_frames_)
             {
                 geometry_msgs::msg::TransformStamped tf_pocket;
                 try {
                     tf_pocket = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, pocket_frame, tf2::TimePointZero);
                 } catch (const tf2::TransformException & ex) {
-                    continue; // Salta la buca se la TF non è disponibile
-                }
-
-                double pocket_x = tf_pocket.transform.translation.x;
-                double pocket_y = tf_pocket.transform.translation.y;
-
-                // Geometria Rossa -> Buca
-                double dx_pocket = pocket_x - t_x;
-                double dy_pocket = pocket_y - t_y;
-
-                double pocket_distance = std::hypot(dx_pocket, dy_pocket);      //distanza rossa buca
-
-                double pocket_angle_rad = std::atan2(dy_pocket, dx_pocket);
-
-                // Calcolo posizione della "Ghost Ball" (Punto di contatto sulla Rossa)
-                double ball_diameter = BALL_RADIUS * 2.0;
-                double contact_x = t_x - ball_diameter * std::cos(pocket_angle_rad);
-                double contact_y = t_y - ball_diameter * std::sin(pocket_angle_rad);
-
-
-                // --- CONTROLLO SPONDE (Cushions) ---
-                // Se il punto di contatto esce dal campo o si incastra nella sponda, il tiro è impossibile
-                double margin = BALL_RADIUS; // Margine di sicurezza dalle sponde
-                if (std::abs(contact_x) >= (half_field_length - margin) || 
-                    std::abs(contact_y) >= (half_field_width - margin)) 
-                {
-                    continue; // Tiro scartato: la Ghost Ball interseca la sponda
-                }
-
-                // Vettore Bianca -> Ghost Ball
-                double dx_cue = contact_x - w_x;
-                double dy_cue = contact_y - w_y;
-                double cue_distance = std::hypot(dx_cue, dy_cue);
-                double cue_angle_rad = std::atan2(dy_cue, dx_cue);
-
-                // Angolo di taglio (Cut Angle)
-                double cut_angle_rad = normalize_angle(cue_angle_rad - pocket_angle_rad);
-                double abs_cut_angle = std::abs(cut_angle_rad);
-
-                // --- FILTRO ANGOLO DI TAGLIO ---
-                // Se l'angolo di taglio è >= 85 gradi (1.48 rad), il tiro è fisicamente impossibile
-                constexpr double MAX_CUT_ANGLE_RAD = 85.0 * (M_PI / 180.0);
-                if (abs_cut_angle >= MAX_CUT_ANGLE_RAD) {
                     continue; 
                 }
 
-                // --- FUNZIONE DI COSTO ---
-                // Pesi per la valutazione della difficoltà
-                constexpr double WEIGHT_CUT_ANGLE = 3.5; // Alta penalità agli angoli stretti
-                constexpr double WEIGHT_POCKET_DIST = 1.0; // Penalità alla distanza Rossa-Buca
-                constexpr double WEIGHT_CUE_DIST = 0.5;   // Penalità alla distanza Bianca-Rossa
+                tf2::Vector3 pos_pocket(tf_pocket.transform.translation.x, tf_pocket.transform.translation.y, 0.0);
 
-                // Calcolo della penalità per prossimità alle sponde (se la pallina rossa è quasi attaccata alla sponda)
-                double dist_to_rail_x = half_field_length - std::abs(t_x);
-                double dist_to_rail_y = half_field_width - std::abs(t_y);
-                double min_rail_dist = std::min(dist_to_rail_x, dist_to_rail_y);
-                double rail_penalty = (min_rail_dist < 2.0 * BALL_RADIUS) ? 2.0 : 0.0;
+                // --- 1. VETTORE DIREZIONE ROSSA -> BUCA ---
+                tf2::Vector3 vec_red_to_pocket = pos_pocket - pos_red;
+                double pocket_distance = vec_red_to_pocket.length();
+                if (pocket_distance < 0.001) continue;
 
-                // Costo totale
-                double total_cost = (WEIGHT_CUT_ANGLE * abs_cut_angle) + 
+                // Vettore normalizzato (Lunghezza 1) che punta verso la buca
+                tf2::Vector3 dir_pocket = vec_red_to_pocket.normalized();
+
+                // --- 2. POSIZIONE INFALLIBILE DELLA GHOST BALL ---
+                // Si calcola arrettrando dalla rossa lungo la linea *opposta* alla buca.
+                // Usando i vettori, questa operazione funziona perfettamente in qualsiasi quadrante.
+                tf2::Vector3 pos_ghost = pos_red - (dir_pocket * ball_diameter);
+
+                // Controllo sponde per la Ghost Ball
+                double margin = BALL_RADIUS; 
+                if (std::abs(pos_ghost.x()) >= (half_field_length - margin) || 
+                    std::abs(pos_ghost.y()) >= (half_field_width - margin)) 
+                {
+                    continue; 
+                }
+
+                // --- 3. VETTORE BIANCA -> GHOST BALL (Traiettoria della stecca) ---
+                tf2::Vector3 vec_white_to_ghost = pos_ghost - pos_white;
+                double cue_distance = vec_white_to_ghost.length();
+                if (cue_distance < 0.001) continue;
+
+                tf2::Vector3 dir_shot = vec_white_to_ghost.normalized();
+
+                // --- 4. ANGOLO DI TAGLIO TRAMITE PRODOTTO SCALARE ---
+                // Il prodotto scalare trova il coseno dell'angolo tra la traiettoria della bianca 
+                // e la traiettoria desiderata della rossa. Evita tutti i bug di atan2!
+                double cos_cut_angle = dir_shot.dot(dir_pocket);
+
+                // Se cos_cut_angle <= 0, la bianca spingerebbe la rossa "al contrario" (tiro da dietro)
+                // cos(85°) ≈ 0.087. Filtriamo i tiri più larghi di 85 gradi.
+                if (cos_cut_angle <= 0.087) {
+                    continue; 
+                }
+
+                double cut_angle_rad = std::acos(cos_cut_angle);
+
+                // --- 5. FUNZIONE DI COSTO ---
+                constexpr double WEIGHT_CUT_ANGLE = 3.5; 
+                constexpr double WEIGHT_POCKET_DIST = 1.0; 
+                constexpr double WEIGHT_CUE_DIST = 0.5;   
+
+                double dist_to_rail_x = half_field_length - std::abs(pos_red.x());
+                double dist_to_rail_y = half_field_width - std::abs(pos_red.y());
+                double rail_penalty = (std::min(dist_to_rail_x, dist_to_rail_y) < ball_diameter) ? 2.0 : 0.0;
+
+                double total_cost = (WEIGHT_CUT_ANGLE * cut_angle_rad) + 
                                    (WEIGHT_POCKET_DIST * pocket_distance) + 
                                    (WEIGHT_CUE_DIST * cue_distance) + 
                                    rail_penalty;
 
-                // --- 3. FISICA E CALCOLO VELOCITÀ PER QUESTA BUCA ---
-                double cos_alpha = std::cos(cut_angle_rad);
-                if (std::abs(cos_alpha) < 0.001) continue;
-
-
+                // --- 6. FISICA E VELOCITÀ ---
                 double v2f = std::sqrt(2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * pocket_distance);
-                double v1i_impact = (v2f / cos_alpha);
+                double v1i_impact = (v2f / cos_cut_angle);
                 double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * cue_distance);
+                double shot_velocity = velocity_factor_ * v_white_start;            
 
-                // Applicazione dello scaling di sicurezza per MoveIt
-                double shot_velocity = velocity_factor_ * v_white_start;            //aumentato di un coefficiente velocity_factor
-                double direction_deg = normalize_angle(cue_angle_rad + M_PI) * (180.0 / M_PI);
+                // --- 7. YAW PER IL ROBOT ---
+                // L'angolo reale della bianca nel piano del tavolo
+                double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
+                
+                // Aggiungiamo l'offset richiesto dal setup cinematico del tuo end-effector
+                double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);
+                double final_yaw_rad = normalize_angle(cue_angle_rad + tip_offset_rad);
+                double direction_deg = final_yaw_rad * (180.0 / M_PI);
 
-                // Aggiornamento del tiro ottimale se questo ha il costo minore
                 if (total_cost < best_cost) {
                     best_cost = total_cost;
                     best_pocket = pocket_frame;
@@ -209,7 +193,6 @@ class GameEngine : public rclcpp::Node
                 }
             }
 
-            // --- 4. PUBBLICAZIONE DEL TIRO VINCENTE ---
             if (valid_shot_found) {
                 auto msg = ShotParamsMsg();
                 msg.direction_angle_deg = best_direction_deg;
@@ -218,12 +201,12 @@ class GameEngine : public rclcpp::Node
                 publisher_->publish(msg);
 
                 RCLCPP_INFO(this->get_logger(), 
-                    "Buca scelta: [%s] (Costo: %.2f) | Vel: %.3f m/s, Dir: %.2f deg", 
-                    best_pocket.c_str(), best_cost, best_shot_velocity, best_direction_deg);
+                    "Buca: [%s] | Vel: %.3f m/s | Yaw Robot: %.2f deg", 
+                    best_pocket.c_str(), best_shot_velocity, best_direction_deg);
             } else {
                 RCLCPP_WARN_THROTTLE(
                     this->get_logger(), *this->get_clock(), 2000,
-                    "Nessuna buca raggiungibile! Tutti i tiri violano i limiti di angolo o sponda.");
+                    "Nessuna buca raggiungibile fisicamente.");
             }
         }
 };
