@@ -494,7 +494,7 @@
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="0 0 -5">
+    <body name="red_ball" pos="-0.10000 -0.25000 0.0725">
         <joint type="free"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>

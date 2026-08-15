@@ -8,10 +8,10 @@ if [ ! -d "install" ]; then
 fi
 
 # Parametri di personalizzazione esecuzione off-line
-use_real_game_engine="true"
 build_scene_rviz="true"
-logging_enabled="false"
-execute_shot="false"             #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
+execute_shot="true"             #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
+logging_enabled="true"
+use_real_game_engine="true"
 
 
 echo "========================================"

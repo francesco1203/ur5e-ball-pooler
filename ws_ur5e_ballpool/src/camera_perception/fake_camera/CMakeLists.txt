@@ -29,6 +29,8 @@ ament_target_dependencies(fake_camera_node
 )
 target_link_libraries(fake_camera_node yaml-cpp)
 
+#toADD: VISION NODE
+
 install(TARGETS
   fake_camera_node
   DESTINATION lib/${PROJECT_NAME}
