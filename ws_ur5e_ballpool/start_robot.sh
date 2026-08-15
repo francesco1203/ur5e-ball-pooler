@@ -9,8 +9,9 @@ fi
 
 # Parametri di personalizzazione esecuzione off-line
 use_real_game_engine="true"
-build_scene_rviz="false"
-logging_enabled="true"
+build_scene_rviz="true"
+logging_enabled="false"
+execute_shot="false"             #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
 
 
 echo "========================================"
@@ -79,30 +80,36 @@ if [[ "$build_scene_rviz" == "true" ]]; then
 fi
 
 
-# logging dei dati di shot planning
-if [[ "$logging_enabled" == "true" ]]; then
-    echo "Avvio Nodi logger..."
-    gnome-terminal --tab --title="Nodi di logging" -- bash -c "source install/setup.bash && ros2 launch execution_monitoring loggers.launch.py; exec bash"
 
-    sleep 2
+if [[ "$execute_shot" == "true" ]]; then
+
+    # logging dei dati di shot planning
+    if [[ "$logging_enabled" == "true" ]]; then
+        echo "Avvio Nodi logger..."
+        gnome-terminal --tab --title="Nodi di logging" -- bash -c "source install/setup.bash && ros2 launch execution_monitoring loggers.launch.py; exec bash"
+
+        sleep 2
+    fi
+
+    #tiro vero e proprio
+    echo "Avvio Shot Planning..."
+    gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+
+    sleep 5
+
+
+    # Game engine: se la variabile è vera, avvio il game engine reale, altrimenti quello fake
+    if [[ "$use_real_game_engine" == "true" ]]; then
+        
+        echo "Avvio Game Engine Reale..."
+        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine; exec bash"
+    else
+        echo "Avvio Fake Game Engine..."
+        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+        
+    fi
+
 fi
 
-
-echo "Avvio Shot Planning..."
-gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
-
-sleep 5
-
-
-# Game engine: se la variabile è vera, avvio il game engine reale, altrimenti quello fake
-if [[ "$use_real_game_engine" == "true" ]]; then
-    
-    echo "Avvio Game Engine Reale..."
-    gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine; exec bash"
-else
-    echo "Avvio Fake Game Engine..."
-    gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
-    
-fi
 
 echo "Tutti i nodi sono stati avviati!"

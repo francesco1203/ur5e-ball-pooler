@@ -104,14 +104,16 @@ class FakeCamera : public rclcpp::Node
       double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
 
       // Definiamo un array o vector con i nomi e le coordinate relative delle 6 buche
+
+  
       struct HoleDef { std::string name; double x; double y; };
       std::vector<HoleDef> holes = {
-          {"hole_top_left",     -half_l, -half_w},
-          {"hole_top_right",    -half_l,  half_w},
-          {"hole_mid_left",      0.0,    -half_w},
-          {"hole_mid_right",     0.0,     half_w},
-          {"hole_bottom_left",   half_l, -half_w},
-          {"hole_bottom_right",  half_l,  half_w}
+          {"hole_top_left",     -half_l + 0.01, -half_w + 0.02},
+          {"hole_top_right",    -half_l + 0.01,  half_w - 0.02},
+          {"hole_mid_left",      0.0,    -half_w + 0.0125},
+          {"hole_mid_right",     0.0,     half_w - 0.0125},
+          {"hole_bottom_left",   half_l - 0.01, -half_w + 0.02},
+          {"hole_bottom_right",  half_l - 0.01,  half_w - 0.02}
       };
 
       for (const auto& hole : holes) {
