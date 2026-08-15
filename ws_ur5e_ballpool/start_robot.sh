@@ -8,7 +8,7 @@ if [ ! -d "install" ]; then
 fi
 
 # Parametri di personalizzazione esecuzione off-line
-use_real_game_engine="true"
+use_real_game_engine="false"
 build_scene_rviz="false"
 logging_enabled="true"
 
