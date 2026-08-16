@@ -79,7 +79,7 @@
     <!-- BILIARDO (contype=1): collide con Bianca (2) e Colorate (4) -> conaffinity = 2 + 4 = 6 -->
     <default class="biliardo_collision">
         <geom group="3" contype="1" conaffinity="6"
-              friction="0.1 0.005 0.005"
+              friction="0.1 0.0 0.0"
               solref="0.002 1.0" solimp="0.99 0.999 0.001"/>
     </default>
 
@@ -91,7 +91,7 @@
     <default class="pallina_bianca_collision">
         <geom type="sphere" size="0.0125" mass="0.010"
               contype="2" conaffinity="15"
-              friction="0.1 0.005 0.005"
+              friction="0.1 0.0 0.0"
               solref="0.002 1.0" solimp="0.99 0.999 0.001"    
               group="3"/>
     </default>
@@ -101,7 +101,7 @@
     <default class="pallina_colorata_collision">
         <geom type="sphere" size="0.0125" mass="0.015"
               contype="4" conaffinity="7"
-              friction="0.1 0.005 0.005"
+              friction="0.1 0.0 0.0"
               solref="0.002 1.0" solimp="0.99 0.999 0.001"
               group="3"/>
     </default>
@@ -328,8 +328,14 @@
                 <geom mesh="holder_collision_31" rgba="0.9747268717261768 0.8435632814532075 0.6618695171099569 1" class="end_effector_collision"/>
 
                 <geom material="Acciaio_-_Satinato" mesh="cut_rod" class="visual"/>
-                <geom mesh="cut_rod" rgba="0.8449083522441464 0.4857825111552856 0.025281120848835714 1" class="end_effector_collision" pos="" quat=""/>
-                
+                <!-- <geom mesh="cut_rod" friction="1.0 0.005 0.005" rgba="0.8449083522441464 0.4857825111552856 0.025281120848835714 1" class="end_effector_collision" pos="" quat=""/> -->
+               
+                <!-- PUNTA DELLA STECCA (Cilindro Piatto per forzare il tiro dritto) -->
+                <!-- size="0.006 0.001" -> raggio 6mm, spessore (mezzo-spessore) 1mm, come una moneta -->
+                <!-- quat="0.7071 0 -0.7071 0" -> ruota il cilindro di -90 gradi sul pitch per allineare la faccia piatta -->
+                <!-- rgba="0 1 0 1" -> verde acceso per vederlo bene -->
+                <geom type="cylinder" size="0.006 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 0"  class="end_effector_collision" />
+
 
                 <site name="left_wrist_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
                 <site name="left_ft_frame" pos="0 0 0" quat="0 1.0 0 0"/>

@@ -11,7 +11,7 @@ fi
 build_scene_rviz="true"
 execute_shot="true"             #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
 logging_enabled="true"
-use_real_game_engine="true"
+use_real_game_engine="true"  #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 
 echo "========================================"
