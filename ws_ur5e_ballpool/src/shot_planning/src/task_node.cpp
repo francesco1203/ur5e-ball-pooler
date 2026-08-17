@@ -859,6 +859,7 @@ class TaskNode : public rclcpp::Node
     /*metodi getter*/
     double getDirectionAngle() const { return direction_angle_deg_; }
     double getImpactShotVelocity() const { return impact_shot_velocity_; }
+    double getImpactAngle() const { return impact_angle_deg_; }
 
 
     /* PER CALCOLO GEOMETRICO */
@@ -1000,6 +1001,7 @@ class TaskNode : public rclcpp::Node
     bool params_received_ = false;
     double direction_angle_deg_;
     double impact_shot_velocity_;
+    double impact_angle_deg_;
     double vel_factor_for_jerk_compensation_;
     double accel_decel_factor_for_jerk_compensation_;
 
@@ -1019,11 +1021,11 @@ class TaskNode : public rclcpp::Node
         if (!params_received_) {
             direction_angle_deg_ = msg->direction_angle_deg;
             impact_shot_velocity_ = msg->impact_shot_velocity;
+            impact_angle_deg_ = msg->impact_angle_deg;
             params_received_ = true;
             
-            RCLCPP_INFO(this->get_logger(), "Parametri ricevuti: Angle=%.2f, Velocity=%.2f", 
-                        direction_angle_deg_, impact_shot_velocity_);
-            
+            RCLCPP_INFO(this->get_logger(), "Parametri ricevuti: Angle=%.2f, Velocity=%.2f, Pitch=%.2f", 
+                        direction_angle_deg_, impact_shot_velocity_, impact_angle_deg_);
             // Sblocca il main se stavamo aspettando
             params_promise_.set_value();
         }
@@ -1080,6 +1082,9 @@ int main(int argc, char* argv[])
 {
     /* inizializzazione */
     rclcpp::init(argc, argv);
+
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
     auto node = std::make_shared<TaskNode>();
  
     rclcpp::executors::SingleThreadedExecutor executor;
@@ -1104,15 +1109,16 @@ int main(int argc, char* argv[])
     // Adesso posso usarli
     double direction_angle_deg_ = node->getDirectionAngle(); 
     double impact_shot_velocity_ = node->getImpactShotVelocity();
+    double impact_angle_deg_ = node->getImpactAngle();
     //------------------------------------------------------
 
 
     //------------------------------------------------------
     /* SHOT PLANNING PARAMETERS */
-    node->declare_parameter<double>("approach_distance_from_ball_surface", 0.01);
+    node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("distance_deceleration_phase_fraction_radius", 2.0);
-    node->declare_parameter<double>("impact_angle_deg", 10.0);
+    // node->declare_parameter<double>("impact_angle_deg", 10.0);
     // node->declare_parameter<double>("direction_angle_deg", 0.0);         //da motore di gioco
     // node->declare_parameter<double>("impact_shot_velocity", 0.1);        //da motore di gioco
     node->declare_parameter<double>("offset_correction_center_z", 0.000);
@@ -1124,7 +1130,7 @@ int main(int argc, char* argv[])
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double distance_deceleration_phase_fraction_radius_ = node->get_parameter("distance_deceleration_phase_fraction_radius").as_double();
-    double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
+    // double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
     // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //da motore di gioco
     // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //da motore di gioco
     double offset_correction_center_z_ = node->get_parameter("offset_correction_center_z").as_double();
