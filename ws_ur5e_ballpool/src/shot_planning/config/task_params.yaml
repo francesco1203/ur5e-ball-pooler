@@ -3,7 +3,7 @@ game_engine:
     use_sim_time: true 
     
     #shot parameters
-    velocity_factor: 1.3                              # fattore di moltiplicazione della velocità di tiro
+    velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
 
 
 fake_game_engine:
@@ -60,7 +60,7 @@ task_node:
    
     #moveCartesianPathAsymmTriangle
     resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
-    success_threshold_Ruckig: 0.95                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
+    success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
     Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
     max_jerk: 80.0                                      # jerk massimo in m/s^3 
 

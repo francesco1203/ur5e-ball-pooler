@@ -592,7 +592,21 @@ class TaskNode : public rclcpp::Node
         const size_t num_waypoints = raw_trajectory.joint_trajectory.points.size();
         if (num_waypoints < 2) return false;            //se ci sono meno di due punti sulla traiettoria, non ha senso parametrizzare il tempo
 
-        const double total_distance = (num_waypoints - 1) * eef_step;       //numero di stemp per risoluzione step = distanza totale percorsa lungo la linea retta
+        //const double total_distance = (num_waypoints - 1) * eef_step;       //numero di stemp per risoluzione step = distanza totale percorsa lungo la linea retta
+
+        double total_distance = 0.0;
+        // Se vuoi usare la distanza euclidea pura dal target (assumendo linea retta perfetta):
+        double dx = target_pose.position.x - move_group_->getCurrentPose().pose.position.x;
+        double dy = target_pose.position.y - move_group_->getCurrentPose().pose.position.y;
+        double dz = target_pose.position.z - move_group_->getCurrentPose().pose.position.z;
+        total_distance = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+
+        //---------------DEBUG RUCKIG--------------------
+        RCLCPP_INFO(this->get_logger(), "Distanza totale lungo la linea retta: %.4f m", total_distance);
+        //---------------DEBUG RUCKIG--------------------
+
+
 
         // Impostiamo Ruckig per uno spazio a 1-Dimensione (lungo la linea del tiro)
         // dt a 0.01s (100Hz) è sufficiente per generare una traiettoria fluida
@@ -1205,10 +1219,10 @@ int main(int argc, char* argv[])
     // FASE 1 - vado in pre-approach per approcciare la pallina
     {
         if(control_execution_by_user_input_){
-            node->print_and_wait("Posizionamento in 'pre_approach..");
+            node->print_and_wait("\n\nPosizionamento in 'pre_approach..");
         }
         else{
-            RCLCPP_INFO(node->get_logger(), "Posizionamento in 'pre_approach..");
+            RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'pre_approach..");
         }
 
         //logging
@@ -1233,10 +1247,10 @@ int main(int argc, char* argv[])
     // FASE 2 - approach alla pallina
     {
         if(control_execution_by_user_input_){
-            node->print_and_wait("Approach alla pallina..");
+            node->print_and_wait("\n\nApproach alla pallina..");
         }
         else{
-            RCLCPP_INFO(node->get_logger(), "Approach alla pallina..");
+            RCLCPP_INFO(node->get_logger(), "\n\nApproach alla pallina..");
         }
         
 
@@ -1276,7 +1290,7 @@ int main(int argc, char* argv[])
 
         //controllo se l'approach è andato a buon fine
         if(perc_success < success_threshold_approach_) {
-            RCLCPP_ERROR(node->get_logger(), "Approach alla pallina fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
+            RCLCPP_ERROR(node->get_logger(), "\n\nApproach alla pallina fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
             rclcpp::shutdown();
             spinner.join();
             return -1;
@@ -1289,10 +1303,10 @@ int main(int argc, char* argv[])
     {
   
         if(control_execution_by_user_input_){
-            node->print_and_wait("Allontanamento all'indietro per prendere velocità..");
+            node->print_and_wait("\n\nAllontanamento all'indietro per prendere velocità..");
         }
         else{
-            RCLCPP_INFO(node->get_logger(), "Allontanamento all'indietro per prendere velocità..");
+            RCLCPP_INFO(node->get_logger(), "\n\nAllontanamento all'indietro per prendere velocità..");
         }
 
         //distanza desiderata dal centro della pallina (per allontanarsi)
@@ -1334,7 +1348,7 @@ int main(int argc, char* argv[])
 
         //controllo se l'allontanamento è andato a buon fine
         if(perc_success < success_threshold_back_) {
-            RCLCPP_ERROR(node->get_logger(), "Allontanamento all'indietro fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
+            RCLCPP_ERROR(node->get_logger(), "\n\nAllontanamento all'indietro fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
             rclcpp::shutdown();
             spinner.join();
             return -1;
@@ -1348,10 +1362,10 @@ int main(int argc, char* argv[])
     {
        
         if(control_execution_by_user_input_){
-            node->print_and_wait("Esecuzione tiro..");
+            node->print_and_wait("\n\nEsecuzione tiro..");
         }
         else{
-            RCLCPP_INFO(node->get_logger(), "Esecuzione tiro..");
+            RCLCPP_INFO(node->get_logger(), "\n\nEsecuzione tiro..");
         }
 
 
@@ -1406,10 +1420,10 @@ int main(int argc, char* argv[])
         if(shot_success) {
 
             if(control_execution_by_user_input_){
-                node->print_and_wait("Mi alzo..");
+                node->print_and_wait("\n\nMi alzo..");
             }
             else{
-                RCLCPP_INFO(node->get_logger(), "Mi alzo..");
+                RCLCPP_INFO(node->get_logger(), "\n\nMi alzo..");
             }
 
 
@@ -1440,7 +1454,7 @@ int main(int argc, char* argv[])
             }
         }
         else {
-            RCLCPP_WARN(node->get_logger(), "Tiro non eseguito, salto la fase di alzata.");
+            RCLCPP_WARN(node->get_logger(), "\n\nTiro non eseguito, salto la fase di alzata.");
         }
 
         node->enable_collision() ; //riattivo collisione tra asta e pallina bianca

@@ -20,9 +20,10 @@ Work in progress..
 
 ### Languages & Technologies
 
-- ROS2 JAZZY
-- MoveIt
-- MuJoCo
+- ROS2 JAZZY (framework)
+- MoveIt (Ros tool for robot movements control)
+- MuJoCo (Physics simulator)
+- Python (for data analysis)
 
 ---
 
@@ -32,6 +33,7 @@ Work in progress..
 - ur_description (Ros2 standard package)
 - moveit2 (Ros2 standard package)
 - mujoco_ros2_control (Ros2 package) + mujoco + python3-yaml
+- python packs: pandas, numpy, matplotlib, scipy
 
 ---
 
@@ -41,24 +43,39 @@ On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and to build use cmd:
 
 - colcon build --symlink-install
 
-Give executing permission to the bash script:
+Give executing permission to the following bash scripts:
 
 - chmod +x start_robot.sh
+- chmod +x show_plots.sh
 
-Then, run it:
+Then, you can run the shot execution:
 
 - ./start_robot.sh
 
+And you can visualize the trajectory parameterization by running
 
-### Note about using MuJoCo!!
-You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting the MuJoCo plugin (TODO: automatic upload)
+- ./show_plots.sh
+
+
+### Note: to use MuJoCo Vs to use RViz
+If you want to use MuJoCo, you should:
+- modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the MuJoCo plugin
+- modify by hand the config file ./ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml in the task_node parameters, section 'execution parameter' and set on 'true' the 'using_mujoco_simulation'parameter
+
+Otherwise, if you want to use RViz, you should:
+- modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the FakeHardwer plugin
+- modify by hand the config file ./ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml in the task_node parameters, section 'execution parameter' and set on 'false' the 'using_mujoco_simulation'parameter
+
+Forgetting these two pre-steps, the correct execution isn't guaranteed
 
 ---
 
-### Structure
+### ROS WS Structure
 
 - ws_ur5_ball_pooler: ros2 workspace
 - src/camera_perception
+- src/execution_monitoring
+- src/interfaces_pkg
 - src/left_arm_description
 - src/moveit_config
 - src/scene_description

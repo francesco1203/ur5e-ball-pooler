@@ -165,7 +165,7 @@ class GameEngine : public rclcpp::Node
                                    rail_penalty;
 
                 double v2f = std::sqrt(2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * pocket_distance);
-                double v1i_impact = (v2f / cos_cut_angle);
+                double v1i_impact = (v2f / cos_cut_angle) * COLORED_BALL_MASS / WHITE_BALL_MASS;
                 double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * cue_distance);
                 double shot_velocity = velocity_factor_ * v_white_start;            
 
