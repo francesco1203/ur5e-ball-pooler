@@ -105,13 +105,14 @@ class TaskNode : public rclcpp::Node
     TaskNode(const rclcpp::NodeOptions& opt = rclcpp::NodeOptions())
         : rclcpp::Node("task_node", opt)
     {
+
         //-----------------------------------------------------------------------
         /*PLANNING PARAMETERS from task_param.yaml*/ 
 
         //generic
         this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
         this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians (1/20 di grado)
-        this->declare_parameter<double>("goal_position_tolerance", 0.001);                              // default position tolerance in meters (1 mm)
+        this->declare_parameter<double>("goal_position_tolerance", 0.0005);                              // default position tolerance in meters (0.5 mm)
         this->declare_parameter<double>("goal_orientation_tolerance", 0.01);                            // default orientation tolerance in radians (1/2 di grado)
 
         //moveToJointConfig e moveToNamedTarget:    
@@ -151,13 +152,21 @@ class TaskNode : public rclcpp::Node
         accel_decel_factor_for_jerk_compensation_ = this->get_parameter("accel_decel_factor_for_jerk_compensation").as_double();
         //-----------------------------------------------------------------------
 
+
+        //-----------------------------------------------------------------------
+        /*LOGGING AND DEBUG PARAMETERS from task_param.yaml*/ 
+        this->declare_parameter<bool>("log_ruckig_trajectory", false);
+        log_ruckig_trajectory_ = this->get_parameter("log_ruckig_trajectory").as_bool();
+        //-----------------------------------------------------------------------
         
+
+
         /* Subscriber ai parametri di tiro */
         param_sub_ = this->create_subscription<ShotParamsMsg>(
             SHOT_PARAMS_TOPIC, 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
 
 
-        /* CLIENT PER IL LOGGING */
+        /* CLIENT PER LOGGING CARTESIANO E DI GIUNTO*/
         cartesian_log_client_ = this->create_client<LogOnFileSrv>(LOG_CARTESIAN_ON_OFF_SERVICE);
         joint_log_client_ = this->create_client<LogOnFileSrv>(LOG_JOINT_ON_OFF_SERVICE);
 
@@ -537,7 +546,7 @@ class TaskNode : public rclcpp::Node
 
         PoseMsg target_pose = pose_stamped_in.pose; 
 
-        std::string planning_frame_moveit = move_group_->getPlanningFrame();
+        std::string planning_frame_moveit = move_group_->getPlanningFrame();        //world
         if (frame_id != planning_frame_moveit) {
             try {
                 PoseStampedMsg pose_stamped_out = tf_buffer_->transform(
@@ -548,6 +557,7 @@ class TaskNode : public rclcpp::Node
                 return false; 
             }
         }
+
 
         // 2. Calcola i waypoint geometrici puri con MoveIt (senza tempi, solo percorso)
 
@@ -615,16 +625,19 @@ class TaskNode : public rclcpp::Node
         ruckig::Result result = ruckig::Result::Working;
         double current_time = 0.0;
 
-        //if (log_ruckig_trajectory_) {
-        std::ofstream ruckig_log_file(LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
+        //se è richiesto il log di ruckig
+        std::ofstream ruckig_log_file;
+
+        if (log_ruckig_trajectory_) {    
+            ruckig_log_file.open(LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
     
-        if (ruckig_log_file.is_open()) {
-            // Scriviamo l'intestazione del CSV
-            ruckig_log_file << "Time_s,Position_m,Velocity_ms,Acceleration_ms2\n";
-        } else {
-            RCLCPP_WARN(this->get_logger(), "Impossibile aprire il file di log per Ruckig");
+            if (ruckig_log_file.is_open()) {
+                // Scriviamo l'intestazione del CSV
+                ruckig_log_file << "Time_s,Position_m,Velocity_ms,Acceleration_ms2\n";
+            } else {
+                RCLCPP_WARN(this->get_logger(), "Impossibile aprire il file di log per Ruckig");
+            }
         }
-        //}
 
 
         // Generiamo i punti temporali passo-passo
@@ -774,7 +787,7 @@ class TaskNode : public rclcpp::Node
     }
 
 
-    // Disabilita la collisioni
+    /* GESTIONE COLLISIONI */
     bool disable_collision() 
     { 
         RCLCPP_INFO(this->get_logger(), "Disattivazione collisioni...");
@@ -782,8 +795,6 @@ class TaskNode : public rclcpp::Node
         return true;
     }
     
-
-    // Abilita la collisione tra asta e pallina bianca
      bool enable_collision() 
     { 
         RCLCPP_INFO(this->get_logger(), "Riattivazione controlli di collisione ambientali...");
@@ -896,6 +907,7 @@ class TaskNode : public rclcpp::Node
         }
     }
 
+
     /* PER DEBUG*/
     // Metodo di utilità per stampare informazioni sulla poszione dell'EE rispetto la pallina
     void printEEFDebugInfo()
@@ -913,6 +925,7 @@ class TaskNode : public rclcpp::Node
                 "[DEBUG EEF] Impossibile recuperare correttamente la distanza o la posizione relativa del tip dell'asta.");
         }
     }
+
 
     /* PER CONTROLLO ESECUZIONE*/
     // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
@@ -963,6 +976,9 @@ class TaskNode : public rclcpp::Node
     double success_threshold_Ruckig_;                    // soglia di successo per pianificazione cartesian path con Ruckig (0.0 - 1.0)
     double Ruckig_dt_;                                   // passo di lavoro per Ruckig (secondi)
     double max_jerk_;                                    // limite di jerk per pianificazione cartesian path con Ruckig (m/s^3)
+
+    //parametri di loggin e debug
+    bool log_ruckig_trajectory_;                         // flag per abilitare/disabilitare il logging della traiettoria generata da Ruckig
 
 
     //lettura da subscriber per mossa da motore di gioco
@@ -1079,26 +1095,28 @@ int main(int argc, char* argv[])
 
     //------------------------------------------------------
     /* SHOT PLANNING PARAMETERS */
-    node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
+    node->declare_parameter<double>("approach_distance_from_ball_surface", 0.01);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
+    node->declare_parameter<double>("distance_deceleration_phase_fraction_radius", 2.0);
     node->declare_parameter<double>("impact_angle_deg", 10.0);
-    // node->declare_parameter<double>("direction_angle_deg", 0.0);     //letto da topic
-    // node->declare_parameter<double>("impact_shot_velocity", 0.1);    //letto da topic
-    node->declare_parameter<double>("offset_correction_center", 0.002);
+    // node->declare_parameter<double>("direction_angle_deg", 0.0);         //da motore di gioco
+    // node->declare_parameter<double>("impact_shot_velocity", 0.1);        //da motore di gioco
+    node->declare_parameter<double>("offset_correction_center_z", 0.000);
     node->declare_parameter<double>("elevation_escape", 0.05);
-    node->declare_parameter<double>("success_threshold_approach", 0.95);
-    node->declare_parameter<double>("success_threshold_shooting", 0.20);
+    node->declare_parameter<double>("success_threshold_approach", 0.99);
+    node->declare_parameter<double>("success_threshold_back", 0.20);
 
 
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
+    double distance_deceleration_phase_fraction_radius_ = node->get_parameter("distance_deceleration_phase_fraction_radius").as_double();
     double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
-    // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //letto da topic
-    // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //letto da topic
-    double offset_correction_center_ = node->get_parameter("offset_correction_center").as_double();
+    // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //da motore di gioco
+    // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //da motore di gioco
+    double offset_correction_center_z_ = node->get_parameter("offset_correction_center_z").as_double();
     double elevation_escape_ = node->get_parameter("elevation_escape").as_double();
     double success_threshold_approach_ = node->get_parameter("success_threshold_approach").as_double();
-    double success_threshold_shooting_ = node->get_parameter("success_threshold_shooting").as_double();
+    double success_threshold_back_ = node->get_parameter("success_threshold_back").as_double();
     //------------------------------------------------------
 
 
@@ -1229,7 +1247,7 @@ int main(int argc, char* argv[])
         //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
         Vector3d pos_pre_shot = Vector3d(desired_distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                          desired_distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                         desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+                                         desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_z_
                                         );
 
 
@@ -1275,7 +1293,6 @@ int main(int argc, char* argv[])
         }
         else{
             RCLCPP_INFO(node->get_logger(), "Allontanamento all'indietro per prendere velocità..");
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::seconds(1)));
         }
 
         //distanza desiderata dal centro della pallina (per allontanarsi)
@@ -1285,7 +1302,7 @@ int main(int argc, char* argv[])
         //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
         Vector3d pos_back_shot = Vector3d(desired_distance_from_ball_center * cos(impact_angle_rad) * cos(direction_angle_rad) ,
                                           desired_distance_from_ball_center * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_
+                                          desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_z_
                                           );
 
         //logging
@@ -1294,7 +1311,7 @@ int main(int argc, char* argv[])
 
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
-                                                      success_threshold_shooting_);                 //soglia di successo 20%, perché è almeno 1 cm di allontanamento, fondamentale che ci arrivi
+                                                      success_threshold_back_);            
 
         
         if(using_mujoco_simulation_){
@@ -1316,7 +1333,7 @@ int main(int argc, char* argv[])
 
 
         //controllo se l'allontanamento è andato a buon fine
-        if(perc_success < success_threshold_shooting_) {
+        if(perc_success < success_threshold_back_) {
             RCLCPP_ERROR(node->get_logger(), "Allontanamento all'indietro fallito: non è stato possibile raggiungere la posizione desiderata con sufficiente precisione.");
             rclcpp::shutdown();
             spinner.join();
@@ -1339,14 +1356,16 @@ int main(int argc, char* argv[])
 
 
         //parametri del tiro
-        double accel_distance = node->getEEFDistance() - BALL_RADIUS;                // distanza di accelerazione (dalla posizione all'indietro a cui sono riuscito ad arrivare, fino al contatto con la pallina)
-        double decel_distance = 2*BALL_RADIUS;                                         // distanza di decelerazione (dal contatto al centro della pallina, scelta progettuale)
+        double accel_distance = node->getEEFDistance() - BALL_RADIUS;                       // distanza di accelerazione (dalla posizione all'indietro a cui sono riuscito ad arrivare, fino al contatto con la pallina)
+        double decel_distance = distance_deceleration_phase_fraction_radius_ * BALL_RADIUS; // distanza di decelerazione (dal contatto al centro della pallina, scelta progettuale)
 
-        //Vector3d pos_arresto = Vector3d(0, 0, 0 + offset_correction_center_);        //per semplicità finisco il tiro nel centro (corretto) della sfera
+        //considerato che decel_distance è la distanza tra il tip dell'asta e il centro della pallina, per calcolare la posizione di arresto devo sottrarre il raggio della pallina
+        //distanza arresto = distanza di decelerazione - raggio della pallina
+        
         Vector3d pos_arresto = Vector3d(      
-                                          -BALL_RADIUS * cos(impact_angle_rad) * cos(direction_angle_rad) ,
-                                          -BALL_RADIUS * cos(impact_angle_rad) * sin(direction_angle_rad), 
-                                          -BALL_RADIUS * sin(impact_angle_rad) + offset_correction_center_
+                                          -(decel_distance - BALL_RADIUS) * cos(impact_angle_rad) * cos(direction_angle_rad) ,
+                                          -(decel_distance - BALL_RADIUS) * cos(impact_angle_rad) * sin(direction_angle_rad), 
+                                          -(decel_distance - BALL_RADIUS) * sin(impact_angle_rad) + offset_correction_center_z_
                                         );
 
         //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione

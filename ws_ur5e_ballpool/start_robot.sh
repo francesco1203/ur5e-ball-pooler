@@ -8,10 +8,11 @@ if [ ! -d "install" ]; then
 fi
 
 # Parametri di personalizzazione esecuzione off-line
+open_rviz_when_using_mujoco="false"      #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 build_scene_rviz="true"
-execute_shot="true"             #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
+execute_shot="true"                      #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
 logging_enabled="true"
-use_real_game_engine="true"  #true se vuoi usare il game engine reale, false se vuoi usare quello fake
+use_real_game_engine="true"              #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 
 echo "========================================"
@@ -42,8 +43,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     
     sleep 2
 
-    read -p "Vuoi avviare anche RViz? (s/n): " scelta_rviz
-    if [[ "$scelta_rviz" =~ ^[sS][iI]?$ ]]; then
+    if [[ "$open_rviz_when_using_mujoco" == "true" ]]; then
         gnome-terminal --tab --title="Moveit+MuJoCo+Rviz" -- bash -c "source install/setup.bash && ros2 launch moveit_config mujoco_and_rviz_demo.launch.py; exec bash"
         sleep 10
     else
@@ -102,7 +102,7 @@ if [[ "$execute_shot" == "true" ]]; then
     if [[ "$use_real_game_engine" == "true" ]]; then
         
         echo "Avvio Game Engine Reale..."
-        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine; exec bash"
+        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
     else
         echo "Avvio Fake Game Engine..."
         gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
