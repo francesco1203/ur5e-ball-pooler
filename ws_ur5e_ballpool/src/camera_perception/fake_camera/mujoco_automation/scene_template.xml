@@ -349,7 +349,7 @@
                 <!-- size="0.006 0.001" -> raggio 6mm, spessore (mezzo-spessore) 1mm, come una moneta -->
                 <!-- quat="0.7071 0 -0.7071 0" -> ruota il cilindro di -90 gradi sul pitch per allineare la faccia piatta -->
                 <!-- rgba="0 1 0 1" -> verde acceso per vederlo bene -->
-                <geom type="cylinder" size="0.006 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 0"  class="end_effector_collision" />
+                <geom type="cylinder" size="0.005 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 1"  class="end_effector_collision" />
 
 
                 <site name="left_wrist_3_link" pos="0 0 0" quat="1.0 0 0 0"/>

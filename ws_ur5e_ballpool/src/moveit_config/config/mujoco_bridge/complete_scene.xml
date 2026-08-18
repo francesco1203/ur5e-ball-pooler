@@ -349,7 +349,7 @@
                 <!-- size="0.006 0.001" -> raggio 6mm, spessore (mezzo-spessore) 1mm, come una moneta -->
                 <!-- quat="0.7071 0 -0.7071 0" -> ruota il cilindro di -90 gradi sul pitch per allineare la faccia piatta -->
                 <!-- rgba="0 1 0 1" -> verde acceso per vederlo bene -->
-                <geom type="cylinder" size="0.006 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 0"  class="end_effector_collision" />
+                <geom type="cylinder" size="0.005 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 1"  class="end_effector_collision" />
 
 
                 <site name="left_wrist_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
@@ -416,7 +416,7 @@
 
     <!-- BILIARDO E PALLINE -->
     
-    <body name="tavolo_biliardo" pos="-0.63 -0.33 0.0" euler="0 0 0.0"> 
+    <body name="tavolo_biliardo" pos="-0.61 -0.33 0.0" euler="0 0 0.0"> 
         
         <!-- grafica: visuale pura -->
         <geom class="visual_environment" type="mesh" mesh="campo_biliardo" material="verde_biliardo"/>
@@ -508,14 +508,14 @@
     </body>
 
     <!-- pallina bianca-->
-    <body name="white_ball" pos="-0.83000 -0.43000 0.0725">
+    <body name="white_ball" pos="-0.41000 -0.28000 0.0725">
         <joint type="free" class="pallina_bianca_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="-0.63000 -0.33000 0.0725">
+    <body name="red_ball" pos="-0.61000 -0.33000 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>

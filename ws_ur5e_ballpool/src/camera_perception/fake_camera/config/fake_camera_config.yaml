@@ -1,5 +1,5 @@
 billiard_table:
-  pos: [-0.63, -0.33]                    # Posizionamento sul banco rispetto al world
+  pos: [-0.61, -0.33]                    # Posizionamento sul banco rispetto al world
   yaw_angle_rad: 0.0                    # Orientamento sul banco rispetto al world  
 
 #per ora usiamo solo palline piene, possibile futura implementazione -> type: "solid" o "striped"
@@ -10,7 +10,7 @@ balls:
   - color: "red"
     pos: [0.0, 0.0]                     # Posizione rispetto al centro del tavolo
   - color: "white"
-    pos: [+0.2, +0.1]
+    pos: [-0.2, -0.05]
   # - color: "blue"
   #   pos: [-0.08, 0.05]
   # - color: "yellow"

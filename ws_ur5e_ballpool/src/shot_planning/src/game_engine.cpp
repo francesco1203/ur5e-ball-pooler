@@ -31,27 +31,39 @@ class GameEngine : public rclcpp::Node
 
         GameEngine() : Node("game_engine")
         {
+            /*IPER PARAMETRI*/
+
+            // Per scalare velocità stecca
             this->declare_parameter<double>("velocity_factor", 1.2);
-            
+         
             // Offset di yaw del tip. 
             this->declare_parameter<double>("tip_yaw_offset_deg", 180.0); 
+            tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
 
             // Parametri per la gestione dinamica dell'inclinazione dell'asta (pitch)
             this->declare_parameter<double>("rail_proximity_threshold", 0.04); // Distanza in metri per considerare la palla "vicina" alla sponda (es. 4 cm)
-            this->declare_parameter<double>("steep_impact_angle_deg", 22.5);   // Angolo pendente
-            this->declare_parameter<double>("normal_impact_angle_deg", 15.0);  // Angolo standard
+            this->declare_parameter<double>("normal_impact_angle_deg", 10.0);  // Angolo standard (consigliato 10-15 gradi)
+            this->declare_parameter<double>("steep_impact_angle_deg", 15.0);   // Angolo pendente (consigliato 15-20 gradi)
 
+            
             velocity_factor_ = this->get_parameter("velocity_factor").as_double();
-            tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
-            rail_proximity_threshold_ = this->get_parameter("rail_proximity_threshold").as_double();
-            steep_impact_angle_deg_ = this->get_parameter("steep_impact_angle_deg").as_double();
-            normal_impact_angle_deg_ = this->get_parameter("normal_impact_angle_deg").as_double();
 
+            tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
+
+            rail_proximity_threshold_ = this->get_parameter("rail_proximity_threshold").as_double();
+            normal_impact_angle_deg_ = this->get_parameter("normal_impact_angle_deg").as_double();
+            steep_impact_angle_deg_ = this->get_parameter("steep_impact_angle_deg").as_double();
+            
+
+            /*tf*/
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
+            /*publisher verso task node*/
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC, 10);
 
+            
+            //altro
             pocket_frames_ = {
                 HOLE_TOP_RIGHT_FRAME,
                 HOLE_TOP_LEFT_FRAME,
@@ -123,6 +135,7 @@ class GameEngine : public rclcpp::Node
 
             std::string best_pocket = "";
             double best_cost = std::numeric_limits<double>::max();
+            double best_shot_velocity_planar = 0.0;
             double best_shot_velocity = 0.0;
             double best_direction_deg = 0.0;
             bool valid_shot_found = false;
@@ -190,7 +203,8 @@ class GameEngine : public rclcpp::Node
                 double v2f = std::sqrt(2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * pocket_distance);
                 double v1i_impact = (v2f / cos_cut_angle);
                 double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * CLOTH_SLIDING_FRICTION * GRAVITY * cue_distance);
-                double shot_velocity = velocity_factor_ * v_white_start;            
+                double shot_velocity_planar = velocity_factor_ * v_white_start ;   
+                double shot_velocity = shot_velocity_planar / cos(chosen_impact_angle * (M_PI / 180.0)); // Correzione per l'inclinazione
 
                 // --- 7. YAW PER IL ROBOT ---
                 double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
@@ -201,6 +215,7 @@ class GameEngine : public rclcpp::Node
                 if (total_cost < best_cost) {
                     best_cost = total_cost;
                     best_pocket = pocket_frame;
+                    best_shot_velocity_planar = shot_velocity_planar;
                     best_shot_velocity = shot_velocity;
                     best_direction_deg = direction_deg;
                     valid_shot_found = true;
@@ -216,8 +231,8 @@ class GameEngine : public rclcpp::Node
                 publisher_->publish(msg);
 
                 RCLCPP_INFO(this->get_logger(), 
-                    "Buca: [%s] | Vel: %.3f m/s | Yaw: %.2f deg | Pitch: %.2f deg | Dist. min. sponda: %.3f m", 
-                    best_pocket.c_str(), best_shot_velocity, best_direction_deg, chosen_impact_angle, min_dist_white_to_rail);
+                    "Buca: [%s] | Vel: %.3f m/s (planar %.3f m/s)  | Yaw: %.2f deg | Pitch: %.2f deg | Dist. min. sponda: %.3f m", 
+                    best_pocket.c_str(), best_shot_velocity, best_shot_velocity_planar, best_direction_deg, chosen_impact_angle, min_dist_white_to_rail);
             } else {
                 RCLCPP_WARN_THROTTLE(
                     this->get_logger(), *this->get_clock(), 2000,

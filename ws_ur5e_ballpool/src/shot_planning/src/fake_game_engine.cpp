@@ -30,12 +30,14 @@ class FakeGameEngine : public rclcpp::Node
         {
             // Dichiara e leggi i parametri (verranno presi dal file YAML)
             this->declare_parameter<double>("direction_angle_deg", 35.0);
+            this->declare_parameter<double>("impact_angle_deg", 15.0);
             this->declare_parameter<double>("impact_shot_velocity", 0.10);
 
             direction_ = this->get_parameter("direction_angle_deg").as_double();
+            impact_angle_ = this->get_parameter("impact_angle_deg").as_double();
             velocity_ = this->get_parameter("impact_shot_velocity").as_double();
 
-            RCLCPP_INFO(this->get_logger(), "Fake Engine avviato. Direction: %.2f, Velocity: %.2f", direction_, velocity_);
+            RCLCPP_INFO(this->get_logger(), "Fake Engine avviato. Direction: %.2f, Impact Angle: %.2f, Velocity: %.2f", direction_, impact_angle_, velocity_);
 
             // Crea il publisher
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC , 10);
@@ -51,12 +53,13 @@ class FakeGameEngine : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr timer_;
         double direction_;
         double velocity_;
-        
+        double impact_angle_;
         //callback di pubblication
         void publish_params()
         {
             auto msg = ShotParamsMsg();
             msg.direction_angle_deg = direction_;
+            msg.impact_angle_deg = impact_angle_;
             msg.impact_shot_velocity = velocity_;
             
             publisher_->publish(msg);

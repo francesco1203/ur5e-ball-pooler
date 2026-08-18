@@ -1118,7 +1118,7 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("distance_deceleration_phase_fraction_radius", 2.0);
-    // node->declare_parameter<double>("impact_angle_deg", 10.0);
+    // node->declare_parameter<double>("impact_angle_deg", 10.0);           //da motore di gioco
     // node->declare_parameter<double>("direction_angle_deg", 0.0);         //da motore di gioco
     // node->declare_parameter<double>("impact_shot_velocity", 0.1);        //da motore di gioco
     node->declare_parameter<double>("offset_correction_center_z", 0.000);
@@ -1130,7 +1130,7 @@ int main(int argc, char* argv[])
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double distance_deceleration_phase_fraction_radius_ = node->get_parameter("distance_deceleration_phase_fraction_radius").as_double();
-    // double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();
+    // double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();                  //da motore di gioco
     // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //da motore di gioco
     // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //da motore di gioco
     double offset_correction_center_z_ = node->get_parameter("offset_correction_center_z").as_double();

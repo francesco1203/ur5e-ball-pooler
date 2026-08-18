@@ -8,7 +8,7 @@ if [ ! -d "install" ]; then
 fi
 
 # Parametri di personalizzazione esecuzione off-line
-open_rviz_when_using_mujoco="true"      #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+open_rviz_when_using_mujoco="false"      #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 build_scene_rviz="true"
 execute_shot="true"                      #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
 logging_enabled="true"
