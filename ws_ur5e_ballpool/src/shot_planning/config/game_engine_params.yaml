@@ -1,0 +1,20 @@
+game_engine:
+  ros__parameters:
+    use_sim_time: true 
+    
+    #shot parameters
+    velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
+    rail_proximity_threshold: 0.04                    # distanza minima tra asta e binario per considerare il tiro vicino la sponda e alzare l'asta
+    normal_impact_angle_deg: 10.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
+    steep_impact_angle_deg: 15.0                      # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda (cons:15-20 gradi)
+
+
+fake_game_engine:
+  ros__parameters:
+    use_sim_time: true 
+    
+    # SHOT PARAMETERS (for simulate game engine, used by fake_game_engine)
+    direction_angle_deg: -167.95                       # angolo di direzione del tiro rispetto all'asse x del campo in gradi
+    impact_angle_deg: 25.0                             # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda
+    impact_shot_velocity: 0.05                         # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
+

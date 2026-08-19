@@ -1,23 +1,3 @@
-game_engine:
-  ros__parameters:
-    use_sim_time: true 
-    
-    #shot parameters
-    velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
-    rail_proximity_threshold: 0.04                    # distanza minima tra asta e binario per considerare il tiro vicino la sponda e alzare l'asta
-    normal_impact_angle_deg: 10.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
-    steep_impact_angle_deg: 15.0                      # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda (cons:15-20 gradi)
-
-
-fake_game_engine:
-  ros__parameters:
-    use_sim_time: true 
-    
-    # SHOT PARAMETERS (for simulate game engine, used by fake_game_engine)
-    direction_angle_deg: -167.95                       # angolo di direzione del tiro rispetto all'asse x del campo in gradi
-    impact_angle_deg: 25.0                             # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda
-    impact_shot_velocity: 0.05                         # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
-
 task_node:
   ros__parameters:
 
@@ -25,9 +5,9 @@ task_node:
     # EXECUTION PARAMETERS
 
     use_sim_time: true
-    control_execution_by_user_input: true                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
-    using_mujoco_simulation: true                        # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
-    #----------------------------------------------
+    control_execution_by_user_input: false                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
+    using_mujoco_simulation: true                         # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
+    #-----------------------------------------------
 
 
 
@@ -35,11 +15,11 @@ task_node:
     # SHOT PARAMETERS (out of game engine)
 
     approach_distance_from_ball_surface: 0.02             # distanza di avvicinamento alla pallina in metri (2 cm)
-    shooting_distance_from_ball_surface: 0.04             # distanza di tiro dalla pallina in metri (5 cm)
+    shooting_distance_from_ball_surface: 0.04             # distanza di tiro dalla pallina in metri (4 cm)
     distance_deceleration_phase_fraction_radius: 2.00     # distanza di decelerazione espressa in frazione del raggio della pallina (1.00 = 1 raggio, 1.5 = 1.5 raggi ecc..) -> Consigliato da 1.5 a 2.0
     offset_correction_center_z: 0.000                     # correzione dell'offset del centro della pallina, per far colpire più in alto rispetto al centro della pallina (in metri)
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
-    success_threshold_approach: 0.90                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
+    success_threshold_approach: 0.99                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_back: 0.20                          # soglia di successo moveCartesianPath per l'arretramento del tiro
     #----------------------------------------------
 
@@ -65,7 +45,7 @@ task_node:
     resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
     success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
     Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
-    max_jerk: 80.0                                      # jerk massimo in m/s^3 
+    max_jerk: 60.0                                      # jerk massimo in m/s^3 
 
     #shot method 
     vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo
@@ -83,22 +63,27 @@ task_node:
     #fase1 -> andare in posa pre-approach
     joints_logging_enabled_1: false
     cartesian_logging_enabled_1: false
+    torque_logging_enabled_1: false         #verrà a prescindere attivato solo se si usa mujoco
 
     #fase2 -> approach alla pallina
     joints_logging_enabled_2: false
     cartesian_logging_enabled_2: false
+    torque_logging_enabled_2: false        #verrà a prescindere attivato solo se si usa mujoco
 
     #fase3 -> allontanamento all'indietro per prendere velocità
     joints_logging_enabled_3: false
     cartesian_logging_enabled_3: false
+    torque_logging_enabled_3: false         #verrà a prescindere attivato solo se si usa mujoco
 
     #fase4 -> tiro
-    joints_logging_enabled_4: false
+    joints_logging_enabled_4: true
     cartesian_logging_enabled_4: true
+    torque_logging_enabled_4: false          #verrà a prescindere attivato solo se si usa mujoco
 
     #fase5 -> alzata per liberare il campo
     joints_logging_enabled_5: false
     cartesian_logging_enabled_5: false
+    torque_logging_enabled_5: false         #verrà a prescindere attivato solo se si usa mujoco
     #--------------------------------
 
 

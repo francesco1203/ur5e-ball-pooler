@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
 def main():
+    # 1. ESTRAZIONE FILE DA DATI
+
     # Se passi il file da riga di comando usa quello, altrimenti usa come default quello del tiro
     file_path = sys.argv[1] if len(sys.argv) > 1 else 'src/execution_monitoring/data/cartesian_logging/cartesian_log_4_shot.csv'
 
@@ -20,28 +22,46 @@ def main():
     y = df['y'].values
     z = df['z'].values
 
-    # 1. Distanza percorsa dall'inizio
+
+    # 2. CALCOLO DI DISTANZA, VELOCITÀ E ACCELERAZIONE CARTESIANE
+
+    # filtering variables (QUANDO FILTRO, LE TRAIETTORIE SONO IRRICONOSCIBILI, MEGLIO NON FARLO)
+    # filtering_distance = 'false'
+    # filtering_velocity = 'false'
+    # filtering_acceleration = 'false'
+
+
+    # Distanza percorsa dall'inizio
     dist_from_start = np.sqrt((x - x[0])**2 + (y - y[0])**2 + (z - z[0])**2)
 
-    # # Applica un filtro per smussare i gradini 
-    # # (window_length=15 e polyorder=3 sono valori di partenza buoni, aggiustali se necessario)
-    # dist_from_start_smooth = savgol_filter(dist_from_start, window_length=15, polyorder=3)
+    # Se richiesto, applica un filtro per smussare i gradini 
+    # if filtering_distance == 'true':
+    #     dist_from_start = savgol_filter(dist_from_start, window_length=15, polyorder=3)
 
-    # 2. Distanza residua rispetto alla posizione finale (Target)
-    # dist_to_target = np.sqrt((x - x[-1])**2 + (y - y[-1])**2 + (z - z[-1])**2)
-
-    # 3. Derivate numeriche per Velocità e Accelerazione Cartesiana
+    
+    # Derivate numeriche per Velocità
     vel_cart = np.gradient(dist_from_start, t)
+
+    # Se richiesto, applica un filtro per smussare i gradini 
+    # if filtering_velocity == 'true':
+    #     vel_cart = savgol_filter(vel_cart, window_length=15, polyorder=3)
+
+
+    # Derivate numeriche per Accelerazione
     acc_cart = np.gradient(vel_cart, t)
 
-    # Plotting
+    # Se richiesto, applica un filtro per smussare i gradini 
+    # if filtering_acceleration == 'true':
+    #     acc_cart = savgol_filter(acc_cart, window_length=15, polyorder=3)
+
+
+
+    # 3. PLOTTING DEI RISULTATI
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     fig.canvas.manager.set_window_title(f'Analisi Cartesiana - {file_path}')
 
     # Subplot 1: Distanza
     axs[0].plot(t, dist_from_start, 'g-', label='Distanza percorsa [m]')
-    # axs[0].plot(t, dist_to_target, 'b--', label='Distanza dal target finale [m]')
-    #axs[0].plot(t, dist_from_start_smooth, 'g-', label='Distanza percorsa (smussata) [m]')
     axs[0].set_ylabel('Distanza [m]')
     axs[0].set_title('Profilo di Posizione Cartesiana')
     axs[0].grid(True)

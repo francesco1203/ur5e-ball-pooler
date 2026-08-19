@@ -26,11 +26,17 @@
       <!-- Definiamo le regole per gli attuatori di posizione per i giunti grandi -->
       <default class="size3">
         <position ctrlrange="-6.28319 6.28319" kp="2000" kv="400" forcerange="-150 150"/>
+
+        <!-- DI PROVA -->
+        <!-- <position ctrlrange="-6.28319 6.28319" kp="5000" kv="800" forcerange="-150 150"/>  -->
       </default>
 
       <!-- Definiamo le regole per gli attuatori di posizione per i polsi -->
       <default class="size1">
         <position ctrlrange="-6.28319 6.28319" kp="500" kv="100" forcerange="-28 28"/>
+
+        <!-- DI PROVA -->
+        <!-- <position ctrlrange="-6.28319 6.28319" kp="1000" kv="200" forcerange="-150 150"/>  -->
       </default>
 
 
@@ -558,7 +564,18 @@
     <position name="left_wrist_3" joint="left_wrist_3_joint" class="size1"/>
   </actuator>
 
-  <!-- <keyframe>
-    <key name="home" qpos="0 -1.5708 1.5708 -1.5708 -1.5708 0" ctrl="0 -1.5708 1.5708 -1.5708 -1.5708 0"/>
-  </keyframe> -->
+
+  <sensor>
+    <!-- Sensori di coppia per i giunti grandi -->
+    <actuatorfrc name="left_shoulder_pan_effort" actuator="left_shoulder_pan"/>
+    <actuatorfrc name="left_shoulder_lift_effort" actuator="left_shoulder_lift"/>
+    <actuatorfrc name="left_elbow_effort" actuator="left_elbow"/>
+
+    <!-- Sensori di coppia per i giunti del polso -->
+    <actuatorfrc name="left_wrist_1_effort" actuator="left_wrist_1"/>
+    <actuatorfrc name="left_wrist_2_effort" actuator="left_wrist_2"/>
+    <actuatorfrc name="left_wrist_3_effort" actuator="left_wrist_3"/>
+  </sensor>
+
+
 </mujoco>

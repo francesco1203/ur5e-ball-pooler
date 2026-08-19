@@ -3,9 +3,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <map>
-#include <mutex>
+#include <atomic>
 #include <sstream>
+#include <algorithm>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
@@ -16,44 +16,30 @@
 #include "shared_headers_pkg/scene_description.hpp"
 #include "shared_headers_pkg/ur5e_constants.hpp"
 
-
 using namespace std::chrono_literals;
 
 class JointLogger : public rclcpp::Node
 {
     public:
-        /* Alias */
         using JointStateMsg = sensor_msgs::msg::JointState;
         using LogOnFileSrv = interfaces_pkg::srv::LogOnFile;
 
-        using JointStateSub = rclcpp::Subscription<JointStateMsg>::SharedPtr;
-        using LogOnFileServiceServer = rclcpp::Service<LogOnFileSrv>::SharedPtr;
-
-
-        /* Builder */
         JointLogger() : Node("joint_monitor"), 
             is_logging_(false),
-            ur5e_joint_names_(UR5e_JOINT_NAMES)
+            ur5e_joint_names_(UR5e_JOINT_NAMES),
+            first_point_logged_(false)
         {
-            /* Parametri di base */
-            this->declare_parameter<double>("logging_period", 0.01); // T = 0.01 s, f = 100 Hz
-            double logging_period = this->get_parameter("logging_period").as_double();  
-
-            /* Setup Subscriber Giunti */
+            /* Setup Subscriber Giunti Event-Driven (Trigger) */
             joint_sub_ = this->create_subscription<JointStateMsg>(
-                JOINT_STATES_TOPIC, 10, std::bind(&JointLogger::joint_callback, this, std::placeholders::_1));
+                JOINT_STATES_TOPIC, rclcpp::SensorDataQoS(), 
+                std::bind(&JointLogger::joint_callback, this, std::placeholders::_1));
         
             /* Setup Servizio richiesta di monitoring */
             log_service_ = this->create_service<LogOnFileSrv>(
-                LOG_JOINT_ON_OFF_SERVICE, std::bind(&JointLogger::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2));
+                LOG_JOINT_ON_OFF_SERVICE, 
+                std::bind(&JointLogger::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2));
 
-            /* Avvio del Timer di Logging a frequenza fissa */
-            auto period = std::chrono::duration<double>(logging_period);
-            timer_ = this->create_wall_timer(
-                std::chrono::duration_cast<std::chrono::milliseconds>(period),
-                std::bind(&JointLogger::log_data, this));
-
-            RCLCPP_INFO(this->get_logger(), "Joint Logger Node avviato. In attesa sul servizio 'log_joint_move'...");
+            RCLCPP_INFO(this->get_logger(), "Joint Logger Event-Driven avviato. In attesa...");
         }
 
         ~JointLogger()
@@ -62,92 +48,91 @@ class JointLogger : public rclcpp::Node
         }
 
     private:
-        /* attributi */
-        bool is_logging_;
+        std::atomic<bool> is_logging_; 
         std::ofstream csv_file_;
         std::vector<std::string> ur5e_joint_names_;
+        
         rclcpp::Time start_time_;
+        bool first_point_logged_;
         
-        JointStateSub joint_sub_;
-        LogOnFileServiceServer log_service_;
-        rclcpp::TimerBase::SharedPtr timer_;
+        rclcpp::Subscription<JointStateMsg>::SharedPtr joint_sub_;
+        rclcpp::Service<LogOnFileSrv>::SharedPtr log_service_;
 
-        std::mutex joint_mutex_;        //*
-        std::map<std::string, double> current_joint_positions_;
-        
-        //*NOTA DI CODICE: La mappa current_joint_positions_ memorizza le posizioni correnti dei giunti.
-        //                 È acceduta da due callback diverse che leggono e scrivono in maniera asimmetrica.
-        //                 Per questo è protetta da un mutex per garantire l'accesso thread-safe.
-
-
-
-        /* CALLBACKS */
-
-        //callback di subscription dei giunti, aggiorna la mappa dei giunti correnti
-        void joint_callback(const JointStateMsg::SharedPtr msg)
-        {
-            std::lock_guard<std::mutex> lock(joint_mutex_);
-            for (size_t i = 0; i < msg->name.size(); i++) {
-                current_joint_positions_[msg->name[i]] = msg->position[i];
-            }
-        }
-
-        //callback del servizio per avviare/interrompere il logging
+        /* CALLBACK DEL SERVIZIO */
         void handle_logging_request(const std::shared_ptr<LogOnFileSrv::Request> request,
                                     std::shared_ptr<LogOnFileSrv::Response> response)
         {
-            if (request->enable) {      //voglio attivarlo
-                if (is_logging_) {      //è già attivo, non faccio nulla
+            if (request->enable) {      
+                if (is_logging_) {      
                     response->logging_state_on = true;
-                    return; // Già in esecuzione
+                    return; 
                 }
 
-                csv_file_.open(request->filename);  //lo attivo
+                csv_file_.open(request->filename);  
                 if (!csv_file_.is_open()) {         
-                    response->logging_state_on = false; //se non riesce ad aprire il file, rimane disattivato
+                    response->logging_state_on = false; 
                     RCLCPP_ERROR(this->get_logger(), "Impossibile aprire %s", request->filename.c_str());
                     return;
                 }
 
-                // Scrive l'header specifico
-                csv_file_ << "time_sec,q0,q1,q2,q3,q4,q5\n";
+                // Header aggiornato per includere posizione (q) e sforzo (tau)
+                csv_file_ << "time_sec,q0,q1,q2,q3,q4,q5,tau0,tau1,tau2,tau3,tau4,tau5\n";
 
-                start_time_ = this->get_clock()->now();
+                first_point_logged_ = false;
                 is_logging_ = true;
                 response->logging_state_on = true;
                 RCLCPP_INFO(this->get_logger(), "Logging giunti avviato su %s", request->filename.c_str());
             } 
-            else {                      // lo voglio disattivare
-                if (!is_logging_) {     // era già disattivato
+            else {                      
+                if (!is_logging_) {     
                     response->logging_state_on = false;
-                    return; // Era già fermo
+                    return; 
                 }
 
-                is_logging_ = false;    //disattivo
+                is_logging_ = false;    
                 csv_file_.close();
                 response->logging_state_on = false;
                 RCLCPP_INFO(this->get_logger(), "Logging giunti interrotto. File salvato.");
             }
         }
 
-        //callback del timer per il logging dei dati dei giunti
-        void log_data()
+        /* CALLBACK EVENT-DRIVEN SUI GIUNTI */
+        void joint_callback(const JointStateMsg::SharedPtr msg)
         {
             if (!is_logging_) return;
 
-            double elapsed_time = (this->get_clock()->now() - start_time_).seconds();
-            std::stringstream ss;   //concateno i valori in una riga per scriverli tutti insieme nel file, evitando di fare più scritture separate
+            rclcpp::Time current_stamp = msg->header.stamp;
+
+            // Sincronizzazione iniziale
+            if (!first_point_logged_) {
+                start_time_ = current_stamp;
+                first_point_logged_ = true;
+            }
+
+            double elapsed_time = (current_stamp - start_time_).seconds();
+            std::stringstream ss;
             ss << elapsed_time;
 
-            {
-                std::lock_guard<std::mutex> lock(joint_mutex_);
-                for (const auto& j_name : ur5e_joint_names_) {
-                    // Se manca un giunto per qualche ragione, evitiamo di scrivere dati corrotti
-                    if (current_joint_positions_.find(j_name) == current_joint_positions_.end()) return;
+            // Vettori di buffer per mantenere l'ordine corretto
+            std::vector<double> positions(6, 0.0);
+            std::vector<double> efforts(6, 0.0);
+
+            // Mappatura sicura: il broadcaster potrebbe inviare i giunti in ordine sparso
+            for (size_t i = 0; i < ur5e_joint_names_.size(); ++i) {
+                auto it = std::find(msg->name.begin(), msg->name.end(), ur5e_joint_names_[i]);
+                if (it != msg->name.end()) {
+                    size_t index = static_cast<size_t>(std::distance(msg->name.begin(), it));
                     
-                    ss << "," << current_joint_positions_[j_name];
+                    if (index < msg->position.size()) positions[i] = msg->position[index];
+                    
+                    // Fallback a 0.0 se l'effort non è pubblicato (es. con MockHardware)
+                    if (index < msg->effort.size()) efforts[i] = msg->effort[index];
                 }
             }
+
+            // Scrittura efficiente concatenata
+            for (double p : positions) ss << "," << p;
+            for (double tau : efforts) ss << "," << tau;
 
             ss << "\n";
             csv_file_ << ss.str();

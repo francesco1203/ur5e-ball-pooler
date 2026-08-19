@@ -102,10 +102,10 @@ if [[ "$execute_shot" == "true" ]]; then
     if [[ "$use_real_game_engine" == "true" ]]; then
         
         echo "Avvio Game Engine Reale..."
-        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source install/setup.bash && ros2 run shot_planning game_engine --ros-args --params-file src/shot_planning/config/game_engine_params.yaml; exec bash"
     else
         echo "Avvio Fake Game Engine..."
-        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file src/shot_planning/config/game_engine_params.yaml; exec bash"
         
     fi
 

@@ -103,6 +103,7 @@ class GameEngine : public rclcpp::Node
 
         void publish_params()
         {
+            /* TROVIAMO LE POSIZIONI DELLE PALLINE BIANCA E ROSSA*/
             geometry_msgs::msg::TransformStamped tf_white, tf_red;
 
             try {
@@ -115,11 +116,13 @@ class GameEngine : public rclcpp::Node
             tf2::Vector3 pos_white(tf_white.transform.translation.x, tf_white.transform.translation.y, 0.0);
             tf2::Vector3 pos_red(tf_red.transform.translation.x, tf_red.transform.translation.y, 0.0);
 
+
+            /* CALCOLO INCLINAZIONE ASTA (PITCH) */
             double half_field_length = POOL_TABLE_FIELD_LENGTH / 2.0;
             double half_field_width  = POOL_TABLE_FIELD_WIDTH / 2.0;
             double ball_diameter = BALL_RADIUS * 2.0;
 
-            // --- CALCOLO INCLINAZIONE ASTA (PITCH) ---
+           
             // Calcoliamo la distanza della bianca dalle sponde (X e Y)
             double dist_white_to_rail_x = half_field_length - std::abs(pos_white.x());
             double dist_white_to_rail_y = half_field_width - std::abs(pos_white.y());
@@ -133,6 +136,9 @@ class GameEngine : public rclcpp::Node
                 chosen_impact_angle = steep_impact_angle_deg_;
             }
 
+
+            /* SCELTA AUTOMATICA DELLA BUCA MIGLIORE E CALCOLO DELLA VELCOCITÀ PER IL TIRO*/
+            // controlla: vicinanza alle sponde, angolo di taglio, distanza dalla buca
             std::string best_pocket = "";
             double best_cost = std::numeric_limits<double>::max();
             double best_shot_velocity_planar = 0.0;
@@ -140,7 +146,7 @@ class GameEngine : public rclcpp::Node
             double best_direction_deg = 0.0;
             bool valid_shot_found = false;
 
-            for (const auto& pocket_frame : pocket_frames_)
+            for (const auto& pocket_frame : pocket_frames_) //scorro tutte le buche
             {
                 geometry_msgs::msg::TransformStamped tf_pocket;
                 try {
@@ -231,7 +237,7 @@ class GameEngine : public rclcpp::Node
                 publisher_->publish(msg);
 
                 RCLCPP_INFO(this->get_logger(), 
-                    "Buca: [%s] | Vel: %.3f m/s (planar %.3f m/s)  | Yaw: %.2f deg | Pitch: %.2f deg | Dist. min. sponda: %.3f m", 
+                    "Buca: [%s] | Vel: %.3f m/s (planar %.3f m/s)  | Yaw: %.2f deg | Pitch: %.2f deg  (computed Dist. sponda: %.3f m)", 
                     best_pocket.c_str(), best_shot_velocity, best_shot_velocity_planar, best_direction_deg, chosen_impact_angle, min_dist_white_to_rail);
             } else {
                 RCLCPP_WARN_THROTTLE(

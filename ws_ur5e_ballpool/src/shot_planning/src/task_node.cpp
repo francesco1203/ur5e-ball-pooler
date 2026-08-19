@@ -68,6 +68,7 @@ using joint_config          = std::vector<double>;      //globale
 //Path salvataggio file di log
 const std::string LOG_CARTESIAN_PATH = "src/execution_monitoring/data/cartesian_logging/";
 const std::string LOG_JOINT_PATH = "src/execution_monitoring/data/joint_logging/";
+const std::string LOG_TORQUE_PATH = "src/execution_monitoring/data/torque_logging/";
 const std::string LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
 
 
@@ -169,6 +170,7 @@ class TaskNode : public rclcpp::Node
         /* CLIENT PER LOGGING CARTESIANO E DI GIUNTO*/
         cartesian_log_client_ = this->create_client<LogOnFileSrv>(LOG_CARTESIAN_ON_OFF_SERVICE);
         joint_log_client_ = this->create_client<LogOnFileSrv>(LOG_JOINT_ON_OFF_SERVICE);
+        torque_log_client_ = this->create_client<LogOnFileSrv>(LOG_TORQUE_ON_OFF_SERVICE);
 
 
         /*TF*/
@@ -203,9 +205,9 @@ class TaskNode : public rclcpp::Node
  
 
         // Rilassiamo le tolleranze degli algoritmi di pianificazione, per evitare che MoveIt! fallisca la pianificazione per piccole imprecisioni
-        move_group_->setGoalJointTolerance(goal_joint_tolerance_);              // ~un ventesimo di grado
-        move_group_->setGoalPositionTolerance(goal_position_tolerance_);        // 2 mm
-        move_group_->setGoalOrientationTolerance(goal_orientation_tolerance_);  // ~1 grado
+        move_group_->setGoalJointTolerance(goal_joint_tolerance_);              
+        move_group_->setGoalPositionTolerance(goal_position_tolerance_);        
+        move_group_->setGoalOrientationTolerance(goal_orientation_tolerance_);  
 
 
         // Velocità e accelerazione — scaling rispetto ai limiti massimi definiti in URDF e joint_limits.yaml
@@ -603,7 +605,7 @@ class TaskNode : public rclcpp::Node
 
 
         //---------------DEBUG RUCKIG--------------------
-        RCLCPP_INFO(this->get_logger(), "Distanza totale lungo la linea retta: %.4f m", total_distance);
+        //RCLCPP_INFO(this->get_logger(), "Distanza totale lungo la linea retta: %.4f m", total_distance);
         //---------------DEBUG RUCKIG--------------------
 
 
@@ -809,7 +811,7 @@ class TaskNode : public rclcpp::Node
         return true;
     }
     
-     bool enable_collision() 
+    bool enable_collision() 
     { 
         RCLCPP_INFO(this->get_logger(), "Riattivazione controlli di collisione ambientali...");
         ignore_cartesian_collisions_ = false;
@@ -852,6 +854,20 @@ class TaskNode : public rclcpp::Node
         return joint_ok;
     }
 
+    bool startTorqueLogging(const std::string& filename)
+    {
+        RCLCPP_INFO(this->get_logger(), "Avvio logging coppie di giunto...");
+        bool torque_ok = send_logging_request(torque_log_client_, true, filename);
+        
+        return torque_ok;
+    }
+
+    bool stopTorqueLogging()
+    {
+        RCLCPP_INFO(this->get_logger(), "Arresto logging coppie di giunto...");
+        bool torque_ok = send_logging_request(torque_log_client_, false, "");
+        return torque_ok;
+    }
 
 
     /*ALTRI METODI DI UTILITIES*/
@@ -970,6 +986,7 @@ class TaskNode : public rclcpp::Node
     // loggin service client
     LogOnFileClient cartesian_log_client_;
     LogOnFileClient joint_log_client_;
+    LogOnFileClient torque_log_client_;
 
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -1073,6 +1090,7 @@ class TaskNode : public rclcpp::Node
         }
     }
 
+
 };
 
 
@@ -1166,6 +1184,11 @@ int main(int argc, char* argv[])
     node->declare_parameter<bool>("joints_logging_enabled_3", false);
     node->declare_parameter<bool>("joints_logging_enabled_4", false);
     node->declare_parameter<bool>("joints_logging_enabled_5", false);
+    node->declare_parameter<bool>("torque_logging_enabled_1", false);
+    node->declare_parameter<bool>("torque_logging_enabled_2", false);
+    node->declare_parameter<bool>("torque_logging_enabled_3", false);
+    node->declare_parameter<bool>("torque_logging_enabled_4", false);
+    node->declare_parameter<bool>("torque_logging_enabled_5", false);
 
     bool cartesian_logging_enabled_1 = node->get_parameter("cartesian_logging_enabled_1").as_bool();
     bool cartesian_logging_enabled_2 = node->get_parameter("cartesian_logging_enabled_2").as_bool();
@@ -1176,7 +1199,12 @@ int main(int argc, char* argv[])
     bool joints_logging_enabled_2 = node->get_parameter("joints_logging_enabled_2").as_bool();
     bool joints_logging_enabled_3 = node->get_parameter("joints_logging_enabled_3").as_bool();
     bool joints_logging_enabled_4 = node->get_parameter("joints_logging_enabled_4").as_bool();
-    bool joints_logging_enabled_5 = node->get_parameter("joints_logging_enabled_5").as_bool();
+    bool joints_logging_enabled_5 = node->get_parameter("joints_logging_enabled_5").as_bool(); 
+    bool torque_logging_enabled_1 = node->get_parameter("torque_logging_enabled_1").as_bool() && using_mujoco_simulation_; //solo se sto usando mujoco, altrimenti non funziona
+    bool torque_logging_enabled_2 = node->get_parameter("torque_logging_enabled_2").as_bool() && using_mujoco_simulation_;
+    bool torque_logging_enabled_3 = node->get_parameter("torque_logging_enabled_3").as_bool() && using_mujoco_simulation_;
+    bool torque_logging_enabled_4 = node->get_parameter("torque_logging_enabled_4").as_bool() && using_mujoco_simulation_;
+    bool torque_logging_enabled_5 = node->get_parameter("torque_logging_enabled_5").as_bool() && using_mujoco_simulation_;
     //------------------------------------------------------
 
 
@@ -1189,8 +1217,8 @@ int main(int argc, char* argv[])
 
 
 
-
-    /* ORIENTAMENTO STECCA*/
+    //------------------------------------------------------
+    /* CALCOLO DELL'ORIENTAMENTO STECCA*/
     // orientamento è costante in molte fasi, dall'approach all'esecuzione tiro.. lo calcolo una sola volta
 
     // matrice di rotazione di base che allinea z' -> x, y' --> -y, x' --> -z (da posa di pre approach ad approach base)
@@ -1215,10 +1243,11 @@ int main(int argc, char* argv[])
 
 
     //Risultato: d'ora in avanti Q_shot è l'orientamento per tutte le sequenze di tiro, dall'approach all'esecuzione del tiro stesso
-
+    //------------------------------------------------------
 
 
     
+    //------------------------------------------------------
     /* SEQUENZA DI TASK */
 
 
@@ -1234,6 +1263,7 @@ int main(int argc, char* argv[])
         //logging
         if(joints_logging_enabled_1) node->startJointLogging(LOG_JOINT_PATH + "joint_log_1_preapproach.csv");
         if(cartesian_logging_enabled_1) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_1_preapproach.csv");
+        if(torque_logging_enabled_1) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_1_preapproach.csv");
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
 
@@ -1246,6 +1276,7 @@ int main(int argc, char* argv[])
         
         if(joints_logging_enabled_1) node->stopJointLogging();
         if(cartesian_logging_enabled_1) node->stopCartesianLogging();
+        if(torque_logging_enabled_1) node->stopTorqueLogging();
     }
     
     
@@ -1274,7 +1305,7 @@ int main(int argc, char* argv[])
         //logging
         if(joints_logging_enabled_2) node->startJointLogging(LOG_JOINT_PATH + "joint_log_2_approach.csv");
         if(cartesian_logging_enabled_2) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_2_approach.csv");
-
+        if(torque_logging_enabled_2) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_2_approach.csv");
 
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
@@ -1288,6 +1319,8 @@ int main(int argc, char* argv[])
 
         if(joints_logging_enabled_2) node->stopJointLogging();
         if(cartesian_logging_enabled_2) node->stopCartesianLogging();
+        if(torque_logging_enabled_2) node->stopTorqueLogging();
+
 
         if(print_EEF_distance_and_position_) {
             //prima di procedere, stampo la distanza e la posizione relativa tra tip dell'asta e pallina bianca, utile per debug
@@ -1328,7 +1361,7 @@ int main(int argc, char* argv[])
         //logging
         if(joints_logging_enabled_3) node->startJointLogging(LOG_JOINT_PATH + "joint_log_3_back_shot.csv");
         if(cartesian_logging_enabled_3) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_3_back_shot.csv");
-
+        if(torque_logging_enabled_3) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_3_back_shot.csv");
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_back_);            
@@ -1344,6 +1377,7 @@ int main(int argc, char* argv[])
 
         if(joints_logging_enabled_3) node->stopJointLogging();
         if(cartesian_logging_enabled_3) node->stopCartesianLogging();
+        if(torque_logging_enabled_3) node->stopTorqueLogging();
 
 
         if(print_EEF_distance_and_position_) {
@@ -1395,7 +1429,7 @@ int main(int argc, char* argv[])
         //logging
         if(joints_logging_enabled_4) node->startJointLogging(LOG_JOINT_PATH + "joint_log_4_shot.csv");
         if(cartesian_logging_enabled_4) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_4_shot.csv");
-
+        if(torque_logging_enabled_4) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_4_shot.csv");
 
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                           impact_shot_velocity_,
@@ -1412,6 +1446,8 @@ int main(int argc, char* argv[])
 
         if(joints_logging_enabled_4) node->stopJointLogging();
         if(cartesian_logging_enabled_4) node->stopCartesianLogging();
+        if(torque_logging_enabled_4) node->stopTorqueLogging();
+
 
         if(print_EEF_distance_and_position_) {
             //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
@@ -1439,6 +1475,7 @@ int main(int argc, char* argv[])
             //logging
             if(joints_logging_enabled_5) node->startJointLogging(LOG_JOINT_PATH + "joint_log_5_get_high.csv");
             if(cartesian_logging_enabled_5) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_5_get_high.csv");
+            if(torque_logging_enabled_5) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_5_get_high.csv");
 
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
@@ -1453,6 +1490,8 @@ int main(int argc, char* argv[])
 
             if(joints_logging_enabled_5) node->stopJointLogging();
             if(cartesian_logging_enabled_5) node->stopCartesianLogging();
+            if(torque_logging_enabled_5) node->stopTorqueLogging();
+
 
             if(print_EEF_distance_and_position_) {
                 //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug

@@ -41,11 +41,21 @@ ament_target_dependencies(
   "interfaces_pkg"
 )
 
+add_executable(torque_logger src/torque_logger.cpp)
+ament_target_dependencies(
+  torque_logger
+  "rclcpp"
+  "sensor_msgs"
+  "shared_headers_pkg"
+  "interfaces_pkg"
+)
+
 
 
 install(TARGETS 
   cartesian_logger
   joint_logger
+  torque_logger
 DESTINATION lib/${PROJECT_NAME})
 
 
