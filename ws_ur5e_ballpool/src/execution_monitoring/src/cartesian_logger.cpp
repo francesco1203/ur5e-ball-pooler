@@ -3,13 +3,15 @@
 #include <fstream>
 #include <string>
 #include <sstream>
-#include <atomic> // AGGIUNTO per thread-safety sul flag
+#include <atomic>
 
 #include "rclcpp/rclcpp.hpp"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_listener.h"
-#include "geometry_msgs/msg/transform_stamped.hpp"
-#include "tf2_msgs/msg/tf_message.hpp" // AGGIUNTO per ascoltare /tf
+#include "sensor_msgs/msg/joint_state.hpp"
+
+// Librerie MoveIt per calcolo della Cinematica Diretta (FK)
+#include <moveit/robot_model_loader/robot_model_loader.hpp>
+#include <moveit/robot_model/robot_model.hpp>
+#include <moveit/robot_state/robot_state.hpp>
 
 #include "interfaces_pkg/srv/log_on_file.hpp"
 
@@ -22,33 +24,39 @@ using namespace std::chrono_literals;
 class CartesianLogger : public rclcpp::Node
 {
     public:
-        // Alias
-        using TransformStampedMsg = geometry_msgs::msg::TransformStamped;
-        using TFMessage = tf2_msgs::msg::TFMessage; // Alias per il messaggio TF
         using LogOnFileSrv = interfaces_pkg::srv::LogOnFile;
         using LogOnFileServiceServer = rclcpp::Service<LogOnFileSrv>::SharedPtr;
 
-        CartesianLogger() : Node("cartesian_logger"), 
-            is_logging_(false),
-            target_frame_(EE_LINK),
-            reference_frame_(WORLD_FRAME),
-            first_point_logged_(false)
+        CartesianLogger(const rclcpp::NodeOptions & options = rclcpp::NodeOptions()) 
+            : Node("cartesian_logger", options), 
+              is_logging_(false),
+              target_frame_(EE_LINK),
+              first_point_logged_(false)
         {
-            /* Setup TF */
-            tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
-            tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-
             /* Setup Servizio richiesta di monitoring */
             log_service_ = this->create_service<LogOnFileSrv>(
                 LOG_CARTESIAN_ON_OFF_SERVICE, 
                 std::bind(&CartesianLogger::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2));
 
-            /* Setup Sottoscrizione Event-Driven a /tf (Sostituisce il Timer) */
-            tf_sub_ = this->create_subscription<TFMessage>(
-                "/tf", rclcpp::QoS(100),
-                std::bind(&CartesianLogger::tf_callback, this, std::placeholders::_1));
+            RCLCPP_INFO(this->get_logger(), "Caricamento modello robot per calcolo FK...");
+            
+            // Carica il modello del robot (legge 'robot_description' dai parametri o topic)
+            robot_model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(this->shared_from_this(), "robot_description");
+            robot_model_ = robot_model_loader_->getModel();
+            
+            if (!robot_model_) {
+                RCLCPP_ERROR(this->get_logger(), "Impossibile caricare il robot_model! Impossibile calcolare la FK.");
+            } else {
+                robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
+                robot_state_->setToDefaultValues();
+            }
 
-            RCLCPP_INFO(this->get_logger(), "Cartesian Logger Event-Driven avviato. In attesa sul servizio...");
+            /* Sottoscrizione al VERO stato dei giunti (Sostituisce /tf) */
+            joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+                "/joint_states", rclcpp::QoS(10),
+                std::bind(&CartesianLogger::joint_state_callback, this, std::placeholders::_1));
+
+            RCLCPP_INFO(this->get_logger(), "Cartesian Logger FK Event-Driven avviato. In attesa sul servizio...");
         }
 
         ~CartesianLogger()
@@ -57,20 +65,20 @@ class CartesianLogger : public rclcpp::Node
         }
 
     private:
-        std::atomic<bool> is_logging_; // Atomico per evitare collisioni tra callback
+        std::atomic<bool> is_logging_; 
         std::ofstream csv_file_;
         
         std::string target_frame_;
-        std::string reference_frame_;
         rclcpp::Time start_time_;
-        rclcpp::Time last_tf_stamp_; 
         bool first_point_logged_;    
         
-        std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
-        std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-        
         LogOnFileServiceServer log_service_;
-        rclcpp::Subscription<TFMessage>::SharedPtr tf_sub_; // Il nostro trigger
+        rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_sub_; 
+
+        // Oggetti MoveIt
+        std::shared_ptr<robot_model_loader::RobotModelLoader> robot_model_loader_;
+        moveit::core::RobotModelPtr robot_model_;
+        moveit::core::RobotStatePtr robot_state_;
 
         /* CALLBACK DEL SERVIZIO*/
         void handle_logging_request(const std::shared_ptr<LogOnFileSrv::Request> request,
@@ -92,10 +100,9 @@ class CartesianLogger : public rclcpp::Node
                 csv_file_ << "time_sec,x,y,z\n";
                 first_point_logged_ = false;
 
-                start_time_ = this->get_clock()->now();
                 is_logging_ = true;
                 response->logging_state_on = true;
-                RCLCPP_INFO(this->get_logger(), "Logging cartesiano avviato su %s", request->filename.c_str());
+                RCLCPP_INFO(this->get_logger(), "Logging cartesiano (via FK) avviato su %s", request->filename.c_str());
             } 
             else 
             {
@@ -111,48 +118,46 @@ class CartesianLogger : public rclcpp::Node
             }
         }
 
-        /* CALLBACK EVENT-DRIVEN DELLE TF (Sostituisce log_data) */
-        void tf_callback(const TFMessage::SharedPtr /*msg*/)
+        /* CALLBACK SUI JOINT STATES: Calcola FK ed estrae la posa reale */
+        void joint_state_callback(const sensor_msgs::msg::JointState::SharedPtr msg)
         {
-            // Se non stiamo loggando, usciamo subito senza consumare risorse
-            if (!is_logging_) return;
+            // Esce se non stiamo loggando o se il modello non è stato caricato
+            if (!is_logging_ || !robot_state_) return;
 
-            try {
-                // Interroghiamo il buffer per ottenere l'ultima TF risolta
-                TransformStampedMsg t = tf_buffer_->lookupTransform(
-                    reference_frame_, target_frame_, tf2::TimePointZero);
-                
-                rclcpp::Time current_tf_stamp = t.header.stamp;
+            // 1. Aggiorna la configurazione interna del robot con i veri angoli correnti letti dai motori
+            robot_state_->setVariablePositions(msg->name, msg->position);
+            robot_state_->update(); // Ricalcola l'albero cinematico interno (Forward Kinematics)
 
-                // Il filtro duplicati è fondamentale qui: /tf riceve aggiornamenti per
-                // TUTTI i frame del robot. Scartiamo i calcoli se la posa finale è identica.
-                if (first_point_logged_ && current_tf_stamp == last_tf_stamp_) {
-                    return; 
-                }
+            // 2. Ottieni la posizione cartesiana globale dell'End-Effector reale
+            const Eigen::Isometry3d& ee_transform = robot_state_->getGlobalLinkTransform(target_frame_);
+            
+            rclcpp::Time current_stamp = msg->header.stamp;
 
-                if (!first_point_logged_) {
-                    start_time_ = current_tf_stamp;
-                    first_point_logged_ = true;
-                }
-
-                last_tf_stamp_ = current_tf_stamp;
-                double elapsed_time = (current_tf_stamp - start_time_).seconds();
-
-                csv_file_ << elapsed_time << "," 
-                          << t.transform.translation.x << "," 
-                          << t.transform.translation.y << "," 
-                          << t.transform.translation.z << "\n";
-                          
-            } catch (const tf2::TransformException & ex) {
-                return; 
+            if (!first_point_logged_) {
+                start_time_ = current_stamp;
+                first_point_logged_ = true;
             }
+
+            // 3. Calcola il tempo trascorso rispetto al primo punto
+            double elapsed_time = (current_stamp - start_time_).seconds();
+
+            // 4. Salva le coordinate effettivamente percorse su file
+            csv_file_ << elapsed_time << "," 
+                      << ee_transform.translation().x() << "," 
+                      << ee_transform.translation().y() << "," 
+                      << ee_transform.translation().z() << "\n";
         }
 };
 
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<CartesianLogger>());
+    
+    // Indispensabile per permettere a RobotModelLoader di leggere la robot_description
+    rclcpp::NodeOptions node_options;
+    node_options.automatically_declare_parameters_from_overrides(true);
+    
+    rclcpp::spin(std::make_shared<CartesianLogger>(node_options));
     rclcpp::shutdown();
     return 0;
 }

@@ -20,6 +20,8 @@ find_package(sensor_msgs REQUIRED)
 
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(moveit_ros_planning_interface REQUIRED)
+find_package(moveit_core REQUIRED)
 
 
 add_executable(cartesian_logger src/cartesian_logger.cpp)
@@ -31,6 +33,8 @@ ament_target_dependencies(
   "tf2_ros"
   "tf2_geometry_msgs"
   "interfaces_pkg"
+  "moveit_ros_planning_interface"
+  "moveit_core"
 )
 
 add_executable(joint_logger src/joint_logger.cpp)
