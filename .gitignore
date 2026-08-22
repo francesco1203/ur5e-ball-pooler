@@ -37,7 +37,7 @@ Thumbs.db
 
 
 # # PERSONALIZZATO
-ws_ur5e_ballpool/src/execution_monitoring/data/cartesian_logging/*
-ws_ur5e_ballpool/src/execution_monitoring/data/joint_logging/*
-ws_ur5e_ballpool/src/shot_planning/debug/ruckig_logging/*
-ws_ur5e_ballpool/src/shot_planning/debug/controller_logging/*
+# ws_ur5e_ballpool/src/execution_monitoring/data/cartesian_logging/*
+# ws_ur5e_ballpool/src/execution_monitoring/data/joint_logging/*
+# ws_ur5e_ballpool/src/shot_planning/debug/ruckig_logging/*
+# ws_ur5e_ballpool/src/shot_planning/debug/controller_logging/*

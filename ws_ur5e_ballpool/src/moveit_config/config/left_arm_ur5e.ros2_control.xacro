@@ -8,12 +8,12 @@
                 <!-- Qui si ha una lista di plugin: decommentare quello che si vuole usare, e commentare gli altri. -->
 
                 <!-- PLUGIN PER MUJOCO -->
-                <!-- <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
-                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param> -->
+                <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param>
 
 
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
-                <plugin>mock_components/GenericSystem</plugin>
+                <!-- <plugin>mock_components/GenericSystem</plugin> -->
 
 
                 <!-- PLUGIN PER HARDWARE REALE -->

@@ -26,6 +26,7 @@ class CartesianLogger : public rclcpp::Node
     public:
         using LogOnFileSrv = interfaces_pkg::srv::LogOnFile;
         using LogOnFileServiceServer = rclcpp::Service<LogOnFileSrv>::SharedPtr;
+        
 
         CartesianLogger(const rclcpp::NodeOptions & options = rclcpp::NodeOptions()) 
             : Node("cartesian_logger", options), 
@@ -38,9 +39,20 @@ class CartesianLogger : public rclcpp::Node
                 LOG_CARTESIAN_ON_OFF_SERVICE, 
                 std::bind(&CartesianLogger::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2));
 
+            /* Sottoscrizione al VERO stato dei giunti (Sostituisce /tf) */
+            joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
+                JOINT_STATES_TOPIC, rclcpp::QoS(10),
+                std::bind(&CartesianLogger::joint_state_callback, this, std::placeholders::_1));
+
+            RCLCPP_INFO(this->get_logger(), "Cartesian Logger istanziato.");
+        }
+
+        // NUOVO METODO INIT: da chiamare nel main
+        void init()
+        {
             RCLCPP_INFO(this->get_logger(), "Caricamento modello robot per calcolo FK...");
             
-            // Carica il modello del robot (legge 'robot_description' dai parametri o topic)
+            // Qui ora shared_from_this() è sicuro da usare!
             robot_model_loader_ = std::make_shared<robot_model_loader::RobotModelLoader>(this->shared_from_this(), "robot_description");
             robot_model_ = robot_model_loader_->getModel();
             
@@ -49,14 +61,8 @@ class CartesianLogger : public rclcpp::Node
             } else {
                 robot_state_ = std::make_shared<moveit::core::RobotState>(robot_model_);
                 robot_state_->setToDefaultValues();
+                RCLCPP_INFO(this->get_logger(), "Cartesian Logger FK Event-Driven avviato e pronto.");
             }
-
-            /* Sottoscrizione al VERO stato dei giunti (Sostituisce /tf) */
-            joint_sub_ = this->create_subscription<sensor_msgs::msg::JointState>(
-                "/joint_states", rclcpp::QoS(10),
-                std::bind(&CartesianLogger::joint_state_callback, this, std::placeholders::_1));
-
-            RCLCPP_INFO(this->get_logger(), "Cartesian Logger FK Event-Driven avviato. In attesa sul servizio...");
         }
 
         ~CartesianLogger()
@@ -153,11 +159,18 @@ int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
     
-    // Indispensabile per permettere a RobotModelLoader di leggere la robot_description
     rclcpp::NodeOptions node_options;
     node_options.automatically_declare_parameters_from_overrides(true);
     
-    rclcpp::spin(std::make_shared<CartesianLogger>(node_options));
+    // 1. Creiamo il nodo (che genera lo shared_ptr in modo sicuro)
+    auto node = std::make_shared<CartesianLogger>(node_options);
+    
+    // 2. Inizializziamo MoveIt ORA, dopo che lo shared_ptr esiste
+    node->init();
+    
+    // 3. Facciamo spin del nodo
+    rclcpp::spin(node);
+    
     rclcpp::shutdown();
     return 0;
 }
