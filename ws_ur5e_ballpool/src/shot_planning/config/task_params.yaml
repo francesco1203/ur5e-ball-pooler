@@ -7,6 +7,7 @@ task_node:
     use_sim_time: true
     control_execution_by_user_input: false                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
     using_mujoco_simulation: true                         # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
+    mujoco_sync_pause_time_milliseconds: 800             # tempo di pausa in millisecondi per far sincronizzare MuJoCo con MoveIt (se using_mujoco_simulation = true)
     #-----------------------------------------------
 
 

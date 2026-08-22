@@ -679,7 +679,7 @@ class TaskNode : public rclcpp::Node
 
             // SCRIVIAMO I DATI SUL FILE CSV
             if (ruckig_log_file.is_open()) {
-                ruckig_log_file << current_time << "," 
+                ruckig_log_file << current_time + dt << "," 
                                 << s << "," 
                                 << v << "," 
                                 << a << "\n";
@@ -1190,9 +1190,11 @@ int main(int argc, char* argv[])
     /*CONTROL EXECUTION PARAMETERS*/
     node->declare_parameter<bool>("control_execution_by_user_input", true);
     node->declare_parameter<bool>("using_mujoco_simulation", false);
+    node->declare_parameter<int>("mujoco_sync_pause_time_milliseconds", 800);
 
     bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
     bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
+    int mujoco_sync_pause_time_milliseconds_ = node->get_parameter("mujoco_sync_pause_time_milliseconds").as_int();
     //------------------------------------------------------
 
 
@@ -1308,7 +1310,7 @@ int main(int argc, char* argv[])
 
         if(using_mujoco_simulation_){
             //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
 
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
@@ -1353,7 +1355,7 @@ int main(int argc, char* argv[])
 
         if(using_mujoco_simulation_){
             //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
 
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
@@ -1412,7 +1414,7 @@ int main(int argc, char* argv[])
         
         if(using_mujoco_simulation_){
             //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
 
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
@@ -1484,7 +1486,7 @@ int main(int argc, char* argv[])
         
         if(using_mujoco_simulation_){
             //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
 
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
@@ -1531,7 +1533,7 @@ int main(int argc, char* argv[])
 
             if(using_mujoco_simulation_){
                 //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(750)));
+                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
 
                 //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
             }

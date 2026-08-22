@@ -25,34 +25,34 @@ def main():
 
     # 2. CALCOLO DI DISTANZA, VELOCITÀ E ACCELERAZIONE CARTESIANE
 
-    # filtering variables (QUANDO FILTRO, LE TRAIETTORIE SONO IRRICONOSCIBILI, MEGLIO NON FARLO)
-    # filtering_distance = 'false'
-    # filtering_velocity = 'false'
-    # filtering_acceleration = 'false'
+    # filtering variables
+    filtering_distance = 'true'
+    filtering_velocity = 'true'
+    filtering_acceleration = 'true'
 
 
     # Distanza percorsa dall'inizio
     dist_from_start = np.sqrt((x - x[0])**2 + (y - y[0])**2 + (z - z[0])**2)
 
     # Se richiesto, applica un filtro per smussare i gradini 
-    # if filtering_distance == 'true':
-    #     dist_from_start = savgol_filter(dist_from_start, window_length=15, polyorder=3)
+    if filtering_distance == 'true':
+        dist_from_start = savgol_filter(dist_from_start, window_length=7, polyorder=3)
 
     
     # Derivate numeriche per Velocità
     vel_cart = np.gradient(dist_from_start, t)
 
     # Se richiesto, applica un filtro per smussare i gradini 
-    # if filtering_velocity == 'true':
-    #     vel_cart = savgol_filter(vel_cart, window_length=15, polyorder=3)
+    if filtering_velocity == 'true':
+        vel_cart = savgol_filter(vel_cart, window_length=7, polyorder=3)
 
 
     # Derivate numeriche per Accelerazione
     acc_cart = np.gradient(vel_cart, t)
 
     # Se richiesto, applica un filtro per smussare i gradini 
-    # if filtering_acceleration == 'true':
-    #     acc_cart = savgol_filter(acc_cart, window_length=15, polyorder=3)
+    if filtering_acceleration == 'true':
+        acc_cart = savgol_filter(acc_cart, window_length=7, polyorder=3)
 
 
 
