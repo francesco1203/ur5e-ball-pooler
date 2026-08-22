@@ -13,6 +13,7 @@ find_package(rclcpp REQUIRED)
 find_package(shared_headers_pkg REQUIRED)  #mia libreria di headers .hpp
 find_package(interfaces_pkg REQUIRED)      #mia libreria di interfaces
 
+find_package(control_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
   
@@ -50,12 +51,23 @@ ament_target_dependencies(
   "interfaces_pkg"
 )
 
+add_executable(controller_logger src/controller_logger.cpp)
+ament_target_dependencies(
+  controller_logger
+  "rclcpp"
+  # "geometry_msgs"
+  "control_msgs"
+  "shared_headers_pkg"
+  "interfaces_pkg"
+)
+
 
 
 install(TARGETS 
   cartesian_logger
   joint_logger
   torque_logger
+  controller_logger
 DESTINATION lib/${PROJECT_NAME})
 
 

@@ -6,7 +6,7 @@ task_node:
 
     use_sim_time: true
     control_execution_by_user_input: false                # se true, il nodo aspetta un input dell'utente per eseguire i comandi di movimento (per debug)
-    using_mujoco_simulation: true                         # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
+    using_mujoco_simulation: false                         # se true, segnalo al nodo che sto usando MuJoCo come simulatore, quindi il nodo deve aspettare un po' di tempo dopo ogni comando di movimento per far sincronizzare MuJoCo con MoveIt
     #-----------------------------------------------
 
 
@@ -45,7 +45,7 @@ task_node:
     resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
     success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
     Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
-    max_jerk: 60.0                                      # jerk massimo in m/s^3 
+    max_jerk: 10.0                                      # jerk massimo in m/s^3 
 
     #shot method 
     vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo
@@ -64,26 +64,31 @@ task_node:
     joints_logging_enabled_1: false
     cartesian_logging_enabled_1: false
     torque_logging_enabled_1: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_1: false
 
     #fase2 -> approach alla pallina
     joints_logging_enabled_2: false
     cartesian_logging_enabled_2: false
     torque_logging_enabled_2: false        #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_2: false
 
     #fase3 -> allontanamento all'indietro per prendere velocità
     joints_logging_enabled_3: false
     cartesian_logging_enabled_3: false
     torque_logging_enabled_3: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_3: false
 
     #fase4 -> tiro
     joints_logging_enabled_4: true
     cartesian_logging_enabled_4: true
     torque_logging_enabled_4: false          #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_4: true
 
     #fase5 -> alzata per liberare il campo
     joints_logging_enabled_5: false
     cartesian_logging_enabled_5: false
     torque_logging_enabled_5: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_5: false
     #--------------------------------
 
 

@@ -69,6 +69,7 @@ using joint_config          = std::vector<double>;      //globale
 const std::string LOG_CARTESIAN_PATH = "src/execution_monitoring/data/cartesian_logging/";
 const std::string LOG_JOINT_PATH = "src/execution_monitoring/data/joint_logging/";
 const std::string LOG_TORQUE_PATH = "src/execution_monitoring/data/torque_logging/";
+const std::string LOG_CONTROLLER_PATH = "src/execution_monitoring/data/controller_logging/";
 const std::string LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
 
 
@@ -127,7 +128,7 @@ class TaskNode : public rclcpp::Node
         this->declare_parameter<double>("resolution_step_Ruckig", 0.005);                        // default resolution step in meters
         this->declare_parameter<double>("success_threshold_Ruckig", 0.95);                       // default success threshold
         this->declare_parameter<double>("Ruckig_dt", 0.01);                                      // default Ruckig working step in seconds
-        this->declare_parameter<double>("max_jerk", 50.0);                                       // default max jerk in m/s^3
+        this->declare_parameter<double>("max_jerk", 10.0);                                       // default max jerk in m/s^3
 
         //shot method
         this->declare_parameter<double>("vel_factor_for_jerk_compensation", 1.0);                 // default factor to compensate for jerk
@@ -167,10 +168,11 @@ class TaskNode : public rclcpp::Node
             SHOT_PARAMS_TOPIC, 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
 
 
-        /* CLIENT PER LOGGING CARTESIANO E DI GIUNTO*/
+        /* CLIENT PER LOGGING*/
         cartesian_log_client_ = this->create_client<LogOnFileSrv>(LOG_CARTESIAN_ON_OFF_SERVICE);
         joint_log_client_ = this->create_client<LogOnFileSrv>(LOG_JOINT_ON_OFF_SERVICE);
         torque_log_client_ = this->create_client<LogOnFileSrv>(LOG_TORQUE_ON_OFF_SERVICE);
+        controller_log_client_ = this->create_client<LogOnFileSrv>(LOG_CONTROLLER_STATE_ON_OFF_SERVICE);
 
 
         /*TF*/
@@ -641,6 +643,11 @@ class TaskNode : public rclcpp::Node
         ruckig::Result result = ruckig::Result::Working;
         double current_time = 0.0;
 
+        //parametri del ciclo di lavoro
+        double s = output.new_position[0];          // Posizione corrente lungo la linea (metri)
+        double v = output.new_velocity[0];          // Velocità corrente lungo la linea (metri/secondo)
+        double a = output.new_acceleration[0];      // Accelerazione corrente lungo la linea (metri/secondo^2)
+
         //se è richiesto il log di ruckig
         std::ofstream ruckig_log_file;
 
@@ -650,19 +657,25 @@ class TaskNode : public rclcpp::Node
             if (ruckig_log_file.is_open()) {
                 // Scriviamo l'intestazione del CSV
                 ruckig_log_file << "Time_s,Position_m,Velocity_ms,Acceleration_ms2\n";
+
+                //Scriviamo il primo stato iniziale
+                ruckig_log_file << current_time << "," 
+                                << s << "," 
+                                << v << "," 
+                                << a << "\n";
             } else {
                 RCLCPP_WARN(this->get_logger(), "Impossibile aprire il file di log per Ruckig");
             }
         }
 
-
         // Generiamo i punti temporali passo-passo
         while (result == ruckig::Result::Working) {
-            result = otg.update(input, output);         //stato ottimare al prossimo (attuale nel ciclo) dt
+            
+            result = otg.update(input, output);    //stato ottimale al prossimo dt (attuale nel ciclo)
 
-            double s = output.new_position[0];          // Posizione corrente lungo la linea (metri)
-            double v = output.new_velocity[0];          // Velocità corrente lungo la linea (m/s)
-            double a = output.new_acceleration[0];      // Accelerazione corrente lungo la linea (m/s^2)
+            s = output.new_position[0];          // Posizione corrente lungo la linea (metri)
+            v = output.new_velocity[0];          // Velocità corrente lungo la linea (m/s)
+            a = output.new_acceleration[0];      // Accelerazione corrente lungo la linea (m/s^2)
 
             // SCRIVIAMO I DATI SUL FILE CSV
             if (ruckig_log_file.is_open()) {
@@ -869,6 +882,20 @@ class TaskNode : public rclcpp::Node
         return torque_ok;
     }
 
+    bool startControllerLogging(const std::string& filename)
+    {
+        RCLCPP_INFO(this->get_logger(), "Avvio logging controller...");
+        bool ctrl_ok = send_logging_request(controller_log_client_, true, filename);
+        
+        return ctrl_ok;
+    }
+
+    bool stopControllerLogging()
+    {
+        RCLCPP_INFO(this->get_logger(), "Arresto logging controller...");
+        bool ctrl_ok = send_logging_request(controller_log_client_, false, "");
+        return ctrl_ok;
+    }
 
     /*ALTRI METODI DI UTILITIES*/
 
@@ -987,6 +1014,7 @@ class TaskNode : public rclcpp::Node
     LogOnFileClient cartesian_log_client_;
     LogOnFileClient joint_log_client_;
     LogOnFileClient torque_log_client_;
+    LogOnFileClient controller_log_client_;
 
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -1189,6 +1217,11 @@ int main(int argc, char* argv[])
     node->declare_parameter<bool>("torque_logging_enabled_3", false);
     node->declare_parameter<bool>("torque_logging_enabled_4", false);
     node->declare_parameter<bool>("torque_logging_enabled_5", false);
+    node->declare_parameter<bool>("controller_logging_enabled_1", false);
+    node->declare_parameter<bool>("controller_logging_enabled_2", false);
+    node->declare_parameter<bool>("controller_logging_enabled_3", false);
+    node->declare_parameter<bool>("controller_logging_enabled_4", false);
+    node->declare_parameter<bool>("controller_logging_enabled_5", false);
 
     bool cartesian_logging_enabled_1 = node->get_parameter("cartesian_logging_enabled_1").as_bool();
     bool cartesian_logging_enabled_2 = node->get_parameter("cartesian_logging_enabled_2").as_bool();
@@ -1205,6 +1238,11 @@ int main(int argc, char* argv[])
     bool torque_logging_enabled_3 = node->get_parameter("torque_logging_enabled_3").as_bool() && using_mujoco_simulation_;
     bool torque_logging_enabled_4 = node->get_parameter("torque_logging_enabled_4").as_bool() && using_mujoco_simulation_;
     bool torque_logging_enabled_5 = node->get_parameter("torque_logging_enabled_5").as_bool() && using_mujoco_simulation_;
+    bool controller_logging_enabled_1 = node->get_parameter("controller_logging_enabled_1").as_bool();
+    bool controller_logging_enabled_2 = node->get_parameter("controller_logging_enabled_2").as_bool();
+    bool controller_logging_enabled_3 = node->get_parameter("controller_logging_enabled_3").as_bool();
+    bool controller_logging_enabled_4 = node->get_parameter("controller_logging_enabled_4").as_bool();
+    bool controller_logging_enabled_5 = node->get_parameter("controller_logging_enabled_5").as_bool();
     //------------------------------------------------------
 
 
@@ -1264,6 +1302,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_1) node->startJointLogging(LOG_JOINT_PATH + "joint_log_1_preapproach.csv");
         if(cartesian_logging_enabled_1) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_1_preapproach.csv");
         if(torque_logging_enabled_1) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_1_preapproach.csv");
+        if(controller_logging_enabled_1) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_1_preapproach.csv");
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
 
@@ -1277,6 +1316,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_1) node->stopJointLogging();
         if(cartesian_logging_enabled_1) node->stopCartesianLogging();
         if(torque_logging_enabled_1) node->stopTorqueLogging();
+        if(controller_logging_enabled_1) node->stopControllerLogging();
     }
     
     
@@ -1306,6 +1346,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_2) node->startJointLogging(LOG_JOINT_PATH + "joint_log_2_approach.csv");
         if(cartesian_logging_enabled_2) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_2_approach.csv");
         if(torque_logging_enabled_2) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_2_approach.csv");
+        if(controller_logging_enabled_2) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_2_approach.csv");
 
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
@@ -1320,6 +1361,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_2) node->stopJointLogging();
         if(cartesian_logging_enabled_2) node->stopCartesianLogging();
         if(torque_logging_enabled_2) node->stopTorqueLogging();
+        if(controller_logging_enabled_2) node->stopControllerLogging();
 
 
         if(print_EEF_distance_and_position_) {
@@ -1362,6 +1404,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_3) node->startJointLogging(LOG_JOINT_PATH + "joint_log_3_back_shot.csv");
         if(cartesian_logging_enabled_3) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_3_back_shot.csv");
         if(torque_logging_enabled_3) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_3_back_shot.csv");
+        if(controller_logging_enabled_3) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_3_back_shot.csv");
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_back_);            
@@ -1378,6 +1421,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_3) node->stopJointLogging();
         if(cartesian_logging_enabled_3) node->stopCartesianLogging();
         if(torque_logging_enabled_3) node->stopTorqueLogging();
+        if(controller_logging_enabled_3) node->stopControllerLogging();
 
 
         if(print_EEF_distance_and_position_) {
@@ -1430,6 +1474,8 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_4) node->startJointLogging(LOG_JOINT_PATH + "joint_log_4_shot.csv");
         if(cartesian_logging_enabled_4) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_4_shot.csv");
         if(torque_logging_enabled_4) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_4_shot.csv");
+        if(controller_logging_enabled_4) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_4_shot.csv");
+
 
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                           impact_shot_velocity_,
@@ -1447,6 +1493,7 @@ int main(int argc, char* argv[])
         if(joints_logging_enabled_4) node->stopJointLogging();
         if(cartesian_logging_enabled_4) node->stopCartesianLogging();
         if(torque_logging_enabled_4) node->stopTorqueLogging();
+        if(controller_logging_enabled_4) node->stopControllerLogging();
 
 
         if(print_EEF_distance_and_position_) {
@@ -1476,6 +1523,7 @@ int main(int argc, char* argv[])
             if(joints_logging_enabled_5) node->startJointLogging(LOG_JOINT_PATH + "joint_log_5_get_high.csv");
             if(cartesian_logging_enabled_5) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_5_get_high.csv");
             if(torque_logging_enabled_5) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_5_get_high.csv");
+            if(controller_logging_enabled_5) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_5_get_high.csv");
 
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
@@ -1491,6 +1539,7 @@ int main(int argc, char* argv[])
             if(joints_logging_enabled_5) node->stopJointLogging();
             if(cartesian_logging_enabled_5) node->stopCartesianLogging();
             if(torque_logging_enabled_5) node->stopTorqueLogging();
+            if(controller_logging_enabled_5) node->stopControllerLogging();
 
 
             if(print_EEF_distance_and_position_) {

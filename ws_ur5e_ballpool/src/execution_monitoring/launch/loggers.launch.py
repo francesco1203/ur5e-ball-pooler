@@ -32,9 +32,18 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Configurazione del nodo logger del controller
+    controller_logger_node = Node(
+        package=package_name,
+        executable='controller_logger',
+        name='controller_logger',
+        output='screen'
+    )
+
     # Lancio i nodi
     return LaunchDescription([
         cartesian_logger_node,
         joint_logger_node,
-        torque_logger_node
+        torque_logger_node,
+        controller_logger_node
     ])
