@@ -34,26 +34,26 @@
 
     <!-- biliardino al centro/centro-sinistra -->
         <!-- posa di pre-approach GOMITO BASSO con tavolo in mezzo  pos: [-0.3, -0.30]  -->
-        <!-- <group_state name="ready_to_approach" group="left_arm">
+        <group_state name="ready_to_approach" group="left_arm">
             <joint name="left_elbow_joint" value="2.23"/>
             <joint name="left_shoulder_lift_joint" value="-1.22"/>
             <joint name="left_shoulder_pan_joint" value="-0.08"/>
             <joint name="left_wrist_1_joint" value="-2.4736"/>
             <joint name="left_wrist_2_joint" value="-3.9"/>
             <joint name="left_wrist_3_joint" value="0.1"/>
-        </group_state> -->
+        </group_state>
 
 
     <!-- biliardino a sinistra -->
         <!-- posa di pre-approach GOMITO ALTO con tavolo spostato a sinistra  pos: pos: [-0.61, -0.33]  -->
-        <group_state name="ready_to_approach" group="left_arm">
+        <!-- <group_state name="ready_to_approach" group="left_arm">
             <joint name="left_elbow_joint" value="-2.077"/>
             <joint name="left_shoulder_lift_joint" value="0.3491"/>
             <joint name="left_shoulder_pan_joint" value="0.1047"/>
             <joint name="left_wrist_1_joint" value="0.06981"/>
             <joint name="left_wrist_2_joint" value="2.374"/>
             <joint name="left_wrist_3_joint" value="-3.281"/>
-        </group_state>
+        </group_state> -->
 
 
         <!-- Altra posa di pre-approach con tavolo spostato a sinistra  pos: pos: [-0.61, -0.33]  -->

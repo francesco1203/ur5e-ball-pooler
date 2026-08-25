@@ -1,11 +1,11 @@
 billiard_table:
-  pos: [-0.61, -0.33]                    # Posizionamento sul banco rispetto al world
+  pos: [-0.61, -0.33]                   # Posizionamento sul banco rispetto al world
   yaw_angle_rad: 0.0                    # Orientamento sul banco rispetto al world  
 
 #per ora usiamo solo palline piene, possibile futura implementazione -> type: "solid" o "striped"
 
 
-#TIRO 1
+#TIRO 1 (da lontano funzionante)
 balls:
   - color: "red"
     pos: [0.0, 0.0]                     # Posizione rispetto al centro del tavolo
@@ -16,7 +16,7 @@ balls:
   # - color: "yellow"
   #   pos: [0.15, -0.05]
 
-#TIRO 2
+# # TIRO 2 (da vicino, ma non funziona, collisione con sponda)
 # balls:
 #   - color: "red"
 #     pos: [0.15, 0.0]                     # Posizione rispetto al centro del tavolo
@@ -27,7 +27,7 @@ balls:
 #   # - color: "yellow"
 #   #   pos: [0.15, -0.05]
 
-#TIRO 3
+# # TIRO 3 (lato opposto da lontano, non funziona, collisione con sponda)
 # balls:
 #   - color: "red"
 #     pos: [-0.15, 0.0]                     # Posizione rispetto al centro del tavolo

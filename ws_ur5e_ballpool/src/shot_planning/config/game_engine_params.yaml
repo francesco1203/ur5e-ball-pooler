@@ -5,7 +5,7 @@ game_engine:
     #shot parameters
     velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
     rail_proximity_threshold: 0.04                    # distanza minima tra asta e binario per considerare il tiro vicino la sponda e alzare l'asta
-    normal_impact_angle_deg: 10.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
+    normal_impact_angle_deg: 15.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
     steep_impact_angle_deg: 15.0                      # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda (cons:15-20 gradi)
 
 

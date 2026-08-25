@@ -1,18 +1,34 @@
 import yaml
 import math
+import argparse
 from pathlib import Path
+
+# --- SETUP ARGOMENTI DA RIGA DI COMANDO ---
+parser = argparse.ArgumentParser(description="Genera la scena MuJoCo a partire da un file YAML.")
+
+# Calcoliamo il percorso di default per mantenere il comportamento originale
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = SCRIPT_DIR.parent / "config" / "fake_camera_config.yaml"
+
+# Aggiungiamo l'argomento (opzionale)
+parser.add_argument(
+    '--yaml_path',
+    type=str,
+    default=str(DEFAULT_CONFIG_PATH),
+    help="Percorso assoluto o relativo al file YAML di configurazione."
+)
+
+# Parsa gli argomenti passati da terminale
+args = parser.parse_args()
 
 
 # --- GESTIONE DEI PERCORSI CON PATHLIB ---
 
-# Individua la cartella dove si trova QUESTO script Python  (ovvero: ws_ur5e_ballpool/src/camera_perception/fake_camera/mujoco_automation)
-SCRIPT_DIR = Path(__file__).resolve().parent
-
 # Definisco i percorsi relativi partendo da SCRIPT_DIR
 PATH_TEMPLATE = SCRIPT_DIR / "scene_template.xml"
 
-# Per la config: risali di 1 livello (parent) ed entra nella cartella 'config'
-PATH_CONFIG = SCRIPT_DIR.parent / "config" / "fake_camera_config.yaml"
+# Uso il percorso passato da riga di comando (o il default se non è stato passato nulla)
+PATH_CONFIG = Path(args.yaml_path)
 
 # Per l'output: risali di 3 livelli (parent[2]) fino a 'src', poi entra in 'moveit_config/config/mujoco_bridge'
 PATH_OUTPUT = SCRIPT_DIR.parents[2] / "moveit_config" / "config" / "mujoco_bridge" / "complete_scene.xml"
@@ -28,6 +44,7 @@ PATH_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 with open(PATH_TEMPLATE, "r") as f:
     xml_template = f.read()
 
+# Apri il file YAML usando PATH_CONFIG
 with open(PATH_CONFIG, "r") as f:
     config = yaml.safe_load(f)
 

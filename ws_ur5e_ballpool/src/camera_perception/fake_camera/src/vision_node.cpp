@@ -18,7 +18,6 @@
 #include <geometry_msgs/msg/transform_stamped.hpp>
 
 // Assicurati che in questi header ci siano le macro:
-// BILLIARD_TABLE_FRAME, RED_SOLID_BALL_FRAME, WHITE_SOLID_BALL_FRAME
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
 

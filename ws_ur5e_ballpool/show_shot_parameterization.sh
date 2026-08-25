@@ -8,7 +8,7 @@ joints_analysis="false"             #true se vuoi aprire anche la finestra di an
 cartesian_analysis="true"           #true se vuoi aprire anche la finestra di analisi cartesiana
 ruckig_plot="true"                  #true se vuoi aprire anche la finestra di plot dei dati Ruckig
 cartesian_vs_ruckig_plot="true"     #true se vuoi aprire anche la finestra di plot dei dati cartesiani vs Ruckig
-controller_analysis="false"         #true se vuoi aprire anche la finestra di plot dei dati del controller
+controller_analysis="true"          #true se vuoi aprire anche la finestra di plot dei dati del controller
 torque_analysis="false"             #true se vuoi aprire anche la finestra di plot dei dati di coppia
 
 # Finestra 1: Joints Analyzer

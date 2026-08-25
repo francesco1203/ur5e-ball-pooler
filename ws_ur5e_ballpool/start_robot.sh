@@ -9,6 +9,7 @@ fi
 
 # Parametri di personalizzazione esecuzione off-line
 open_rviz_when_using_mujoco="false"      #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+billiard_position="cs"                    #s = sinistra, cs = centro-sinistra (TODO: c = centro, e = else da definire)
 build_scene_rviz="true"
 execute_shot="true"                      #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
 logging_enabled="true"
@@ -25,7 +26,20 @@ read -p "Vuoi usare MuJoCo? (s/n): " scelta_mujoco
 if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
     # devo generare la scena completa con le palline per MuJoCo con lo script autocreate_complete_scene.py
-    python3 ./src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py
+    case "$billiard_position" in
+        "s")
+            python3 ./src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py --yaml_path src/camera_perception/fake_camera/config/fake_camera_config_sx.yaml
+            ;;
+        "cs")
+            python3 ./src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py --yaml_path src/camera_perception/fake_camera/config/fake_camera_config_center_sx.yaml
+            ;;
+        *)
+            # Caso di default se la variabile non corrisponde a nessuno dei precedenti
+            echo "Errore: posizione '$billiard_position' non riconosciuta."
+            exit 1
+            ;;
+    esac
+    
 
     # Controlliamo se lo script python è andato a buon fine ($? == 0)
     if [ $? -ne 0 ]; then
@@ -64,9 +78,24 @@ else
 fi
 
 
+# avvio fake camera con la posizione scelta
+case "$billiard_position" in
+    "s")
+        echo "Avvio Fake Camera (tavolo a sinistra)..."
+        config_file="fake_camera_config_sx.yaml"
+        ;;
+    "cs")
+        echo "Avvio Fake Camera (tavolo al centro-sinistra)..."
+        config_file="fake_camera_config_center_sx.yaml"
+        ;;
+    *)
+        # Caso di default se la variabile non corrisponde a nessuno dei precedenti
+        echo "Errore: posizione '$billiard_position' non riconosciuta."
+        exit 1
+        ;;
+esac
 
-echo "Avvio Fake Camera..."
-gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
+gnome-terminal --tab --title="Fake Camera" -- bash -c "source install/setup.bash && ros2 launch fake_camera fake_camera.launch.py yaml_path:=src/camera_perception/fake_camera/config/${config_file}; exec bash"
 
 sleep 2
 
