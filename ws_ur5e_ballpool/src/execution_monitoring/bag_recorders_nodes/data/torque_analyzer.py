@@ -20,7 +20,7 @@ def main():
     # 1. ESTRAZIONE FILE DA DATI
 
     # Se passi il file da riga di comando usa quello, altrimenti usa come default quello del tiro
-    file_path = sys.argv[1] if len(sys.argv) > 1 else 'src/execution_monitoring/data/torque_logging/torque_log_4_shot.csv'
+    file_path = sys.argv[1] if len(sys.argv) > 1 else 'src/execution_monitoring/data/csv_subscribers_nodes/torque_logging/torque_log_4_shot.csv'
 
     try:
         df = pd.read_csv(file_path)

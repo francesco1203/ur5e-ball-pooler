@@ -9,10 +9,11 @@ fi
 
 # Parametri di personalizzazione esecuzione off-line
 open_rviz_when_using_mujoco="false"      #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
-billiard_position="cs"                    #s = sinistra, cs = centro-sinistra (TODO: c = centro, e = else da definire)
-build_scene_rviz="true"
+billiard_position="cs"                   #s = sinistra, cs = centro-sinistra (TODO: c = centro, e = else da definire)
+build_scene_rviz="true"                  #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
 execute_shot="true"                      #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro
-logging_enabled="true"
+csv_logging_enabled="true"               #lancia i nodi di logging CSV 
+bag_logging_enabled="true"               #lancia i nodi di logging dei bagfiles
 use_real_game_engine="true"              #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 
@@ -112,18 +113,27 @@ fi
 
 if [[ "$execute_shot" == "true" ]]; then
 
-    # logging dei dati di shot planning
-    if [[ "$logging_enabled" == "true" ]]; then
+    # logging csv dei dati di shot planning 
+    if [[ "$csv_logging_enabled" == "true" ]]; then
         echo "Avvio Nodi logger..."
-        gnome-terminal --tab --title="Nodi di logging" -- bash -c "source install/setup.bash && ros2 launch execution_monitoring loggers.launch.py; exec bash"
+        gnome-terminal --tab --title="Nodi di logging" -- bash -c "source install/setup.bash && ros2 launch csv_subscribers_nodes loggers.launch.py; exec bash"
 
         sleep 2
     fi
 
-    #tiro vero e proprio
-    echo "Avvio Shot Planning..."
-    gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/task_params.yaml; exec bash"
+    # logging bag dei dati di shot planning (TODO)
+    if [[ "$bag_logging_enabled" == "true" ]]; then
+        echo "Avvio Nodi bag logger... (TODO: da implementare)"
+        #gnome-terminal --tab --title="Nodi di bag logging" -- bash -c "source install/setup.bash && ros2 launch bag_recorders_nodes loggers.launch.py; exec bash"
 
+        #sleep 2
+    fi
+
+
+    #tiro vero e proprio
+    # tiro vero e proprio
+    echo "Avvio Shot Planning..."
+    gnome-terminal --tab --title="Shot Planning" -- bash -c "source install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file src/shot_planning/config/execution_params.yaml --params-file src/shot_planning/config/shot_params.yaml --params-file src/shot_planning/config/planning_params.yaml --params-file src/shot_planning/config/logging_params.yaml --params-file src/shot_planning/config/moveit_fix.yaml; exec bash"
     sleep 5
 
 

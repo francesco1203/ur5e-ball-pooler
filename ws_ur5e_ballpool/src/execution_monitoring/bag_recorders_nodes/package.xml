@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>execution_monitoring</name>
+  <name>bag_recorders_nodes</name>
   <version>0.0.0</version>
   <description>TODO</description>
   <maintainer email="francesco.schettini12@gmail.com">francesco</maintainer>

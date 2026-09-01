@@ -1,0 +1,8 @@
+# src/shot_planning/config/execution_params.yaml
+task_node:
+  ros__parameters:
+    use_sim_time: true
+    control_shot_start_execution_by_user_input: true
+    control_shot_steps_execution_by_user_input: false
+    using_mujoco_simulation: true
+    mujoco_sync_pause_time_milliseconds: 800

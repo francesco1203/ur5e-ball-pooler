@@ -68,7 +68,7 @@ def plot_position(df, joints):
 def main():
     
     # Se passi il file da riga di comando usa quello, altrimenti usa come default quello del tiro
-    file_path = sys.argv[1] if len(sys.argv) > 1 else 'src/execution_monitoring/data/controller_logging/controller_log_4_shot.csv'
+    file_path = sys.argv[1] if len(sys.argv) > 1 else 'src/execution_monitoring/csv_subscribers_nodes/data/controller_logging/controller_log_4_shot.csv'
 
     try:
         df = pd.read_csv(file_path)

@@ -3,7 +3,7 @@ from launch_ros.actions import Node
 from moveit_configs_utils import MoveItConfigsBuilder
 
 def generate_launch_description():
-    package_name = 'execution_monitoring'
+    package_name = 'csv_subscribers_nodes'
 
     # Carica in automatico tutte le descrizioni (URDF, SRDF, kinematics) dal pacchetto moveit
     moveit_config = MoveItConfigsBuilder("left_arm_ur5e", package_name="moveit_config").to_moveit_configs()

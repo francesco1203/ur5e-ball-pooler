@@ -1,0 +1,38 @@
+task_node:
+  ros__parameters:
+
+    # Sezione per MoveIt (nell'URDF di ur_description non ci sono i limiti d'accelerazione che fanno fallire alcuni metodi)
+    # bisogna ripassare qui la robot description con i limiti di velocità e accelerazione dei giunti, altrimenti MoveIt non li conosce e fallisce alcuni metodi di pianificazione
+    robot_description_planning:
+      joint_limits:
+        left_elbow_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_shoulder_lift_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_shoulder_pan_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_1_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_2_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+        left_wrist_3_joint:
+          has_velocity_limits: true
+          max_velocity: 3.14159265
+          has_acceleration_limits: true
+          max_acceleration: 6.98131700
+

@@ -65,12 +65,12 @@ using namespace std::chrono_literals;
 using joint_config          = std::vector<double>;      //globale
 
 
-//Path salvataggio file di log
-const std::string LOG_CARTESIAN_PATH = "src/execution_monitoring/data/cartesian_logging/";
-const std::string LOG_JOINT_PATH = "src/execution_monitoring/data/joint_logging/";
-const std::string LOG_TORQUE_PATH = "src/execution_monitoring/data/torque_logging/";
-const std::string LOG_CONTROLLER_PATH = "src/execution_monitoring/data/controller_logging/";
-const std::string LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
+//Path salvataggio file di log: CSV and BAG
+const std::string CSV_LOG_CARTESIAN_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/cartesian_logging/";
+const std::string CSV_LOG_JOINT_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/joint_logging/";
+const std::string CSV_LOG_TORQUE_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/torque_logging/";
+const std::string CSV_LOG_CONTROLLER_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/controller_logging/";
+const std::string CSV_LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
 
 
 class TaskNode : public rclcpp::Node
@@ -652,7 +652,7 @@ class TaskNode : public rclcpp::Node
         std::ofstream ruckig_log_file;
 
         if (log_ruckig_trajectory_) {    
-            ruckig_log_file.open(LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
+            ruckig_log_file.open(CSV_LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
     
             if (ruckig_log_file.is_open()) {
                 // Scriviamo l'intestazione del CSV
@@ -1188,11 +1188,13 @@ int main(int argc, char* argv[])
 
     //------------------------------------------------------
     /*CONTROL EXECUTION PARAMETERS*/
-    node->declare_parameter<bool>("control_execution_by_user_input", true);
+    node->declare_parameter<bool>("control_shot_start_execution_by_user_input", true);
+    node->declare_parameter<bool>("control_shot_steps_execution_by_user_input", false);
     node->declare_parameter<bool>("using_mujoco_simulation", false);
     node->declare_parameter<int>("mujoco_sync_pause_time_milliseconds", 800);
 
-    bool control_execution_by_user_input_ = node->get_parameter("control_execution_by_user_input").as_bool();
+    bool control_shot_start_execution_by_user_input_ = node->get_parameter("control_shot_start_execution_by_user_input").as_bool();
+    bool control_shot_steps_execution_by_user_input_ = node->get_parameter("control_shot_steps_execution_by_user_input").as_bool();
     bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
     int mujoco_sync_pause_time_milliseconds_ = node->get_parameter("mujoco_sync_pause_time_milliseconds").as_int();
     //------------------------------------------------------
@@ -1290,10 +1292,20 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
     /* SEQUENZA DI TASK */
 
+    
+    //inizio
+    if(control_shot_start_execution_by_user_input_){
+        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro..");
+    }
+    else{
+        RCLCPP_INFO(node->get_logger(), "\n\nInizio sequenza di tiro..");
+    }
+
+
 
     // FASE 1 - vado in pre-approach per approcciare la pallina
     {
-        if(control_execution_by_user_input_){
+        if(control_shot_steps_execution_by_user_input_){
             node->print_and_wait("\n\nPosizionamento in 'pre_approach..");
         }
         else{
@@ -1301,10 +1313,10 @@ int main(int argc, char* argv[])
         }
 
         //logging
-        if(joints_logging_enabled_1) node->startJointLogging(LOG_JOINT_PATH + "joint_log_1_preapproach.csv");
-        if(cartesian_logging_enabled_1) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_1_preapproach.csv");
-        if(torque_logging_enabled_1) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_1_preapproach.csv");
-        if(controller_logging_enabled_1) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_1_preapproach.csv");
+        if(joints_logging_enabled_1) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_1_preapproach.csv");
+        if(cartesian_logging_enabled_1) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_1_preapproach.csv");
+        if(torque_logging_enabled_1) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_1_preapproach.csv");
+        if(controller_logging_enabled_1) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_1_preapproach.csv");
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
 
@@ -1325,7 +1337,7 @@ int main(int argc, char* argv[])
 
     // FASE 2 - approach alla pallina
     {
-        if(control_execution_by_user_input_){
+        if(control_shot_steps_execution_by_user_input_){
             node->print_and_wait("\n\nApproach alla pallina..");
         }
         else{
@@ -1345,10 +1357,10 @@ int main(int argc, char* argv[])
 
 
         //logging
-        if(joints_logging_enabled_2) node->startJointLogging(LOG_JOINT_PATH + "joint_log_2_approach.csv");
-        if(cartesian_logging_enabled_2) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_2_approach.csv");
-        if(torque_logging_enabled_2) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_2_approach.csv");
-        if(controller_logging_enabled_2) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_2_approach.csv");
+        if(joints_logging_enabled_2) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_2_approach.csv");
+        if(cartesian_logging_enabled_2) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_2_approach.csv");
+        if(torque_logging_enabled_2) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_2_approach.csv");
+        if(controller_logging_enabled_2) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_2_approach.csv");
 
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
@@ -1385,7 +1397,7 @@ int main(int argc, char* argv[])
     // FASE 3 - si allontana all'indietro per prendere velocità
     {
   
-        if(control_execution_by_user_input_){
+        if(control_shot_steps_execution_by_user_input_){
             node->print_and_wait("\n\nAllontanamento all'indietro per prendere velocità..");
         }
         else{
@@ -1403,10 +1415,10 @@ int main(int argc, char* argv[])
                                           );
 
         //logging
-        if(joints_logging_enabled_3) node->startJointLogging(LOG_JOINT_PATH + "joint_log_3_back_shot.csv");
-        if(cartesian_logging_enabled_3) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_3_back_shot.csv");
-        if(torque_logging_enabled_3) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_3_back_shot.csv");
-        if(controller_logging_enabled_3) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_3_back_shot.csv");
+        if(joints_logging_enabled_3) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_3_back_shot.csv");
+        if(cartesian_logging_enabled_3) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_3_back_shot.csv");
+        if(torque_logging_enabled_3) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_3_back_shot.csv");
+        if(controller_logging_enabled_3) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_3_back_shot.csv");
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_back_);            
@@ -1447,7 +1459,7 @@ int main(int argc, char* argv[])
     // FASE 4 - eseguo tiro
     {
        
-        if(control_execution_by_user_input_){
+        if(control_shot_steps_execution_by_user_input_){
             node->print_and_wait("\n\nEsecuzione tiro..");
         }
         else{
@@ -1473,10 +1485,10 @@ int main(int argc, char* argv[])
 
         
         //logging
-        if(joints_logging_enabled_4) node->startJointLogging(LOG_JOINT_PATH + "joint_log_4_shot.csv");
-        if(cartesian_logging_enabled_4) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_4_shot.csv");
-        if(torque_logging_enabled_4) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_4_shot.csv");
-        if(controller_logging_enabled_4) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_4_shot.csv");
+        if(joints_logging_enabled_4) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_4_shot.csv");
+        if(cartesian_logging_enabled_4) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_4_shot.csv");
+        if(torque_logging_enabled_4) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_4_shot.csv");
+        if(controller_logging_enabled_4) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_4_shot.csv");
 
 
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
@@ -1510,7 +1522,7 @@ int main(int argc, char* argv[])
     
         if(shot_success) {
 
-            if(control_execution_by_user_input_){
+            if(control_shot_steps_execution_by_user_input_){
                 node->print_and_wait("\n\nMi alzo..");
             }
             else{
@@ -1522,10 +1534,10 @@ int main(int argc, char* argv[])
             Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);
 
             //logging
-            if(joints_logging_enabled_5) node->startJointLogging(LOG_JOINT_PATH + "joint_log_5_get_high.csv");
-            if(cartesian_logging_enabled_5) node->startCartesianLogging(LOG_CARTESIAN_PATH + "cartesian_log_5_get_high.csv");
-            if(torque_logging_enabled_5) node->startTorqueLogging(LOG_TORQUE_PATH + "torque_log_5_get_high.csv");
-            if(controller_logging_enabled_5) node->startControllerLogging(LOG_CONTROLLER_PATH + "controller_log_5_get_high.csv");
+            if(joints_logging_enabled_5) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_5_get_high.csv");
+            if(cartesian_logging_enabled_5) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_5_get_high.csv");
+            if(torque_logging_enabled_5) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_5_get_high.csv");
+            if(controller_logging_enabled_5) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_5_get_high.csv");
 
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);

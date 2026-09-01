@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 def main():
     # Percorsi dei file (assicurati che corrispondano ai tuoi percorsi reali)
     ideal_file_path = 'src/shot_planning/debug/ruckig_logging/ruckig_trajectory_log.csv'
-    raw_file_path = 'src/execution_monitoring/data/cartesian_logging/cartesian_log_4_shot.csv'
+    raw_file_path = 'src/execution_monitoring/csv_subscribers_nodes/data/cartesian_logging/cartesian_log_4_shot.csv'
 
     # Se passi i percorsi da terminale: python script.py <file_ideale> <file_raw>
     if len(sys.argv) > 2:

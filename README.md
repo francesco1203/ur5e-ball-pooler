@@ -29,11 +29,11 @@ Work in progress..
 
 ### Dipendenze / Dipendences
 
-- ROS2Jazzy environment (source)
-- ur_description (Ros2 standard package)
+- ur_description (Ros2 standard package) - models and config files
+- ur (Ros2 standard package) - driver
 - moveit2 (Ros2 standard package)
-- mujoco_ros2_control (Ros2 package) + mujoco + python3-yaml
-- python packs: pandas, numpy, matplotlib, scipy
+- mujoco_ros2_control (Ros2 package) - bridge for mujoco simulator
+- python packs: pandas, numpy, matplotlib, scipy - for trajectory analysis
 
 ---
 

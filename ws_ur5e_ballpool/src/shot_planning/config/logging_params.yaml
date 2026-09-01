@@ -1,0 +1,48 @@
+# src/shot_planning/config/logging_params.yaml
+task_node:
+  ros__parameters:
+
+    #DEBUG PARAMETERS
+    print_EEF_distance_and_position: true  # stampa della distanza e della posizione relativa tra tip dell'asta e pallina bianca alla fine dei movimenti
+
+
+    #CSV LOGGING PARAMETERS
+
+    #ruckig generated trajectory logging
+    log_ruckig_trajectory: true            # log in file della traiettoria calcolata da Ruckig (in moveCartesianPathAsymmTriangle)
+
+    #fase1 -> andare in posa pre-approach
+    joints_logging_enabled_1: false
+    cartesian_logging_enabled_1: false
+    torque_logging_enabled_1: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_1: false
+
+    #fase2 -> approach alla pallina
+    joints_logging_enabled_2: false
+    cartesian_logging_enabled_2: false
+    torque_logging_enabled_2: false        #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_2: false
+
+    #fase3 -> allontanamento all'indietro per prendere velocità
+    joints_logging_enabled_3: false
+    cartesian_logging_enabled_3: false
+    torque_logging_enabled_3: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_3: false
+
+    #fase4 -> tiro
+    joints_logging_enabled_4: true
+    cartesian_logging_enabled_4: true
+    torque_logging_enabled_4: false          #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_4: true
+
+    #fase5 -> alzata per liberare il campo
+    joints_logging_enabled_5: false
+    cartesian_logging_enabled_5: false
+    torque_logging_enabled_5: false         #verrà a prescindere attivato solo se si usa mujoco
+    controller_logging_enabled_5: false
+
+
+    #BAGFILES LOGGING PARAMETERS
+    
+    #TODO ..
+ 

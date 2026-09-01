@@ -1,0 +1,56 @@
+# src/shot_planning/config/planning_params.yaml
+task_node:
+  ros__parameters:
+
+    #generic
+    max_velocity_acceleration_scaling_factor: 0.9
+    goal_joint_tolerance: 0.001                    # tolleranza di giunto in obiettivi di giunto (radians) -> 1/20 di grado
+    goal_position_tolerance: 0.0005                # tolleranza di posizione in obiettivi cartesiani (metri) -> 0.5 mm
+    goal_orientation_tolerance: 0.001              # tolleranza di orientamento in obiettivi cartesiani (radians) -> 1/20 di grado
+
+    #moveToJointConfig e moveToNamedTarget:
+    def_joint_planning_time: 5.0
+    joint_planning_algorithm: "RRTConnectkConfigDefault"
+  
+    #moveCartesianPath:
+    resolution_step: 0.01                         # passo di interpolazione in metri 1cm
+   
+    #moveCartesianPathAsymmTriangle
+    resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
+    success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
+    Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
+    max_jerk: 10.0                                      # jerk massimo in m/s^3 
+
+    #shot method 
+    vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo
+    accel_decel_factor_for_jerk_compensation: 1.0       # fattore di moltiplicazione per accelerazione e decelerazione per compensare il jerk massimo 
+
+
+
+    # SCELTE TRA ALGORITMI DI PLANNING (da ompl_planning.yaml):
+    # - APSConfigDefault
+    # - SBLkConfigDefault
+    # - ESTkConfigDefault
+    # - LBKPIECEkConfigDefault
+    # - BKPIECEkConfigDefault
+    # - KPIECEkConfigDefault
+    # - RRTkConfigDefault
+    # - RRTConnectkConfigDefault
+    # - RRTstarkConfigDefault
+    # - TRRTkConfigDefault
+    # - PRMkConfigDefault
+    # - PRMstarkConfigDefault
+    # - FMTkConfigDefault
+    # - BFMTkConfigDefault
+    # - PDSTkConfigDefault
+    # - STRIDEkConfigDefault
+    # - BiTRRTkConfigDefault
+    # - LBTRRTkConfigDefault
+    # - BiESTkConfigDefault
+    # - ProjESTkConfigDefault
+    # - LazyPRMkConfigDefault
+    # - LazyPRMstarkConfigDefault
+    # - SPARSkConfigDefault
+    # - SPARStwokConfigDefault
+    # - TrajOptDefault
+    

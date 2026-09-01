@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ANALISI PARAMETRICA DEL TIRO
+# ANALISI PARAMETRICA DEL TIRO TRAMITE I FILE DI LOG CSV
 
 
 # Parametri di personalizzazione visualizzazione
@@ -13,12 +13,12 @@ torque_analysis="false"             #true se vuoi aprire anche la finestra di pl
 
 # Finestra 1: Joints Analyzer
 if [[ "$joints_analysis" == "true" ]]; then
-    gnome-terminal -- bash -c "python3 src/execution_monitoring/data/joints_analyzer.py; exec bash"
+    gnome-terminal -- bash -c "python3 src/execution_monitoring/csv_subscribers_nodes/data/joints_analyzer.py; exec bash"
 fi
 
 # Finestra 2: Cartesian Analyzer
 if [[ "$cartesian_analysis" == "true" ]]; then
-    gnome-terminal -- bash -c "python3 src/execution_monitoring/data/cartesian_analyzer.py; exec bash"
+    gnome-terminal -- bash -c "python3 src/execution_monitoring/csv_subscribers_nodes/data/cartesian_analyzer.py; exec bash"
 fi
 
 # Finestra 3: Plot Ruckig
@@ -35,10 +35,10 @@ fi
 
 # Finestra 5: Controller Analyzer
 if [[ "$controller_analysis" == "true" ]]; then
-    gnome-terminal -- bash -c "python3 src/execution_monitoring/data/controller_analyzer.py; exec bash"
+    gnome-terminal -- bash -c "python3 src/execution_monitoring/csv_subscribers_nodes/data/controller_analyzer.py; exec bash"
 fi
 
 # Finestra 6: Torque Analyzer
 if [[ "$torque_analysis" == "true" ]]; then
-    gnome-terminal -- bash -c "python3 src/execution_monitoring/data/torque_analyzer.py; exec bash"
+    gnome-terminal -- bash -c "python3 src/execution_monitoring/csv_subscribers_nodes/data/torque_analyzer.py; exec bash"
 fi
