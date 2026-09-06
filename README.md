@@ -30,9 +30,10 @@ Work in progress..
 ### Dipendenze / Dipendences
 
 - ur_description (Ros2 standard package) - models and config files
-- ur (Ros2 standard package) - driver
+- ur (Ros2 standard package) - driver ur5
+- ros-jazzy-realsense2-camera ros-jazzy-realsense2-description (Ros2 standard package) - driver IntelRealSense
 - moveit2 (Ros2 standard package)
-- mujoco_ros2_control (Ros2 package) - bridge for mujoco simulator
+- mujoco_ros2_control (Ros2 package) - draver bridge for mujoco simulator
 - python packs: rosbags, pandas, numpy, matplotlib, scipy - for trajectory and data analysis
 
 ---
@@ -41,21 +42,26 @@ Work in progress..
 
 Execute the following bash scripts to deploy the project (NOTE: give execution permission first)
 
-0. Download the project dependencies        (TODO)
-- script/download_dependencies.sh
+0. Install the project dependencies
+- scripts/install_dependencies.sh
+
 
 1. Build workspace
 - scripts/build_workspace.sh
 
+
 2. Setup the configs in the script and run the simulation
 - scripts/start_simulated_robot.sh
+
 
 3. Setup the configs in the script and run the real execution on Ur5e   (TODO)
 - scripts/start_real_robot.sh
 
+
 4. Analyze the datas from bagfiles and csv
 - scripts/show_shot_parametrization.sh
 
+---
 
 ### Note for the simulation: using MuJoCo Vs using RViz
 These following steps aren't automated yet. (TODO)
