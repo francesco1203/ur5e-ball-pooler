@@ -5,6 +5,16 @@
 # FILE NON ANCORA TESTATO. UTILIZZARE CON CAUTELA.
 
 
+# LISTA DELLE DIPENDENZE DA INSTALLARE:
+# - ur_description (Ros2 standard package) - models and config files
+# - ur (Ros2 standard package) - driver ur5
+# - ros-jazzy-realsense2-camera ros-jazzy-realsense2-description (Ros2 standard package) - driver IntelRealSense
+# - moveit2 (Ros2 standard package)
+# - mujoco_ros2_control (Ros2 package) - plug-in bridge for mujoco simulator
+# - python packs: rosbags, pandas, numpy, matplotlib, scipy - for trajectory and data analysis
+
+
+
 # Interrompe lo script se un comando fallisce
 set -e
 

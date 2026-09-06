@@ -18,23 +18,20 @@ Work in progress..
 
 ---
 
-### Languages & Technologies
+### Main Languages & Hardware Technologies
 
-- ROS2 JAZZY (framework)
-- MoveIt (Ros tool for robot movements control)
-- MuJoCo (Physics simulator)
-- Python (for data analysis)
+- Ur5e robotic arm
+- ROS2-JAZZY (development framework)
+- MoveIt (Ros tool for robot movemental control)
+- MuJoCo (Physical simulator)
+- Python (data analysis)
+- IntelRealSense camera
 
 ---
 
 ### Dipendenze / Dipendences
 
-- ur_description (Ros2 standard package) - models and config files
-- ur (Ros2 standard package) - driver ur5
-- ros-jazzy-realsense2-camera ros-jazzy-realsense2-description (Ros2 standard package) - driver IntelRealSense
-- moveit2 (Ros2 standard package)
-- mujoco_ros2_control (Ros2 package) - draver bridge for mujoco simulator
-- python packs: rosbags, pandas, numpy, matplotlib, scipy - for trajectory and data analysis
+see 'scripts/install_dependencies.sh'
 
 ---
 
