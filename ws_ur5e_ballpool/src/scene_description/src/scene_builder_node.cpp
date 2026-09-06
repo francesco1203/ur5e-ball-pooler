@@ -1,12 +1,13 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <memory>
+#include <thread>
+#include <chrono>
 
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 #include <moveit_msgs/msg/collision_object.hpp>
 #include <moveit_msgs/msg/object_color.hpp>
-
 
 
 #include <geometric_shapes/shape_operations.h>
@@ -18,9 +19,13 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/buffer.h>
 
+//per servizio trigger di disabilitazione cad pallina bianca
+#include <std_srvs/srv/trigger.hpp>
+
 
 //mie costanti e librerie
 #include "shared_headers_pkg/scene_description.hpp"
+#include "shared_headers_pkg/ros2_architecture.hpp"
 
 
 //costanti di programma
@@ -58,6 +63,9 @@ class SceneBuilderNode : public rclcpp::Node
 
     using CollisionObjectMsg = moveit_msgs::msg::CollisionObject;
     using SolidPrimitiveMsg = shape_msgs::msg::SolidPrimitive;
+
+    using TriggerSrv = std_srvs::srv::Trigger;
+    using TriggerSrvPtr = rclcpp::Service<TriggerSrv>::SharedPtr;
 
 
   public:
@@ -100,6 +108,19 @@ class SceneBuilderNode : public rclcpp::Node
         billiard_mesh_path = "file://" + pkg_share_dir + "/meshes/billiard/billiard.obj";
 
 
+        // Creo il servizio per la creazione della scena (biliardo + palline)
+        build_scene_srv_ = this->create_service<std_srvs::srv::Trigger>(
+            BUILD_SCENE_SERVICE,
+            std::bind(&SceneBuilderNode::handleBuildScene, this, _1, _2)
+        );
+
+        // Creo il servizio per la rimozione della pallina bianca
+        remove_white_ball_srv_ = this->create_service<std_srvs::srv::Trigger>(
+            REMOVE_WHITE_BALL_SERVICE,
+            std::bind(&SceneBuilderNode::handleRemoveWhiteBall, this, _1, _2)
+        );
+
+
         RCLCPP_INFO(this->get_logger(), "Scene builder pronto.");
         init_done_.set_value();  // sblocca il main — init completato
     }
@@ -115,61 +136,6 @@ class SceneBuilderNode : public rclcpp::Node
     //      e altri componenti necessari, senza i quali i metodi di movimento non funzionerebbero correttamente.
 
 
-
-    /* METODI DI MODELLAZIONE SCENA */
-    void clearScene()
-    {
-        // RIMUOVO TUTTO GLI OGGETTI PRESENTI
-        // for (auto const& element : planning_scene_interface_->getAttachedObjects())
-        // {
-        //     move_group_interface_->detachObject(element.first);
-        //     this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(1.0));  //per visualizzazione, rimuove un oggetto 1 secondo alla volta
-        // }
-
-        auto objects_map = planning_scene_interface_->getObjects();
-        std::vector<std::string> obj_keys;
-        for (auto const& element : objects_map)
-        {
-            obj_keys.push_back(element.first);
-        }
-
-        planning_scene_interface_->removeCollisionObjects(obj_keys);
-        this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(1.0));
-    }
-
-
-    void buildScene()
-    {
-        clearScene(); // pulisco la scena prima di costruirla, in modo da evitare problemi di oggetti duplicati
-
-    
-
-        /* --- Costruisco mini-tavolo da biliardo --- */ 
-        {
-            // Vettore per il fattore di scala (1.0 = dimensione originale, regola se i tuoi CAD sono in mm)
-            Vector3Msg scale;
-            scale.x = 0.001; scale.y = 0.001; scale.z = 0.001;  //da mm->m
-
-            PoseStampedMsg pose;
-            pose.header.frame_id = BILLIARD_TABLE_FRAME;
-            pose.pose.orientation.w = 1.0;                  //terna è già orientata correttamente da telecamera, quindi non serve ruotarla
-            pose.pose.position.x = 0;
-            pose.pose.position.y = 0;
-            pose.pose.position.z = - POOL_TABLE_FIELD_HEIGHT + eps_floating; //la terna è sul campo, ma l'origine della mesh è sul pavimento, quindi devo abbassare la posizione dell'altezza del campo, ma elevarla di un epsilon per problemi di collision detection con il piano
-
-            // Carico la mesh del biliardo usando il suo percorso
-            addMESH(billiard_mesh_path, scale, pose, ID_MINI_POOL_TABLE); 
-
-        }
-        
-
-        
-        /* --- 2. Carico le palline dinamiche come sfere leggendo le terne da TF2 --- */
-        addBallsFromTF();
-        
-        
-    }
-
   private:
     /* MEMBRI PRIVATI */
     //MoveGroupInterfacePtr move_group_interface_;
@@ -178,6 +144,9 @@ class SceneBuilderNode : public rclcpp::Node
 
     TfBuffer tf_buffer_;
     TfListener tf_listener_;
+
+    TriggerSrvPtr remove_white_ball_srv_;
+    TriggerSrvPtr build_scene_srv_;
 
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
@@ -277,7 +246,7 @@ class SceneBuilderNode : public rclcpp::Node
         //per semplicità, è stato dato come ID il nome della terna
 
         // Diamo tempo al buffer TF di riempirsi di trasformate ricevute dai nodi di percezione
-        this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
+        //this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(0.5));
 
         for (const auto& [ball_id, color] : balls_to_find)
         {
@@ -318,6 +287,98 @@ class SceneBuilderNode : public rclcpp::Node
         }
     }
 
+    void clearScene()
+    {
+        // RIMUOVO TUTTO GLI OGGETTI PRESENTI CHE SONO ATTACCATI
+        // for (auto const& element : planning_scene_interface_->getAttachedObjects())
+        // {
+        //     move_group_interface_->detachObject(element.first);
+        //     this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(1.0));  //per visualizzazione, rimuove un oggetto 1 secondo alla volta
+        // }
+
+        auto objects_map = planning_scene_interface_->getObjects();
+        std::vector<std::string> obj_keys;
+        for (auto const& element : objects_map)
+        {
+            obj_keys.push_back(element.first);
+        }
+
+        planning_scene_interface_->removeCollisionObjects(obj_keys);
+        //this->get_clock()->sleep_for(rclcpp::Duration::from_seconds(1.0));
+    }
+
+
+    void buildScene()
+    {
+        clearScene(); // pulisco la scena prima di costruirla, in modo da evitare problemi di oggetti duplicati
+
+    
+        /* --- Costruisco mini-tavolo da biliardo --- */ 
+        {
+            // Vettore per il fattore di scala (1.0 = dimensione originale, regola se i tuoi CAD sono in mm)
+            Vector3Msg scale;
+            scale.x = 0.001; scale.y = 0.001; scale.z = 0.001;  //da mm->m
+
+            PoseStampedMsg pose;
+            pose.header.frame_id = BILLIARD_TABLE_FRAME;
+            pose.pose.orientation.w = 1.0;                  //terna è già orientata correttamente da telecamera, quindi non serve ruotarla
+            pose.pose.position.x = 0;
+            pose.pose.position.y = 0;
+            pose.pose.position.z = - POOL_TABLE_FIELD_HEIGHT + eps_floating; //la terna è sul campo, ma l'origine della mesh è sul pavimento, quindi devo abbassare la posizione dell'altezza del campo, ma elevarla di un epsilon per problemi di collision detection con il piano
+
+            // Carico la mesh del biliardo usando il suo percorso
+            addMESH(billiard_mesh_path, scale, pose, ID_MINI_POOL_TABLE); 
+
+        }
+        
+
+        /* --- 2. Carico le palline dinamiche come sfere leggendo le terne da TF2 --- */
+        addBallsFromTF();
+        
+    }
+
+
+
+    /*CALLBACKS SERVIZI*/
+    void handleBuildScene(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+    {
+        (void)request;
+
+        RCLCPP_INFO(this->get_logger(), "Ricevuta richiesta di costruzione scena. Avvio procedura...");
+        
+        try {
+            buildScene(); // Chiama il metodo esistente che costruisce tavolo e palline
+            
+            response->success = true;
+            response->message = "Scena generata con successo.";
+            RCLCPP_INFO(this->get_logger(), "Generazione ambiente completata.");
+        } 
+        catch (const std::exception& e) {
+            response->success = false;
+            response->message = std::string("Errore durante la generazione della scena: ") + e.what();
+            RCLCPP_ERROR(this->get_logger(), "Errore in buildScene: %s", e.what());
+        }
+    }
+
+    void handleRemoveWhiteBall(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+    {
+        (void)request; // Non usiamo la request
+
+        // Rimuove specificatamente la pallina bianca dalla scena collisioni
+        std::vector<std::string> obj_keys = {ID_WHITE_SOLID_BALL};
+        planning_scene_interface_->removeCollisionObjects(obj_keys);
+
+        response->success = true;
+        response->message = "Pallina bianca rimossa dalla scena collisioni.";
+        RCLCPP_INFO(this->get_logger(), "Collisione pallina bianca disabilitata per il tiro.");
+    }
+
+    
+
     //altro di utilities
     void setObjectColor(const std::string& obj_id, 
                         float r, float g, float b, 
@@ -355,11 +416,15 @@ int main(int argc, char* argv[])
     //adesso sono sicuro che start() ha inizializzato move_group_ e posso chiamare i metodi
 
     
-    node->buildScene();
+
+    RCLCPP_INFO(node->get_logger(), "Costruzione scena completata. In attesa di chiamate ai servizi...");
+    
+    // Blocca il main thread finché non si preme Ctrl+C, lasciando lavorare lo spinner
+    while (rclcpp::ok()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
 
-    // Termina: shutdown sblocca lo spinner, poi join aspetta che finisca
-    rclcpp::shutdown();
     spinner.join();
     return 0;
 }

@@ -37,6 +37,8 @@
 // Ruckig per traiettorie asimmetriche
 #include <ruckig/ruckig.hpp>
 
+//per servizio di generazione scena e rimozione pallina bianca
+#include <std_srvs/srv/trigger.hpp>
 
 #include "geometry_msgs/msg/pose_stamped.hpp" 
 #include "geometry_msgs/msg/pose.hpp" 
@@ -65,14 +67,6 @@ using namespace std::chrono_literals;
 using joint_config          = std::vector<double>;      //globale
 
 
-//Path salvataggio file di log: CSV and BAG
-const std::string CSV_LOG_CARTESIAN_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/cartesian_logging/";
-const std::string CSV_LOG_JOINT_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/joint_logging/";
-const std::string CSV_LOG_TORQUE_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/torque_logging/";
-const std::string CSV_LOG_CONTROLLER_PATH = "src/execution_monitoring/csv_subscribers_nodes/data/controller_logging/";
-const std::string CSV_LOG_RUCKIG_PATH = "src/shot_planning/debug/ruckig_logging/";
-
-
 class TaskNode : public rclcpp::Node
 {
     /* alias*/
@@ -92,6 +86,10 @@ class TaskNode : public rclcpp::Node
 
     //Subscription
     using ShotParamsSubscription = rclcpp::Subscription<ShotParamsMsg>::SharedPtr;
+
+    //Service per modellazione scena
+    using TriggerSrv = std_srvs::srv::Trigger;
+    using TriggerClient = rclcpp::Client<TriggerSrv>::SharedPtr;
 
     //Service di logging
     using LogOnFileSrv = interfaces_pkg::srv::LogOnFile;
@@ -158,7 +156,10 @@ class TaskNode : public rclcpp::Node
         //-----------------------------------------------------------------------
         /*LOGGING AND DEBUG PARAMETERS from task_param.yaml*/ 
         this->declare_parameter<bool>("log_ruckig_trajectory", false);
+        this->declare_parameter<std::string>("csv_ruckig_trajectory_path", "data/csv/ruckig_logging/ruckig_trajectory_log.csv");
+
         log_ruckig_trajectory_ = this->get_parameter("log_ruckig_trajectory").as_bool();
+        csv_ruckig_trajectory_path_ = this->get_parameter("csv_ruckig_trajectory_path").as_string();
         //-----------------------------------------------------------------------
         
 
@@ -168,12 +169,19 @@ class TaskNode : public rclcpp::Node
             SHOT_PARAMS_TOPIC, 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
 
 
-        /* CLIENT PER LOGGING*/
-        cartesian_log_client_ = this->create_client<LogOnFileSrv>(LOG_CARTESIAN_ON_OFF_SERVICE);
-        joint_log_client_ = this->create_client<LogOnFileSrv>(LOG_JOINT_ON_OFF_SERVICE);
-        torque_log_client_ = this->create_client<LogOnFileSrv>(LOG_TORQUE_ON_OFF_SERVICE);
-        controller_log_client_ = this->create_client<LogOnFileSrv>(LOG_CONTROLLER_STATE_ON_OFF_SERVICE);
+        /* CLIENT PER SERVIZIO DI GENERAZIONE SCENA E RIMOZIONE PALLINA BIANCA */
+        build_scene_client_ = this->create_client<TriggerSrv>(BUILD_SCENE_SERVICE);
+        remove_white_ball_client_ = this->create_client<TriggerSrv>(REMOVE_WHITE_BALL_SERVICE);
 
+
+        /* CLIENT PER LOGGING*/
+        logging_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);      //serve a far funzionare il client di logging in un callback group separato, altrimenti non funziona (perché il nodo è già in uso da MoveGroupInterface)
+
+        log_client_ = this->create_client<LogOnFileSrv>(
+            LOG_ON_OFF_SERVICE,                 // Nome del servizio
+            rclcpp::ServicesQoS(),   // Profilo QoS (usa quello standard per i servizi)
+            logging_cb_group_                   // Callback group dedicato
+        );
 
         /*TF*/
         tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -468,8 +476,7 @@ class TaskNode : public rclcpp::Node
         double fraction = move_group_->computeCartesianPath(waypoints, 
                                                              eef_step, 
                                                              raw_trajectory,
-                                                             empty_constraints,
-                                                             !ignore_cartesian_collisions_);
+                                                             empty_constraints);
                                                              
         RCLCPP_INFO(this->get_logger(), "Traiettoria cartesiana calcolata al %.2f%%", fraction * 100.0);
 
@@ -581,8 +588,7 @@ class TaskNode : public rclcpp::Node
         double fraction = move_group_->computeCartesianPath(waypoints, 
                                                             eef_step, 
                                                             raw_trajectory,
-                                                            empty_constraints,
-                                                            !ignore_cartesian_collisions_);
+                                                            empty_constraints);
                                                             
         RCLCPP_INFO(this->get_logger(), "Traiettoria geometrica calcolata al %.2f%%", fraction * 100.0);
 
@@ -652,7 +658,7 @@ class TaskNode : public rclcpp::Node
         std::ofstream ruckig_log_file;
 
         if (log_ruckig_trajectory_) {    
-            ruckig_log_file.open(CSV_LOG_RUCKIG_PATH + "ruckig_trajectory_log.csv");
+            ruckig_log_file.open(csv_ruckig_trajectory_path_);
     
             if (ruckig_log_file.is_open()) {
                 // Scriviamo l'intestazione del CSV
@@ -816,86 +822,41 @@ class TaskNode : public rclcpp::Node
     }
 
 
-    /* GESTIONE COLLISIONI */
-    bool disable_collision() 
+    /* GESTIONE AMBIENTE */
+    bool build_scene() 
     { 
-        RCLCPP_INFO(this->get_logger(), "Disattivazione collisioni...");
-        ignore_cartesian_collisions_ = true;
-        return true;
+        RCLCPP_INFO(this->get_logger(), "Costruzione dell'ambiente...");
+        
+        return send_trigger_request(build_scene_client_, "build_scene");
     }
     
-    bool enable_collision() 
+    bool disable_white_ball_collision() 
     { 
-        RCLCPP_INFO(this->get_logger(), "Riattivazione controlli di collisione ambientali...");
-        ignore_cartesian_collisions_ = false;
-        return true;
+        RCLCPP_INFO(this->get_logger(), "Disattivazione collisione con pallina bianca per il tiro...");
+        
+        return send_trigger_request(remove_white_ball_client_, "remove_white_ball");
     }
 
 
     /*SERVIZI DI MONITORING DEI TIRI*/
-    bool startCartesianLogging(const std::string& filename)
+    bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled)
     {
-        RCLCPP_INFO(this->get_logger(), "Avvio logging cartesiano...");
-        bool cart_ok = send_logging_request(cartesian_log_client_, true, filename);
+        RCLCPP_INFO(this->get_logger(), "Avvio logging...");
+        bool ok = send_logging_request(filename, joint_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
         
-        return cart_ok;
+        return ok;
     }
 
-    bool startJointLogging(const std::string& filename)
+    bool stopLogging()
     {
-        RCLCPP_INFO(this->get_logger(), "Avvio logging giunti...");
-        bool joint_ok = send_logging_request(joint_log_client_, true, filename);
+        RCLCPP_INFO(this->get_logger(), "Arresto logging...");
         
-        return joint_ok;
-    }
-
-    bool stopCartesianLogging()
-    {
-        RCLCPP_INFO(this->get_logger(), "Arresto logging cartesiano...");
-        // Passiamo una stringa vuota per il file, dato che disattivando non serve
-        bool cart_ok = send_logging_request(cartesian_log_client_, false, "");
+        // Basta una stringa vuota per far arrestare il logging, senza dover specificare i parametri
+        bool ok = send_logging_request("", false, false, false, false);
         
-        return cart_ok;
+        return ok;
     }
 
-    bool stopJointLogging()
-    {
-        RCLCPP_INFO(this->get_logger(), "Arresto logging giunti...");
-        // Passiamo una stringa vuota per il file, dato che disattivando non serve
-        bool joint_ok = send_logging_request(joint_log_client_, false, "");
-        
-        return joint_ok;
-    }
-
-    bool startTorqueLogging(const std::string& filename)
-    {
-        RCLCPP_INFO(this->get_logger(), "Avvio logging coppie di giunto...");
-        bool torque_ok = send_logging_request(torque_log_client_, true, filename);
-        
-        return torque_ok;
-    }
-
-    bool stopTorqueLogging()
-    {
-        RCLCPP_INFO(this->get_logger(), "Arresto logging coppie di giunto...");
-        bool torque_ok = send_logging_request(torque_log_client_, false, "");
-        return torque_ok;
-    }
-
-    bool startControllerLogging(const std::string& filename)
-    {
-        RCLCPP_INFO(this->get_logger(), "Avvio logging controller...");
-        bool ctrl_ok = send_logging_request(controller_log_client_, true, filename);
-        
-        return ctrl_ok;
-    }
-
-    bool stopControllerLogging()
-    {
-        RCLCPP_INFO(this->get_logger(), "Arresto logging controller...");
-        bool ctrl_ok = send_logging_request(controller_log_client_, false, "");
-        return ctrl_ok;
-    }
 
     /*ALTRI METODI DI UTILITIES*/
 
@@ -1010,11 +971,13 @@ class TaskNode : public rclcpp::Node
     //subscriber a ShotParam (da game engine)
     ShotParamsSubscription param_sub_;
 
+    // client per servizio di generazione scena e rimozione pallina bianca
+    TriggerClient build_scene_client_;
+    TriggerClient remove_white_ball_client_;
+
     // loggin service client
-    LogOnFileClient cartesian_log_client_;
-    LogOnFileClient joint_log_client_;
-    LogOnFileClient torque_log_client_;
-    LogOnFileClient controller_log_client_;
+    LogOnFileClient log_client_;
+    rclcpp::CallbackGroup::SharedPtr logging_cb_group_;
 
     // tf2_ros
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
@@ -1039,6 +1002,7 @@ class TaskNode : public rclcpp::Node
 
     //parametri di loggin e debug
     bool log_ruckig_trajectory_;                         // flag per abilitare/disabilitare il logging della traiettoria generata da Ruckig
+    std::string csv_ruckig_trajectory_path_;             // path salvataggio ruckig csv
 
 
     //lettura da subscriber per mossa da motore di gioco
@@ -1053,7 +1017,6 @@ class TaskNode : public rclcpp::Node
 
     //temporanee
     char c_in; // variabile per input da terminale (usata in print_and_wait)
-    bool ignore_cartesian_collisions_ = false; // Flag per abilitare/disabilitare collisioni nel tiro
 
 
 
@@ -1079,34 +1042,45 @@ class TaskNode : public rclcpp::Node
 
     /*ALTRO DI UTILITIES*/
     
-    // Funzione helper interna per chiamare il servizio
+    // Funzione helper interna per chiamare il servizio. 
+    // Se almeno uno dei flag è true, il logging viene attivato, altrimenti viene disattivato.
     //
-    // input: client → client del servizio a cartesian_logger o joint_logger
-    //        enable → true per abilitare il logging, false per disabilitare
-    //        filename → nome del file di log (se enable=true)
+    // input: filename → nome del file di log (senza path), vuoto se sto disattivando il logging
+    //        joint_logging_enabled → true per abilitare il logging delle giunture
+    //        cartesian_logging_enabled → true per abilitare il logging della traiettoria cartesiana
+    //        torque_logging_enabled → true per abilitare il logging dei momenti
+    //        controller_logging_enabled → true per abilitare il logging del controller
+   
     // output: true se la richiesta è stata completata con successo, false altrimenti
-    bool send_logging_request(LogOnFileClient& client, bool enable, const std::string& filename)
+    bool send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled)
     {
         // Aspettiamo che il servizio sia disponibile (max 1 secondo)
-        if (!client->wait_for_service(std::chrono::seconds(1))) {
-            RCLCPP_ERROR(this->get_logger(), "Servizio di logging non disponibile!");
+        if (!log_client_->wait_for_service(std::chrono::seconds(1))) {
+            RCLCPP_ERROR(this->get_logger(), "Servizio di logging non disponibile! (IGNORA SE STAI FACENDO BRUTAL LOGGING)");
             return false;
         }
 
         // Creiamo la richiesta
         auto request = std::make_shared<LogOnFileSrv::Request>();
-        request->enable = enable;
         request->filename = filename;
+        request->enable_joint_logging = joint_logging_enabled;
+        request->enable_cartesian_logging = cartesian_logging_enabled;
+        request->enable_torque_logging = torque_logging_enabled;
+        request->enable_controller_logging = controller_logging_enabled;
+
+
+        // Deduciamo se stiamo chiedendo di accendere o spegnere il logging
+        bool is_enabling = joint_logging_enabled || cartesian_logging_enabled || torque_logging_enabled || controller_logging_enabled;
 
         // Inviamo la richiesta in modo asincrono
-        auto future = client->async_send_request(request);
+        auto future = log_client_->async_send_request(request);
 
         // Aspettiamo la risposta (sicuro da fare qui perché lo chiamiamo dal main e lo spinner gira in un altro thread)
-        if (future.wait_for(std::chrono::seconds(2)) == std::future_status::ready) {
+        if (future.wait_for(std::chrono::seconds(3)) == std::future_status::ready) {
             auto response = future.get();
-            if (response->logging_state_on != enable)   //se si trova nello stato diverso da quello richiesto
+            if (response->logging_state_on != is_enabling)  
             {
-                RCLCPP_WARN(this->get_logger(), "La richiesta non è andata a buon fine");
+                RCLCPP_ERROR(this->get_logger(), "La richiesta non è andata a buon fine");
                 return false;
             }
             return true;
@@ -1114,6 +1088,48 @@ class TaskNode : public rclcpp::Node
         else 
         {
             RCLCPP_ERROR(this->get_logger(), "Timeout in attesa della risposta");
+            return false;
+        }
+    }
+
+    // Funzione helper interna per chiamare servizi di tipo Trigger
+    //
+    // input: client → client del servizio (es. build_scene_client_ o remove_ball_client_)
+    //        service_name → nome del servizio
+    // output: true se la richiesta è stata completata con successo, false altrimenti
+    bool send_trigger_request(const TriggerClient& client, const std::string& service_name)
+    {
+        // Aspettiamo che il servizio sia disponibile (max 1 secondo)
+        if (!client->wait_for_service(std::chrono::seconds(1))) {
+            RCLCPP_ERROR(this->get_logger(), "Servizio [%s] non disponibile!", service_name.c_str());
+            return false;
+        }
+
+        // Creiamo la richiesta (completamente vuota per std_srvs/srv/Trigger)
+        auto request = std::make_shared<TriggerSrv::Request>();
+
+        // Inviamo la richiesta in modo asincrono
+        auto future = client->async_send_request(request);
+
+        // Aspettiamo la risposta (sicuro da fare qui perché lo chiamiamo dal main e lo spinner gira in un altro thread)
+        if (future.wait_for(std::chrono::seconds(3)) == std::future_status::ready) {
+            auto response = future.get();
+            
+            // Il servizio Trigger restituisce un campo 'success'
+            if (!response->success)   
+            {
+                RCLCPP_WARN(this->get_logger(), "La richiesta a [%s] non è andata a buon fine: %s", 
+                            service_name.c_str(), response->message.c_str());
+                return false;
+            }
+            
+            RCLCPP_INFO(this->get_logger(), "Azione [%s] completata: %s", 
+                        service_name.c_str(), response->message.c_str());
+            return true;
+        } 
+        else 
+        {
+            RCLCPP_ERROR(this->get_logger(), "Timeout in attesa della risposta da [%s]", service_name.c_str());
             return false;
         }
     }
@@ -1203,50 +1219,32 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
     /*MONITORING PARAMETERS debug + logging on file*/
 
+    //log_ruckig = interno al nodo, non è un parametro di configurazione esterno nel main
+
     node->declare_parameter<bool>("print_EEF_distance_and_position", true);
     bool print_EEF_distance_and_position_ = node->get_parameter("print_EEF_distance_and_position").as_bool();
 
-    node->declare_parameter<bool>("cartesian_logging_enabled_1", false);
-    node->declare_parameter<bool>("cartesian_logging_enabled_2", false);
-    node->declare_parameter<bool>("cartesian_logging_enabled_3", false);
-    node->declare_parameter<bool>("cartesian_logging_enabled_4", false);
-    node->declare_parameter<bool>("cartesian_logging_enabled_5", false);
-    node->declare_parameter<bool>("joints_logging_enabled_1", false);
-    node->declare_parameter<bool>("joints_logging_enabled_2", false);
-    node->declare_parameter<bool>("joints_logging_enabled_3", false);
-    node->declare_parameter<bool>("joints_logging_enabled_4", false);
-    node->declare_parameter<bool>("joints_logging_enabled_5", false);
-    node->declare_parameter<bool>("torque_logging_enabled_1", false);
-    node->declare_parameter<bool>("torque_logging_enabled_2", false);
-    node->declare_parameter<bool>("torque_logging_enabled_3", false);
-    node->declare_parameter<bool>("torque_logging_enabled_4", false);
-    node->declare_parameter<bool>("torque_logging_enabled_5", false);
-    node->declare_parameter<bool>("controller_logging_enabled_1", false);
-    node->declare_parameter<bool>("controller_logging_enabled_2", false);
-    node->declare_parameter<bool>("controller_logging_enabled_3", false);
-    node->declare_parameter<bool>("controller_logging_enabled_4", false);
-    node->declare_parameter<bool>("controller_logging_enabled_5", false);
+    node->declare_parameter<bool>("joints_logging_enabled", false);
+    node->declare_parameter<bool>("cartesian_logging_enabled", false);
+    node->declare_parameter<bool>("torque_logging_enabled", false);
+    node->declare_parameter<bool>("controller_logging_enabled", false);
 
-    bool cartesian_logging_enabled_1 = node->get_parameter("cartesian_logging_enabled_1").as_bool();
-    bool cartesian_logging_enabled_2 = node->get_parameter("cartesian_logging_enabled_2").as_bool();
-    bool cartesian_logging_enabled_3 = node->get_parameter("cartesian_logging_enabled_3").as_bool();
-    bool cartesian_logging_enabled_4 = node->get_parameter("cartesian_logging_enabled_4").as_bool();
-    bool cartesian_logging_enabled_5 = node->get_parameter("cartesian_logging_enabled_5").as_bool();
-    bool joints_logging_enabled_1 = node->get_parameter("joints_logging_enabled_1").as_bool();
-    bool joints_logging_enabled_2 = node->get_parameter("joints_logging_enabled_2").as_bool();
-    bool joints_logging_enabled_3 = node->get_parameter("joints_logging_enabled_3").as_bool();
-    bool joints_logging_enabled_4 = node->get_parameter("joints_logging_enabled_4").as_bool();
-    bool joints_logging_enabled_5 = node->get_parameter("joints_logging_enabled_5").as_bool(); 
-    bool torque_logging_enabled_1 = node->get_parameter("torque_logging_enabled_1").as_bool() && using_mujoco_simulation_; //solo se sto usando mujoco, altrimenti non funziona
-    bool torque_logging_enabled_2 = node->get_parameter("torque_logging_enabled_2").as_bool() && using_mujoco_simulation_;
-    bool torque_logging_enabled_3 = node->get_parameter("torque_logging_enabled_3").as_bool() && using_mujoco_simulation_;
-    bool torque_logging_enabled_4 = node->get_parameter("torque_logging_enabled_4").as_bool() && using_mujoco_simulation_;
-    bool torque_logging_enabled_5 = node->get_parameter("torque_logging_enabled_5").as_bool() && using_mujoco_simulation_;
-    bool controller_logging_enabled_1 = node->get_parameter("controller_logging_enabled_1").as_bool();
-    bool controller_logging_enabled_2 = node->get_parameter("controller_logging_enabled_2").as_bool();
-    bool controller_logging_enabled_3 = node->get_parameter("controller_logging_enabled_3").as_bool();
-    bool controller_logging_enabled_4 = node->get_parameter("controller_logging_enabled_4").as_bool();
-    bool controller_logging_enabled_5 = node->get_parameter("controller_logging_enabled_5").as_bool();
+    bool joints_logging_enabled = node->get_parameter("joints_logging_enabled").as_bool();
+    bool cartesian_logging_enabled = node->get_parameter("cartesian_logging_enabled").as_bool();
+    bool torque_logging_enabled = node->get_parameter("torque_logging_enabled").as_bool() && using_mujoco_simulation_; //solo se sto usando mujoco, altrimenti non funziona
+    bool controller_logging_enabled = node->get_parameter("controller_logging_enabled").as_bool();
+
+    node->declare_parameter<bool>("phase_1_logging_enabled", false);    // andare in posa pre-approach
+    node->declare_parameter<bool>("phase_2_logging_enabled", false);    // approach alla pallina
+    node->declare_parameter<bool>("phase_3_logging_enabled", false);    // allontanamento all'indietro per prendere velocità
+    node->declare_parameter<bool>("phase_4_logging_enabled", false);    // esecuzione tiro
+    node->declare_parameter<bool>("phase_5_logging_enabled", false);    // alzata per liberare il campo
+
+    bool phase_1_logging_enabled = node->get_parameter("phase_1_logging_enabled").as_bool();
+    bool phase_2_logging_enabled = node->get_parameter("phase_2_logging_enabled").as_bool();
+    bool phase_3_logging_enabled = node->get_parameter("phase_3_logging_enabled").as_bool();
+    bool phase_4_logging_enabled = node->get_parameter("phase_4_logging_enabled").as_bool();
+    bool phase_5_logging_enabled = node->get_parameter("phase_5_logging_enabled").as_bool();
     //------------------------------------------------------
 
 
@@ -1257,6 +1255,9 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
 
 
+    //-------------------------------------------
+    node->build_scene();  // costruisco la scena di pianificazione (tavolo, pallina, ecc..)
+    //-------------------------------------------
 
 
     //------------------------------------------------------
@@ -1313,10 +1314,8 @@ int main(int argc, char* argv[])
         }
 
         //logging
-        if(joints_logging_enabled_1) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_1_preapproach.csv");
-        if(cartesian_logging_enabled_1) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_1_preapproach.csv");
-        if(torque_logging_enabled_1) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_1_preapproach.csv");
-        if(controller_logging_enabled_1) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_1_preapproach.csv");
+        if(phase_1_logging_enabled) node->startLogging("preapproach", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
 
@@ -1327,10 +1326,8 @@ int main(int argc, char* argv[])
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
         
-        if(joints_logging_enabled_1) node->stopJointLogging();
-        if(cartesian_logging_enabled_1) node->stopCartesianLogging();
-        if(torque_logging_enabled_1) node->stopTorqueLogging();
-        if(controller_logging_enabled_1) node->stopControllerLogging();
+        if(phase_1_logging_enabled) node->stopLogging();
+       
     }
     
     
@@ -1357,11 +1354,8 @@ int main(int argc, char* argv[])
 
 
         //logging
-        if(joints_logging_enabled_2) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_2_approach.csv");
-        if(cartesian_logging_enabled_2) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_2_approach.csv");
-        if(torque_logging_enabled_2) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_2_approach.csv");
-        if(controller_logging_enabled_2) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_2_approach.csv");
-
+        if(phase_2_logging_enabled) node->startLogging("approach", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
 
@@ -1372,10 +1366,8 @@ int main(int argc, char* argv[])
             //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
         }
 
-        if(joints_logging_enabled_2) node->stopJointLogging();
-        if(cartesian_logging_enabled_2) node->stopCartesianLogging();
-        if(torque_logging_enabled_2) node->stopTorqueLogging();
-        if(controller_logging_enabled_2) node->stopControllerLogging();
+        if(phase_2_logging_enabled) node->stopLogging();
+
 
 
         if(print_EEF_distance_and_position_) {
@@ -1415,10 +1407,8 @@ int main(int argc, char* argv[])
                                           );
 
         //logging
-        if(joints_logging_enabled_3) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_3_back_shot.csv");
-        if(cartesian_logging_enabled_3) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_3_back_shot.csv");
-        if(torque_logging_enabled_3) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_3_back_shot.csv");
-        if(controller_logging_enabled_3) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_3_back_shot.csv");
+        if(phase_3_logging_enabled) node->startLogging("back_shot", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+    
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_back_);            
@@ -1432,10 +1422,8 @@ int main(int argc, char* argv[])
         }
 
 
-        if(joints_logging_enabled_3) node->stopJointLogging();
-        if(cartesian_logging_enabled_3) node->stopCartesianLogging();
-        if(torque_logging_enabled_3) node->stopTorqueLogging();
-        if(controller_logging_enabled_3) node->stopControllerLogging();
+        if(phase_3_logging_enabled) node->stopLogging();
+        
 
 
         if(print_EEF_distance_and_position_) {
@@ -1481,16 +1469,12 @@ int main(int argc, char* argv[])
                                         );
 
         //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
-        node->disable_collision();
+        node->disable_white_ball_collision();
 
         
         //logging
-        if(joints_logging_enabled_4) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_4_shot.csv");
-        if(cartesian_logging_enabled_4) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_4_shot.csv");
-        if(torque_logging_enabled_4) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_4_shot.csv");
-        if(controller_logging_enabled_4) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_4_shot.csv");
-
-
+        if(phase_4_logging_enabled) node->startLogging("shot", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+     
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                           impact_shot_velocity_,
                           accel_distance, decel_distance);
@@ -1504,11 +1488,8 @@ int main(int argc, char* argv[])
         }
 
 
-        if(joints_logging_enabled_4) node->stopJointLogging();
-        if(cartesian_logging_enabled_4) node->stopCartesianLogging();
-        if(torque_logging_enabled_4) node->stopTorqueLogging();
-        if(controller_logging_enabled_4) node->stopControllerLogging();
-
+        if(phase_4_logging_enabled) node->stopLogging();
+    
 
         if(print_EEF_distance_and_position_) {
             //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
@@ -1534,14 +1515,9 @@ int main(int argc, char* argv[])
             Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);
 
             //logging
-            if(joints_logging_enabled_5) node->startJointLogging(CSV_LOG_JOINT_PATH + "joint_log_5_get_high.csv");
-            if(cartesian_logging_enabled_5) node->startCartesianLogging(CSV_LOG_CARTESIAN_PATH + "cartesian_log_5_get_high.csv");
-            if(torque_logging_enabled_5) node->startTorqueLogging(CSV_LOG_TORQUE_PATH + "torque_log_5_get_high.csv");
-            if(controller_logging_enabled_5) node->startControllerLogging(CSV_LOG_CONTROLLER_PATH + "controller_log_5_get_high.csv");
-
+            if(phase_5_logging_enabled) node->startLogging("get_high", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
-
 
             if(using_mujoco_simulation_){
                 //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
@@ -1550,10 +1526,7 @@ int main(int argc, char* argv[])
                 //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
             }
 
-            if(joints_logging_enabled_5) node->stopJointLogging();
-            if(cartesian_logging_enabled_5) node->stopCartesianLogging();
-            if(torque_logging_enabled_5) node->stopTorqueLogging();
-            if(controller_logging_enabled_5) node->stopControllerLogging();
+            if(phase_5_logging_enabled) node->stopLogging();
 
 
             if(print_EEF_distance_and_position_) {
@@ -1565,7 +1538,6 @@ int main(int argc, char* argv[])
             RCLCPP_WARN(node->get_logger(), "\n\nTiro non eseguito, salto la fase di alzata.");
         }
 
-        node->enable_collision() ; //riattivo collisione tra asta e pallina bianca
     }
     
 

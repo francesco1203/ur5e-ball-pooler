@@ -33,31 +33,33 @@ Work in progress..
 - ur (Ros2 standard package) - driver
 - moveit2 (Ros2 standard package)
 - mujoco_ros2_control (Ros2 package) - bridge for mujoco simulator
-- python packs: pandas, numpy, matplotlib, scipy - for trajectory analysis
+- python packs: rosbags, pandas, numpy, matplotlib, scipy - for trajectory and data analysis
 
 ---
 
-## Usage
+## Usage (on LinuxUbuntu)
 
-On LinuxUbuntu, enter the folder 'ws_ur5e_ballpool' and to build use cmd:
+Execute the following bash scripts to deploy the project (NOTE: give execution permission first)
 
-- colcon build --symlink-install
+0. Download the project dependencies        (TODO)
+- script/download_dependencies.sh
 
-Give executing permission to the following bash scripts:
+1. Build workspace
+- scripts/build_workspace.sh
 
-- chmod +x start_robot.sh
-- chmod +x show_plots.sh
+2. Setup the configs in the script and run the simulation
+- scripts/start_simulated_robot.sh
 
-Then, you can run the shot execution:
+3. Setup the configs in the script and run the real execution on Ur5e   (TODO)
+- scripts/start_real_robot.sh
 
-- ./start_robot.sh
-
-And you can visualize the trajectory parameterization by running
-
-- ./show_plots.sh
+4. Analyze the datas from bagfiles and csv
+- scripts/show_shot_parametrization.sh
 
 
-### Note: to use MuJoCo Vs to use RViz
+### Note for the simulation: using MuJoCo Vs using RViz
+These following steps aren't automated yet. (TODO)
+
 If you want to use MuJoCo, you should:
 - modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/left_arm_ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the MuJoCo plugin
 - modify by hand the config file ./ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml in the task_node parameters, section 'execution parameter' and set on 'true' the 'using_mujoco_simulation'parameter
@@ -68,21 +70,6 @@ Otherwise, if you want to use RViz, you should:
 
 Forgetting these two pre-steps, the correct execution isn't guaranteed
 
----
-
-### ROS WS Structure
-
-- ws_ur5_ball_pooler: ros2 workspace
-- src/camera_perception
-- src/execution_monitoring
-- src/interfaces_pkg
-- src/left_arm_description
-- src/moveit_config
-- src/scene_description
-- src/shared_headers_pkg
-- src/shot_planning
-
----
 
 ### Esame / Exam
 

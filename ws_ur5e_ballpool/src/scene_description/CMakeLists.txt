@@ -11,6 +11,8 @@ find_package(moveit_ros_planning_interface REQUIRED)
 
 find_package(shared_headers_pkg REQUIRED)  #mia libreria di headers .hpp
 
+find_package(std_srvs REQUIRED)
+
 find_package(tf2_ros REQUIRED)
 find_package(geometric_shapes REQUIRED)
 find_package(ament_index_cpp REQUIRED)
@@ -25,6 +27,7 @@ add_executable(scene_builder src/scene_builder_node.cpp)
 ament_target_dependencies(
   scene_builder
   "rclcpp"
+  "std_srvs"
   "moveit_ros_planning_interface"
   "tf2_ros"
   "geometric_shapes"  # <-- Necessaria per addMESH
