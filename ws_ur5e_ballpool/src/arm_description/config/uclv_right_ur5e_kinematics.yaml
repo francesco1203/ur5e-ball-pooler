@@ -1,7 +1,7 @@
 #ATTENZIONE: 
 # questo file di calibrazione prima era chiamato 'right', siccome il braccio che vediamo a sinistra
 # è il braccio destro del robot, visto dal suo punto di vista, ma guardandolo frontale per noi è left
-# quindi ho cambiato il nome in 'left'
+
 
 kinematics:
   shoulder:

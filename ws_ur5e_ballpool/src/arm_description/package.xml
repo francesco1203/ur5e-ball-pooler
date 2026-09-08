@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>left_arm_description</name>
+  <name>arm_description</name>
   <version>1.0.0</version>
   <description>Descrizione del braccio sinistro montato l'end effector</description>
   <maintainer email="francesco.schettini12@gmail.com">francesco</maintainer>

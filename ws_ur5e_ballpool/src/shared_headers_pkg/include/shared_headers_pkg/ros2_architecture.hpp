@@ -14,7 +14,7 @@
    //from robot simulators
    const std::string JOINT_STATES_TOPIC = "/joint_states";                              // topic per lo stato dei giunti del robot (sensor_msgs/JointState)
    const std::string ACTUATORS_STATES_MUJOCO_TOPIC = "/mujoco_actuators_states";        // topic per lo stato degli attuatori in MuJoCo
-   const std::string CONTROLLER_STATE_TOPIC = "/left_arm_controller/controller_state";  // topic per lo stato del controller
+   const std::string CONTROLLER_STATE_TOPIC = "/arm_controller/controller_state";  // topic per lo stato del controller
 
 /* SERVIZI */
    const std::string BUILD_SCENE_SERVICE = "/build_scene";  // servizio per costruire la scena (biliardo + palline)

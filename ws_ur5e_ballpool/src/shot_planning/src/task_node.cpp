@@ -961,7 +961,7 @@ class TaskNode : public rclcpp::Node
    
 
   private:
-    MoveGroupInterfacePtr move_group_; // interfaccia MoveIt! per il gruppo "left_arm"
+    MoveGroupInterfacePtr move_group_; // interfaccia MoveIt! per il gruppo "arm"
     TimerPtr start_timer_;             // timer one-shot per inizializzazione differita
     std::promise<void> init_done_;     // segnala al main che start() è completato
 

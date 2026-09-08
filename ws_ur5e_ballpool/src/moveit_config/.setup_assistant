@@ -1,13 +1,13 @@
 moveit_setup_assistant_config:
   urdf:
-    package: left_arm_description
-    relative_path: urdf/left_arm.urdf.xacro
+    package: arm_description
+    relative_path: urdf/arm.urdf.xacro
   srdf:
-    relative_path: config/left_arm_ur5e.srdf
+    relative_path: config/arm_ur5e.srdf
   package_settings:
-    author_name: Schettini Francesco
+    author_name: Schettini
     author_email: francesco.schettini12@gmail.com
-    generated_timestamp: 1785162392
+    generated_timestamp: 1788884713
   control_xacro:
     command:
       - position

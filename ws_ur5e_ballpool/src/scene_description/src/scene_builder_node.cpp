@@ -95,7 +95,7 @@ class SceneBuilderNode : public rclcpp::Node
 
         // moveit_components init
         // move_group_interface_ =
-        //     std::make_unique<MoveGroupInterface>(this->shared_from_this(), PLANNING_GROUP); // PLANNING_GROUP = 'left_arm' (costante in private)
+        //     std::make_unique<MoveGroupInterface>(this->shared_from_this(), PLANNING_GROUP); // PLANNING_GROUP = 'arm' (costante in private)
         planning_scene_interface_ = std::make_unique<PlanningSceneInterface>();
 
         

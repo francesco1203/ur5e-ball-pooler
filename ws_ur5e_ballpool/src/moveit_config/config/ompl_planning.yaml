@@ -147,7 +147,7 @@ planner_configs:
   TrajOptDefault:
     type: geometric::TrajOpt
 
-left_arm:
+arm:
   planner_configs:
     - APSConfigDefault
     - SBLkConfigDefault

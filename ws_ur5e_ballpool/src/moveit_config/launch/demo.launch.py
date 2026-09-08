@@ -3,5 +3,5 @@ from moveit_configs_utils.launches import generate_demo_launch
 
 
 def generate_launch_description():
-    moveit_config = MoveItConfigsBuilder("left_arm_ur5e", package_name="moveit_config").to_moveit_configs()
+    moveit_config = MoveItConfigsBuilder("arm_ur5e", package_name="moveit_config").to_moveit_configs()
     return generate_demo_launch(moveit_config)

@@ -62,7 +62,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     #avvio del simulatore vero e proprio con MuJoCo e MoveIt
     echo "Avvio MuJoCo con MoveIt..."
     echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file left_arm_ur5e.ros2_control.xacro sezione hardware...\n"
+    echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
     echo -e "-> Assicurati di aver impostato il parametro 'using_mujoco_simulation' su true nel file di configurazione task_params.yaml...\n"
     
     sleep 2
@@ -78,7 +78,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 else
     echo "Avvio MoveIt con RViz..."
     echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware...\n"
+    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
     echo -e "-> Assicurati di aver impostato il parametro 'using_mujoco_simulation' su false nel file di configurazione task_params.yaml...\n"
     
     sleep 2

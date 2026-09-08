@@ -1,4 +1,4 @@
-<mujoco model="left_arm_ur5e">
+<mujoco model="arm_ur5e">
   <compiler angle="radian" meshdir="assets/" texturedir="assets/"/>
 
   <option integrator="implicitfast" timestep="0.002"/>
@@ -134,9 +134,9 @@
   <contact>
     <!-- ATTENZIONE: NECESSARIO PER FUNZIONAMENTO SE SI ATTIVANO COLLISION TRA BRACCIO E STRUTTURA DI SUPPORTO -->
     <!-- Escludi la spalla, il primo braccio e il gomito dalle collisioni con la struttura di supporto -->
-    <!-- <exclude body1="left_shoulder_link" body2="vention"/>
-    <exclude body1="left_upper_arm_link" body2="vention"/>
-    <exclude body1="left_forearm_link" body2="vention"/> -->
+    <!-- <exclude body1="shoulder_link" body2="vention"/>
+    <exclude body1="upper_arm_link" body2="vention"/>
+    <exclude body1="forearm_link" body2="vention"/> -->
   </contact>
 
 
@@ -283,32 +283,32 @@
 
 
     <!-- BRACCIO ur5e -->
-    <body name="left_shoulder_link" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598" childclass="ur5e" gravcomp="1" >
+    <body name="shoulder_link" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598" childclass="ur5e" gravcomp="1" >
       <inertial pos="0 -0.00193 -0.02561" quat="0.560239 0.250606 -0.316559 0.72327" mass="3.761" diaginertia="0.00703079 0.0070003 0.00602478"/>
-      <joint name="left_shoulder_pan_joint" pos="0 0 0" />
+      <joint name="shoulder_pan_joint" pos="0 0 0" />
 
-      <body name="left_upper_arm_link" pos="0.000163315 0 0" quat="0.706896 0.707318 1.94377e-06 1.94261e-06" gravcomp="1"  >
+      <body name="upper_arm_link" pos="0.000163315 0 0" quat="0.706896 0.707318 1.94377e-06 1.94261e-06" gravcomp="1"  >
         <inertial pos="-0.2125 0 0.11336" quat="0.500275 0.499641 0.500368 0.499716" mass="8.058" diaginertia="0.333881 0.332472 0.0150588"/>
-        <joint name="left_shoulder_lift_joint" pos="0 0 0"  />
+        <joint name="shoulder_lift_joint" pos="0 0 0"  />
 
-        <body name="left_forearm_link" pos="-0.425495 0 0" quat="1 0.000719104 -0.000251193 2.83361e-06" gravcomp="1" >
+        <body name="forearm_link" pos="-0.425495 0 0" quat="1 0.000719104 -0.000251193 2.83361e-06" gravcomp="1" >
           <inertial pos="-0.2422 0 0.0265" quat="0.501301 0.498381 0.510711 0.489375" mass="2.846" diaginertia="0.0787927 0.0785102 0.00397103"/>
-          <joint name="left_elbow_joint" range="-3.14159 3.14159" pos="0 0 0" />
+          <joint name="elbow_joint" range="-3.14159 3.14159" pos="0 0 0" />
           <!-- IMPORTANTE: LIMITE A -PI, PI PER ELBOW, DIVERSO DAGLI ALTRI -->
 
-          <body name="left_wrist_1_link" pos="-0.39277 -0.000732057 0.133476" quat="0.999996 0.00274226 -0.000297394 1.89885e-06" gravcomp="1" >
+          <body name="wrist_1_link" pos="-0.39277 -0.000732057 0.133476" quat="0.999996 0.00274226 -0.000297394 1.89885e-06" gravcomp="1" >
             <inertial pos="0 -0.01634 -0.0018" quat="0.960609 0.277707 0.00515042 -0.00913626" mass="1.37" diaginertia="0.00165502 0.00142363 0.00119868"/>
-            <joint name="left_wrist_1_joint" pos="0 0 0"   />
+            <joint name="wrist_1_joint" pos="0 0 0"   />
 
-            <body name="left_wrist_2_link" pos="1.34257e-05 -0.0997363 -9.58877e-05" quat="0.706767 0.707447 2.00147e-07 1.99954e-07" gravcomp="1" >
+            <body name="wrist_2_link" pos="1.34257e-05 -0.0997363 -9.58877e-05" quat="0.706767 0.707447 2.00147e-07 1.99954e-07" gravcomp="1" >
               <inertial pos="0 0.01634 -0.0018" quat="0.996652 -0.0779336 -0.00684629 -0.0237381" mass="1.3" diaginertia="0.00135637 0.00128607 0.00095814"/>
-              <joint name="left_wrist_2_joint" pos="0 0 0"  />
+              <joint name="wrist_2_joint" pos="0 0 0"  />
 
-              <body name="left_wrist_3_link" pos="7.22761e-05 0.099621 0.00011636" quat="0.70752 -0.706694 1.61197e-07 -1.61385e-07" gravcomp="1" >
+              <body name="wrist_3_link" pos="7.22761e-05 0.099621 0.00011636" quat="0.70752 -0.706694 1.61197e-07 -1.61385e-07" gravcomp="1" >
 
                 <!-- DA AGGIORNARE CON INERZIA DI TUTTO INSIEME, LINK E CAD? -->
                 <inertial pos="-0.000868713 -0.00148241 0.0260479" quat="0.681832 -0.0396203 -0.00110019 0.730435" mass="0.776613" diaginertia="0.00149112 0.00146252 0.000563823"/>
-                <joint name="left_wrist_3_joint" pos="0 0 0" />
+                <joint name="wrist_3_joint" pos="0 0 0" />
                 
                 <geom material="linkgray" mesh="wrist3" class="visual" pos="0 -0.0005 -0.0989" quat="0.707107 0.707107 0 0"/>
                 <geom mesh="wrist3" class="joint_collision" pos="0 -0.0005 -0.0989" quat="0.707107 0.707107 0 0"/>
@@ -358,12 +358,12 @@
                 <geom type="cylinder" size="0.005 0.001" pos="-0.1155 0 0.081" quat="0.7071 0 -0.7071 0" rgba="0 1 0 1"  class="end_effector_collision" />
 
 
-                <site name="left_wrist_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
-                <site name="left_ft_frame" pos="0 0 0" quat="0 1.0 0 0"/>
-                <site name="left_flange" pos="0 0 0" quat="-0.5000000000000001 0.5 0.5000000000000001 0.49999999999999994"/>
-                <site name="left_tool0" pos="0 0 0" quat="1.0 0 0 0"/>
-                <site name="left_holder_link" pos="0 0 0" quat="1.0 0 0 0"/>
-                <site name="left_cut_rod_link" pos="0 0 0" quat="1.0 0 0 0"/>
+                <site name="wrist_3_link" pos="0 0 0" quat="1.0 0 0 0"/>
+                <site name="ft_frame" pos="0 0 0" quat="0 1.0 0 0"/>
+                <site name="flange" pos="0 0 0" quat="-0.5000000000000001 0.5 0.5000000000000001 0.49999999999999994"/>
+                <site name="tool0" pos="0 0 0" quat="1.0 0 0 0"/>
+                <site name="holder_link" pos="0 0 0" quat="1.0 0 0 0"/>
+                <site name="cut_rod_link" pos="0 0 0" quat="1.0 0 0 0"/>
               </body>
 
               <geom mesh="wrist2_0" material="black" class="visual" pos="0 0 -0.0997" quat="1 0 0 0"/>
@@ -372,7 +372,7 @@
               <geom mesh="wrist2_0" class="joint_collision" pos="0 0 -0.0997" quat="1 0 0 0"/>
               <geom mesh="wrist2_1" class="joint_collision" pos="0 0 -0.0997" quat="1 0 0 0"/>
               <geom mesh="wrist2_2" class="joint_collision" pos="0 0 -0.0997" quat="1 0 0 0"/>
-              <site name="left_wrist_2_link" pos="0 0 0" quat="1.0 0 0 0"/>
+              <site name="wrist_2_link" pos="0 0 0" quat="1.0 0 0 0"/>
             </body>
             
             <geom mesh="wrist1_0" material="black" class="visual" pos="0 0 -0.127" quat="0.707107 0.707107 0 0"/>
@@ -381,7 +381,7 @@
             <geom mesh="wrist1_0" class="joint_collision" pos="0 0 -0.127" quat="0.707107 0.707107 0 0"/>
             <geom mesh="wrist1_1" class="joint_collision" pos="0 0 -0.127" quat="0.707107 0.707107 0 0"/>
             <geom mesh="wrist1_2" class="joint_collision" pos="0 0 -0.127" quat="0.707107 0.707107 0 0"/>
-            <site name="left_wrist_1_link" pos="0 0 0" quat="1.0 0 0 0"/>
+            <site name="wrist_1_link" pos="0 0 0" quat="1.0 0 0 0"/>
           </body>
 
           <geom mesh="forearm_0" material="urblue" class="visual" pos="0 0 0.007" quat="0.5 0.5 -0.5 -0.5"/>
@@ -392,7 +392,7 @@
           <geom mesh="forearm_1" class="joint_collision" pos="0 0 0.007" quat="0.5 0.5 -0.5 -0.5"/>
           <geom mesh="forearm_2" class="joint_collision" pos="0 0 0.007" quat="0.5 0.5 -0.5 -0.5"/>
           <geom mesh="forearm_3" class="joint_collision" pos="0 0 0.007" quat="0.5 0.5 -0.5 -0.5"/>
-          <site name="left_forearm_link" pos="0 0 0" quat="1.0 0 0 0"/>
+          <site name="forearm_link" pos="0 0 0" quat="1.0 0 0 0"/>
 
         </body>
         <geom mesh="upperarm_0" material="linkgray" class="visual" pos="0 0 0.138" quat="0.5 0.5 -0.5 -0.5"/>
@@ -403,7 +403,7 @@
         <geom mesh="upperarm_1" class="joint_collision" pos="0 0 0.138" quat="0.5 0.5 -0.5 -0.5"/>
         <geom mesh="upperarm_2" class="joint_collision" pos="0 0 0.138" quat="0.5 0.5 -0.5 -0.5"/>
         <geom mesh="upperarm_3" class="joint_collision" pos="0 0 0.138" quat="0.5 0.5 -0.5 -0.5"/>
-        <site name="left_upper_arm_link" pos="0 0 0" quat="1.0 0 0 0"/>
+        <site name="upper_arm_link" pos="0 0 0" quat="1.0 0 0 0"/>
       </body>
       <geom mesh="shoulder_0" material="urblue" class="visual" pos="" quat="0 0 0 1"/>
       <geom mesh="shoulder_1" material="black" class="visual" pos="" quat="0 0 0 1"/>
@@ -411,7 +411,7 @@
       <geom mesh="shoulder_0" class="joint_collision" pos="" quat="0 0 0 1"/>
       <geom mesh="shoulder_1" class="joint_collision" pos="" quat="0 0 0 1"/>
       <geom mesh="shoulder_2" class="joint_collision" pos="" quat="0 0 0 1"/>
-      <site name="left_shoulder_link" pos="0 0 0" quat="1.0 0 0 0"/>
+      <site name="shoulder_link" pos="0 0 0" quat="1.0 0 0 0"/>
     </body>
 
     <geom mesh="base_0" material="jointgray" class="visual" pos="-0.188189 0.13575 0.556631" quat="-0.270598 -0.653281 0.653281 0.270598"/>
@@ -545,36 +545,36 @@
     <!-- PUNTI DI INTERESSE -->
     <site name="world" pos="0 0 0" quat="1.0 0 0 0"/>
     <site name="wall_link" pos="0 0 0" quat="1.0 0 0 0"/>
-    <site name="left_base_link" pos="-0.188189 0.13575 0.556631" quat="0.2705980500730985 0.6532814824381883 -0.6532814824381882 -0.2705980500730985"/>
-    <site name="left_base_link_inertia" pos="-0.188189 0.13575 0.556631" quat="-0.27059805007309856 0.6532814824381882 0.6532814824381883 -0.2705980500730985"/>
-    <site name="left_base" pos="-0.188189 0.13575 0.556631" quat="-0.27059805007309856 0.6532814824381882 0.6532814824381883 -0.2705980500730985"/>
+    <site name="base_link" pos="-0.188189 0.13575 0.556631" quat="0.2705980500730985 0.6532814824381883 -0.6532814824381882 -0.2705980500730985"/>
+    <site name="base_link_inertia" pos="-0.188189 0.13575 0.556631" quat="-0.27059805007309856 0.6532814824381882 0.6532814824381883 -0.2705980500730985"/>
+    <site name="base" pos="-0.188189 0.13575 0.556631" quat="-0.27059805007309856 0.6532814824381882 0.6532814824381883 -0.2705980500730985"/>
   </worldbody>
 
 
   <actuator>
     <!-- Giunti Grandi: ereditano kp="2000", kv="400" e forcerange="-150 150" -->
-    <position name="left_shoulder_pan" joint="left_shoulder_pan_joint" class="size3"/>
-    <position name="left_shoulder_lift" joint="left_shoulder_lift_joint" class="size3"/>
-    <position name="left_elbow" joint="left_elbow_joint" ctrlrange="-3.14159 3.14159" class="size3"/>
+    <position name="shoulder_pan" joint="shoulder_pan_joint" class="size3"/>
+    <position name="shoulder_lift" joint="shoulder_lift_joint" class="size3"/>
+    <position name="elbow" joint="elbow_joint" ctrlrange="-3.14159 3.14159" class="size3"/>
     <!-- IMPORTANTE: ELBOW HA RANGE DIVERSO DAGLI ALTRI, -PI, PI, GLI ALTRI HANNO -2PI, 2PI -->
 
     <!-- Giunti Polso: ereditano kp="500", kv="100" e forcerange="-28 28" -->
-    <position name="left_wrist_1" joint="left_wrist_1_joint" class="size1"/>
-    <position name="left_wrist_2" joint="left_wrist_2_joint" class="size1"/>
-    <position name="left_wrist_3" joint="left_wrist_3_joint" class="size1"/>
+    <position name="wrist_1" joint="wrist_1_joint" class="size1"/>
+    <position name="wrist_2" joint="wrist_2_joint" class="size1"/>
+    <position name="wrist_3" joint="wrist_3_joint" class="size1"/>
   </actuator>
 
 
   <sensor>
     <!-- Sensori di coppia per i giunti grandi -->
-    <actuatorfrc name="left_shoulder_pan_effort" actuator="left_shoulder_pan"/>
-    <actuatorfrc name="left_shoulder_lift_effort" actuator="left_shoulder_lift"/>
-    <actuatorfrc name="left_elbow_effort" actuator="left_elbow"/>
+    <actuatorfrc name="shoulder_pan_effort" actuator="shoulder_pan"/>
+    <actuatorfrc name="shoulder_lift_effort" actuator="shoulder_lift"/>
+    <actuatorfrc name="elbow_effort" actuator="elbow"/>
 
     <!-- Sensori di coppia per i giunti del polso -->
-    <actuatorfrc name="left_wrist_1_effort" actuator="left_wrist_1"/>
-    <actuatorfrc name="left_wrist_2_effort" actuator="left_wrist_2"/>
-    <actuatorfrc name="left_wrist_3_effort" actuator="left_wrist_3"/>
+    <actuatorfrc name="wrist_1_effort" actuator="wrist_1"/>
+    <actuatorfrc name="wrist_2_effort" actuator="wrist_2"/>
+    <actuatorfrc name="wrist_3_effort" actuator="wrist_3"/>
   </sensor>
 
 

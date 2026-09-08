@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="left_arm_ur5e" xmlns:xacro="http://ros.org/wiki/xacro">
+<robot name="arm_ur5e" xmlns:xacro="http://ros.org/wiki/xacro">
 
     <!-- robot name parameter -->
     <xacro:arg name="name" default="ur5e"/>
@@ -11,7 +11,7 @@
 
     <!-- ROBOT XACRO PARAMETERS-->
     <xacro:arg name="ur_type" default="ur5e"/>
-    <xacro:arg name="tf_prefix_left" default="left_" />
+    <xacro:arg name="tf_prefix_left" default="" />
     
 
     <!-- LETTURA PARAMETRI DELL'UR5e DA CONFIG FILES -->
@@ -22,7 +22,7 @@
     <xacro:arg name="visual_params" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
 
     <!-- da calibrazione su nostro braccio -->
-    <xacro:arg name="kinematics_params" default="$(find left_arm_description)/config/uclv_left_ur5e_kinematics.yaml"/>
+    <xacro:arg name="kinematics_params" default="$(find arm_description)/config/uclv_right_ur5e_kinematics.yaml"/>
 
     <!-- safety parameters (ininfluenti in visualizzazione)-->
     <xacro:arg name="safety_limits" default="true"/>
@@ -37,7 +37,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://left_arm_description/meshes/vention/visual/myvention_visual.stl" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/vention/visual/myvention_visual.stl" scale="0.001 0.001 0.001"/>
             </geometry>
             <material name="Blue">
                 <color rgba="1.0 1.0 1.0 1.0" />
@@ -46,7 +46,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://left_arm_description/meshes/vention/collision/myvention_collision.stl" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/vention/collision/myvention_collision.stl" scale="0.001 0.001 0.001"/>
             </geometry>
         </collision>  
     </link>
@@ -101,13 +101,13 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://left_arm_description/meshes/holder/holder.obj" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/holder/holder.obj" scale="0.001 0.001 0.001"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://left_arm_description/meshes/holder/holder.obj" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/holder/holder.obj" scale="0.001 0.001 0.001"/>
             </geometry>
         </collision>
         <inertial>
@@ -134,13 +134,13 @@
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
                 
-                <mesh filename="package://left_arm_description/meshes/holder/cut_rod.obj" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/holder/cut_rod.obj" scale="0.001 0.001 0.001"/>
             </geometry>
         </visual>
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-                <mesh filename="package://left_arm_description/meshes/holder/cut_rod.obj" scale="0.001 0.001 0.001"/>
+                <mesh filename="package://arm_description/meshes/holder/cut_rod.obj" scale="0.001 0.001 0.001"/>
             </geometry>
         </collision>
         <inertial>

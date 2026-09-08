@@ -104,8 +104,8 @@ def get_joint_names(columns):
         if col.endswith("_desired_pos"):
             joint_name = col[: -len("_desired_pos")]
 
-            if joint_name.startswith("left_"):
-                joint_name = joint_name[len("left_"):]
+            if joint_name.startswith(""):
+                joint_name = joint_name[len(""):]
             if joint_name.endswith("_joint"):
                 joint_name = joint_name[: -len("_joint")]
 
@@ -125,13 +125,13 @@ def plot_position(df, joints):
         ax_err = axes[i][0]
         ax_cmp = axes[i][1]
  
-        ax_err.plot(df["time_sec"], df[f"left_{joint}_joint_error_pos"], color="crimson", linewidth=1)
+        ax_err.plot(df["time_sec"], df[f"{joint}_joint_error_pos"], color="crimson", linewidth=1)
         ax_err.axhline(0.0, color="black", linewidth=0.8, linestyle="--")
         ax_err.set_ylabel(f"{joint}\n")
         ax_err.grid(True, alpha=0.3)
  
-        ax_cmp.plot(df["time_sec"], df[f"left_{joint}_joint_desired_pos"], label="Desired", color="green", linewidth=1.5)
-        ax_cmp.plot(df["time_sec"], df[f"left_{joint}_joint_actual_pos"], label="Actual", color="black", linewidth=1, alpha=0.7)
+        ax_cmp.plot(df["time_sec"], df[f"{joint}_joint_desired_pos"], label="Desired", color="green", linewidth=1.5)
+        ax_cmp.plot(df["time_sec"], df[f"{joint}_joint_actual_pos"], label="Actual", color="black", linewidth=1, alpha=0.7)
         ax_cmp.grid(True, alpha=0.3)
  
         if i == 0:
@@ -148,7 +148,7 @@ def plot_position(df, joints):
 def main():
 
     bag_path = sys.argv[1]
-    topic_target = '/left_arm_controller/controller_state'
+    topic_target = '/arm_controller/controller_state'
 
     print(f"Estrazione dati controller da: {bag_path} sul topic: {topic_target}...")
     df = extract_controller_state(bag_path, topic_target)

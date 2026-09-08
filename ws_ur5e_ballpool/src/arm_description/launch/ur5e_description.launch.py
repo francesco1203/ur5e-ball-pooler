@@ -75,14 +75,14 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_package",
-            default_value="left_arm_description",
+            default_value="arm_description",
             description="Description package with robot URDF/XACRO files.",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_file",
-            default_value="left_arm.urdf.xacro",
+            default_value="arm.urdf.xacro",
             description="URDF/XACRO description file with the robot arms.",
         )
     )
