@@ -12,7 +12,7 @@ execute_shot="true"                            #false se vuoi solo fare visualiz
 use_real_game_engine="true"                   #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging brutal vs only essential
-brutal_logging="true"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
+brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
 brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
