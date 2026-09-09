@@ -2,7 +2,7 @@ import numpy as np
 from rtde_receive import RTDEReceiveInterface
 from scipy.spatial.transform import Rotation as R
 
-from oak_stereo_camera import Camera
+# from oak_stereo_camera import Camera
 import cv2
 import os
 from datetime import datetime
@@ -68,7 +68,7 @@ class URCameraCalibration:
 
 if __name__ == "__main__":
 
-    ROBOT_IP = "192.168.1.115"
+    ROBOT_IP = "192.168.1.110"
     CAM_TYPE = "left"
 
     date = datetime.now().strftime("%d_%m")
