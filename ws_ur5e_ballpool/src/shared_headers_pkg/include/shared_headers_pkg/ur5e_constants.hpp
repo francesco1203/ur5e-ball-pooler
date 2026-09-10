@@ -25,12 +25,11 @@ constexpr double MAX_TRANS_DEC = -2.50;    // deceleration limit for EE translat
 
 //end effector
 const std::string EE_LINK = "rod_tip_virtual_link";         // link del tip dell'asta, end-effector (definito in URDF)
-// const std::string EE_LINK_PHYSICAL = "cut_rod_link";        // link intera asta, per collision detection
+// const std::string EE_LINK_PHYSICAL = "cut_rod_link";      // link intera asta, per collision detection
 
 
 //moveit setup
 const std::string PLANNING_GROUP    = "arm";
-
-const std::string HOME_CONFIG                = "all_zero_home";       // configurazione di home (definita in SRDF)
-const std::string READY_TO_APPROACH_CONFIG   = "ready_to_approach";   // configurazione pre-approach (definita in SRDF)
+const std::string AWAY_FROM_TABLE_CONFIG     = "discover_game_field_to_camera";   // configurazione per scostarsi dal tavolo (definita in SRDF)
+const std::string READY_TO_APPROACH_CONFIG   = "ready_to_approach";               // configurazione pre-approach (definita in SRDF)
 

@@ -1,0 +1,13 @@
+CON 17 FOTO (16 SCARTATE)
+
+Extrinsics ==================================================
+
+Camera Frame: [X,Y,Z,QX,QY,QZ,QW]
+position:  [-0.28898614560797165, -0.4734488805016898, 0.04818685648725712]
+quaternions:  [-0.26859265 -0.27683024 -0.65555304  0.64920969]
+
+Camera Frame orientation: [Roll Pitch Yaw] deg
+[  1.15872578 -45.36485355 -91.04140594]
+
+Camera Frame orientation: [Roll Pitch Yaw] rad
+[ 0.02022358 -0.79176606 -1.58897229]

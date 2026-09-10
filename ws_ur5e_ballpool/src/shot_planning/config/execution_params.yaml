@@ -4,5 +4,3 @@ task_node:
     use_sim_time: true
     control_shot_start_execution_by_user_input: true
     control_shot_steps_execution_by_user_input: false
-    using_mujoco_simulation: false
-    mujoco_sync_pause_time_milliseconds: 800

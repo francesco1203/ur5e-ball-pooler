@@ -165,7 +165,7 @@ if __name__ == "__main__":
     # Arguments
     #######################################
     ap = argparse.ArgumentParser()
-    ap.add_argument("--image_folder", default="calib_data/data_09_09", type=str)
+    ap.add_argument("--image_folder", default="./ws_ur5e_ballpool/src/camera_perception/camera_calibration/calib_data/data_09_09", type=str)
     ap.add_argument("--image_extension", default="jpg", type=str)
     ap.add_argument("--chessboard_size", default="7x6", type=str)
     ap.add_argument("--chessboard_square_size", default=0.015, type=float)
@@ -188,6 +188,8 @@ if __name__ == "__main__":
 
     img_files = sorted(glob.glob(os.path.join(args["image_folder"], "*.jpg")))
 
+    #some images are not valid, so we skip them
+    #SKIP = []
     SKIP = [0,1,10,11,19,2,20,21,22,23,24,25,29,32,6,7]
 
     data_dict = {}

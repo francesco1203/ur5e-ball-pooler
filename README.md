@@ -65,17 +65,15 @@ These following steps aren't automated yet. (TODO)
 
 If you want to use MuJoCo, you should:
 - modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/arm_ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the MuJoCo plugin
-- modify by hand the config file ./ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml in the task_node parameters, section 'execution parameter' and set on 'true' the 'using_mujoco_simulation'parameter
 
 Otherwise, if you want to use RViz, you should:
 - modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/arm_ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the FakeHardwer plugin
-- modify by hand the config file ./ws_ur5e_ballpool/src/shot_planning/config/task_params.yaml in the task_node parameters, section 'execution parameter' and set on 'false' the 'using_mujoco_simulation'parameter
 
 Forgetting these two pre-steps, the correct execution isn't guaranteed
 
 
 ### Esame / Exam
 
-(IT) : progetto per l'esame di ROBOTICA - facoltà magistrale di Ingegneria Informatica, ramo Automazione
+(IT) : progetto per l'esame di ROBOTICA - facoltà magistrale di Ingegneria Informatica, ramo Automazione e Robotica
 
-(EN) : project for exam ROBOTICS - Master's degree in Computer Engineering, Automation branch
+(EN) : project for exam ROBOTICS - Master's degree in Computer Engineering, Automation and Robotics branch

@@ -4,14 +4,15 @@
 
 #simulazione
 open_rviz_when_using_mujoco="false"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
-billiard_position="cs"                         #s = sinistra, cs = centro-sinistra (TODO: c = centro, e = else da definire)
+billiard_position="s"                          #s = sinistra, cs = centro-sinistra
 build_scene_rviz="true"                        #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
 
 #esecuzione tiro
 execute_shot="true"                            #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro (utile in fase di debug e setup)
-use_real_game_engine="true"                   #true se vuoi usare il game engine reale, false se vuoi usare quello fake
+use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging brutal vs only essential
+logging_enable="false"                                         #true se vuoi fare logging
 brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
 brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
@@ -63,7 +64,6 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     echo "Avvio MuJoCo con MoveIt..."
     echo -e "ATTENZIONE:"
     echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
-    echo -e "-> Assicurati di aver impostato il parametro 'using_mujoco_simulation' su true nel file di configurazione task_params.yaml...\n"
     
     sleep 2
 
@@ -79,8 +79,6 @@ else
     echo "Avvio MoveIt con RViz..."
     echo -e "ATTENZIONE:"
     echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
-    echo -e "-> Assicurati di aver impostato il parametro 'using_mujoco_simulation' su false nel file di configurazione task_params.yaml...\n"
-    
     sleep 2
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
@@ -122,34 +120,56 @@ fi
 
 if [[ "$execute_shot" == "true" ]]; then
 
-    # attivo il cartesian pose publisher, che pubblica la posa del TCP del robot, utile per il logging e per il debug
-    echo "Avvio Cartesian Pose  Publisher..."
-    gnome-terminal --tab --title="Cartesian Pose Publisher" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
-
-    sleep 2
-
-
-    #se logging brutale, avvio solo il nodo cartesian, ma non il bag writer, perché farò un ros2 bag record manuale che registri tutti i topic in un altro terminale
-    if [[ "$brutal_logging" == "true" ]]; then
-    
-        echo "Avvio ros2 bag record manuale..."
-        rm -rf "data/bagdata/${brutal_logging_folder}"
-        gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 bag record -o data/bagdata/${brutal_logging_folder} -a; exec bash"
-
+    # gestione del logging
+    if [["$logging_enabled" == "true" ]]; then
+        echo "Avvio Logging Nodes..."
+        gnome-terminal --tab --title="Logging nodes" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes logging_nodes.launch.py; exec bash"
         sleep 2
+
+        #se logging brutale, non avvio il bag writer, perché farò un ros2 bag record manuale che registri tutti i topic in un altro terminale
+        if [[ "$brutal_logging" == "true" ]]; then
+        
+            echo "Avvio ros2 bag record manuale..."
+            rm -rf "data/bagdata/${brutal_logging_folder}"  #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+            gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 bag record -o data/bagdata/${brutal_logging_folder} -a; exec bash"
+
+            sleep 2
+
+        else
+            echo "Avvio Bag Writer essenziale su richiesta..."
+        
+            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
+            sleep 2
+        fi
+    fi
+    
+
+    # nodo che effettua il tiro (distinguo i casi con MuJoCo e senza, con logging e senza logging)
+    if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+
+        if [["$logging_enabled" == "true" ]]; then      
+            # MuJoCo + logging
+            echo "Avvio Shot Planning con setup UseMuJoCo+Logging..."      
+            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/logging_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/using_mujoco.yaml; exec bash"
+        else
+            # MuJoCo senza logging
+            echo "Avvio Shot Planning con setup UseMuJoCo..."
+            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/using_mujoco.yaml; exec bash"
+        fi
 
     else
-        echo "Avvio Bag Writer essenziale su richiesta..."
-       
-        gnome-terminal --tab --title="Logging nodes" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
-        sleep 2
+
+        if [["$logging_enabled" == "true" ]]; then  
+            # senza MuJoCo + logging
+            echo "Avvio Shot Planning con setup Logging..."
+            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/logging_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
+        else
+            # senza MuJoCo senza logging
+            echo "Avvio Shot Planning senza setup Logging..."
+            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
+        fi
+        
     fi
-
-    
-
-    # nodo che effettua il tiro vero e proprio
-    echo "Avvio Shot Planning..."
-    gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/logging_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
     sleep 5
 
 

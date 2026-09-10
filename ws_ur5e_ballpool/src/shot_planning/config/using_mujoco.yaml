@@ -1,0 +1,5 @@
+# src/shot_planning/config/using_mujoco.yaml
+task_node:
+  ros__parameters:
+    using_mujoco_simulation: true
+    mujoco_sync_pause_time_milliseconds: 800

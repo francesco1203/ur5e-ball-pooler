@@ -22,6 +22,7 @@ task_node:
     controller_logging_enabled: true
 
     #phase logging for only essential
+    phase_0_logging_enabled: false    #fase0 -> scostamento dal tavolo per liberare il campo
     phase_1_logging_enabled: false    #fase1 -> andare in posa pre-approach
     phase_2_logging_enabled: false    #fase2 -> approach alla pallina
     phase_3_logging_enabled: false    #fase3 -> allontanamento all'indietro per prendere velocità

@@ -1206,16 +1206,19 @@ int main(int argc, char* argv[])
     /*CONTROL EXECUTION PARAMETERS*/
     node->declare_parameter<bool>("control_shot_start_execution_by_user_input", true);
     node->declare_parameter<bool>("control_shot_steps_execution_by_user_input", false);
-    node->declare_parameter<bool>("using_mujoco_simulation", false);
-    node->declare_parameter<int>("mujoco_sync_pause_time_milliseconds", 800);
-
+   
     bool control_shot_start_execution_by_user_input_ = node->get_parameter("control_shot_start_execution_by_user_input").as_bool();
     bool control_shot_steps_execution_by_user_input_ = node->get_parameter("control_shot_steps_execution_by_user_input").as_bool();
-    bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
-    int mujoco_sync_pause_time_milliseconds_ = node->get_parameter("mujoco_sync_pause_time_milliseconds").as_int();
     //------------------------------------------------------
 
 
+    //------------------------------------------------------
+    /*USING MUJOCO*/
+    node->declare_parameter<bool>("using_mujoco_simulation", false);
+    node->declare_parameter<int>("mujoco_sync_pause_time_milliseconds", 800);
+
+    bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
+    int mujoco_sync_pause_time_milliseconds_ = node->get_parameter("mujoco_sync_pause_time_milliseconds").as_int();
     //------------------------------------------------------
     /*MONITORING PARAMETERS debug + logging on file*/
 
@@ -1234,12 +1237,14 @@ int main(int argc, char* argv[])
     bool torque_logging_enabled = node->get_parameter("torque_logging_enabled").as_bool() && using_mujoco_simulation_; //solo se sto usando mujoco, altrimenti non funziona
     bool controller_logging_enabled = node->get_parameter("controller_logging_enabled").as_bool();
 
+    node->declare_parameter<bool>("phase_0_logging_enabled", false);    // posizionamento away_from_table
     node->declare_parameter<bool>("phase_1_logging_enabled", false);    // andare in posa pre-approach
     node->declare_parameter<bool>("phase_2_logging_enabled", false);    // approach alla pallina
     node->declare_parameter<bool>("phase_3_logging_enabled", false);    // allontanamento all'indietro per prendere velocità
     node->declare_parameter<bool>("phase_4_logging_enabled", false);    // esecuzione tiro
     node->declare_parameter<bool>("phase_5_logging_enabled", false);    // alzata per liberare il campo
 
+    bool phase_0_logging_enabled = node->get_parameter("phase_0_logging_enabled").as_bool();
     bool phase_1_logging_enabled = node->get_parameter("phase_1_logging_enabled").as_bool();
     bool phase_2_logging_enabled = node->get_parameter("phase_2_logging_enabled").as_bool();
     bool phase_3_logging_enabled = node->get_parameter("phase_3_logging_enabled").as_bool();
@@ -1255,9 +1260,67 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
 
 
+
+    
+    //------------------------------------------------------
+    /* SEQUENZA DI TASK */
+
+    
+    //inizio
+    if(control_shot_start_execution_by_user_input_){
+        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro..");
+    }
+    else{
+        RCLCPP_INFO(node->get_logger(), "\n\nInizio sequenza di tiro..");
+    }
+
+
+    // FASE 0 - mi scosto dal campo, per far fare l'identificazione della scena alla camera senza ostacoli
+    {
+        if(control_shot_steps_execution_by_user_input_){
+            node->print_and_wait("\n\nPosizionamento in 'away_from_table'..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'away_from_table'..");
+        }
+
+        //logging
+        if(phase_0_logging_enabled) node->startLogging("away_from_table", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        
+
+        node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
+
+        if(using_mujoco_simulation_){
+            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
+
+            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        }
+        
+        if(phase_0_logging_enabled) node->stopLogging();
+       
+    }
+
+
+
     //-------------------------------------------
+    /* IDENTIFICAZIONE SCENA DA TELECAMERA */
+
+    //qui la camera deve fare l'identificazione della scena
+    // o aspetto un po', oppure attendo conferma da qualche altro nodo..
+    
+    // ... code to write
+    //-------------------------------------------
+
+
+
+    ///-------------------------------------------
+    /* COSTRUZIONE SCENA DI PIANIFICAZIONE SU MOVEIT/RVIZ*/
+
     node->build_scene();  // costruisco la scena di pianificazione (tavolo, pallina, ecc..)
     //-------------------------------------------
+
+
 
 
     //------------------------------------------------------
@@ -1287,20 +1350,6 @@ int main(int argc, char* argv[])
 
     //Risultato: d'ora in avanti Q_shot è l'orientamento per tutte le sequenze di tiro, dall'approach all'esecuzione del tiro stesso
     //------------------------------------------------------
-
-
-    
-    //------------------------------------------------------
-    /* SEQUENZA DI TASK */
-
-    
-    //inizio
-    if(control_shot_start_execution_by_user_input_){
-        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro..");
-    }
-    else{
-        RCLCPP_INFO(node->get_logger(), "\n\nInizio sequenza di tiro..");
-    }
 
 
 

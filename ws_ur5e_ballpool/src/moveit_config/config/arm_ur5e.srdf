@@ -18,15 +18,41 @@
         <joint name="holder_cut_rod_joint"/>
         <joint name="cut_rod_tip_joint"/>
     </group>
+
     <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
+
+    <!-- pre approach - GOMITO ALTO VERSO SINISTRA -->
     <group_state name="ready_to_approach" group="arm">
+        <joint name="elbow_joint" value="-1.92"/>               <!-- -110.0° -->
+        <joint name="shoulder_lift_joint" value="0.375"/>       <!-- 21.5° -->
+        <joint name="shoulder_pan_joint" value="0.08"/>         <!-- 4.6° -->
+        <joint name="wrist_1_joint" value="-0.09"/>             <!-- -5.2° -->
+        <joint name="wrist_2_joint" value="-3.9"/>              <!-- -223.4° -->
+        <joint name="wrist_3_joint" value="3.14"/>              <!-- 180.0° -->
+    </group_state>
+
+    <!-- scoperto il campo - GOMITO ALTO -->
+    <group_state name="discover_game_field_to_camera" group="arm">  
+        <joint name="elbow_joint" value="-1.80"/>               <!-- -104° -->
+        <joint name="shoulder_lift_joint" value="0.78"/>        <!-- 44° -->
+        <joint name="shoulder_pan_joint" value="-0.332"/>       <!-- -19.0° -->
+        <joint name="wrist_1_joint" value="-0.17"/>             <!-- -10.0° -->
+        <joint name="wrist_2_joint" value="-3.96"/>             <!-- -227.0° -->
+        <joint name="wrist_3_joint" value="2.0"/>               <!-- 114.6° -->
+    </group_state>
+
+
+
+    <!-- GOMITO BASSO VERSO IL CENTRO (SCARTATO) -->
+    <!-- <group_state name="ready_to_approach" group="arm">
         <joint name="elbow_joint" value="2.23"/>
         <joint name="shoulder_lift_joint" value="-1.22"/>
         <joint name="shoulder_pan_joint" value="-0.08"/>
         <joint name="wrist_1_joint" value="-2.4735"/>
         <joint name="wrist_2_joint" value="-3.9"/>
         <joint name="wrist_3_joint" value="0.1"/>
-    </group_state>
+    </group_state> -->
+
     <!--END EFFECTOR: Purpose: Represent information about an end effector.-->
     <end_effector name="holder_end_effector" parent_link="tool0" group="arm" parent_group="holder_end_effector"/>
     <!--DISABLE COLLISIONS: By default it is assumed that any link of the robot could potentially come into collision with any other link in the robot. This tag disables collision checking between a specified pair of links. -->
