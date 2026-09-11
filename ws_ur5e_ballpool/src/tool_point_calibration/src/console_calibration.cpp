@@ -15,8 +15,8 @@ public:
       tf_listener_(tf_buffer_)
   {
     // Declare parameters
-    this->declare_parameter<std::string>("base_frame", "ur5e_base_link");
-    this->declare_parameter<std::string>("tool0_frame", "ur5e_tool0");
+    this->declare_parameter<std::string>("base_frame", "base_link");
+    this->declare_parameter<std::string>("tool0_frame", "tool0");
     this->declare_parameter<int>("num_samples", 4);
 
     // Get parameters
