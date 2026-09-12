@@ -25,6 +25,7 @@ Work in progress..
 - MoveIt (Ros tool for robot movemental control)
 - MuJoCo (Physical simulator)
 - Python (data analysis)
+- Docker (UrSim simulation)
 - IntelRealSense camera
 
 ---
@@ -51,7 +52,7 @@ Execute the following bash scripts to deploy the project (NOTE: give execution p
 - scripts/start_simulated_robot.sh
 
 
-3. Setup the configs in the script and run the real execution on Ur5e   (TODO)
+3. Setup the configs in the script and run the real execution on Ur5e or UrSim simulator
 - scripts/start_real_robot.sh
 
 
@@ -60,16 +61,15 @@ Execute the following bash scripts to deploy the project (NOTE: give execution p
 
 ---
 
-### Note for the simulation: using MuJoCo Vs using RViz
+### Note for the simulation: using MuJoCo Vs using MockHardware vs using UrSim
 These following steps aren't automated yet. (TODO)
 
-If you want to use MuJoCo, you should:
-- modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the MuJoCo plugin
+You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the Hardware of your interest:
+- MuJoCo plugin
+- FakeHardwer plugin
+- ur_robot_driver plugin with the right robot ip
 
-Otherwise, if you want to use RViz, you should:
-- modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the FakeHardwer plugin
-
-Forgetting these two pre-steps, the correct execution isn't guaranteed
+By forgetting these pre-steps, the correct execution isn't guaranteed
 
 
 ### Esame / Exam
