@@ -10,7 +10,7 @@ from moveit_configs_utils import MoveItConfigsBuilder
 
 def generate_launch_description():
       moveit_config = MoveItConfigsBuilder(
-          "left_arm_ur5e", package_name="moveit_config"
+          "ur5e", package_name="moveit_config"
       ).to_moveit_configs()
 
       moveit_config_launch_dir = os.path.join(

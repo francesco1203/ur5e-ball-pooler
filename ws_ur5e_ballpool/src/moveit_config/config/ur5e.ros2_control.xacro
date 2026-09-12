@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-    <xacro:macro name="arm_ur5e_ros2_control" params="name initial_positions_file">
+    <xacro:macro name="ur5e_ros2_control" params="name initial_positions_file">
         <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)['initial_positions']}"/>
 
         <ros2_control name="${name}" type="system">
@@ -13,52 +13,67 @@
 
 
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
-                <plugin>mock_components/GenericSystem</plugin>
+                <!-- <plugin>mock_components/GenericSystem</plugin> -->
 
 
-                <!-- PLUGIN PER HARDWARE REALE -->
-                <!-- ... TODO -->
-
-                
+                <!-- PLUGIN PER HARDWARE REALE / UrSim -->
+                <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>
+                <param name="robot_ip">192.168.56.101</param>
+                <param name="script_filename">$(find ur_robot_driver)/resources/ros_cocontrol.urscript</param>
+                <param name="headless_mode">true</param>
+                <param name="reverse_port">50001</param>
+                <param name="script_sender_port">50002</param>
+                            
             </hardware>
             
             <joint name="shoulder_pan_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['shoulder_pan_joint']}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
+
             <joint name="shoulder_lift_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['shoulder_lift_joint']}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
+
             <joint name="elbow_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['elbow_joint']}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
+
             <joint name="wrist_1_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_1_joint']}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
+
             <joint name="wrist_2_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_2_joint']}</param>
                 </state_interface>
                 <state_interface name="velocity"/>
             </joint>
+
             <joint name="wrist_3_joint">
                 <command_interface name="position"/>
+                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_3_joint']}</param>
                 </state_interface>

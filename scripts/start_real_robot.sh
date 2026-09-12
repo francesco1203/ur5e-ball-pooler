@@ -1,6 +1,9 @@
 #!/bin/bash
 
+#per comandare l'apertura di vari pacchetti da qui
+source ws_ur5e_ballpool/install/setup.bash
 
+# ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
 #avvio camera IntelRealsense
@@ -18,14 +21,17 @@ logging_enable="true"                                         #true se vuoi fare
 logging_type_brutal_on="false"                                #true se vuoi fare logging brutale (di tutti i topic), false se vuoi fare logging solo dei dati essenziali
 brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+# ------------------------------------------------
 
 
+# ------------------------------------------------
 # Verifica preliminare della cartella di lavoro
 if [ ! -d "ws_ur5e_ballpool/install" ]; then
     echo "Errore: Cartella 'install' non trovata!"
     echo "Assicurati di lanciare questo script dalla root del workspace ROS 2."
     exit 1
 fi
+# ------------------------------------------------
 
 
 echo "========================================"
@@ -34,6 +40,8 @@ echo "========================================"
 read -p "Avviare simulatore URSim? (s/n): " scelta_URSim
 
 
+
+# ------------------------------------------------
 # avvio camera - reale: lancia i driver per la camera reale o il nodo per la fake)
 if [[ "$use_real_camera" == "true" ]]; then
     echo "Avvio camera reale Intel Realsense..."
@@ -61,9 +69,10 @@ else
     gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py yaml_path:=ws_ur5e_ballpool/src/camera_perception/fake_camera/config/${config_file}; exec bash"
     sleep 2
 fi
+# ------------------------------------------------
 
 
-
+# ------------------------------------------------
 # Gestione della scelta simulatore o robot vero con if-else
 if [[ "$scelta_URSim" =~ ^[sS][iI]?$ ]]; then
 
@@ -86,53 +95,66 @@ else
     sleep 2
 
 fi
+# ------------------------------------------------
 
 
 
+# ------------------------------------------------
 # Avvio Driver
 echo -e "\n================================================================="
 echo -e "ATTENZIONE: ATTESA DI SINCRONIZZAZIONE CON L'UTENTE"
 echo -e "================================================================="
-echo -e "Verifica che il robot (simulato o reale) sia pronto per l'operatività.\nDevi averlo acceso e aver selezionato senza problemi external control nel pannello di controllo.\n"
+echo -e "Verifica che il robot (simulato o reale) sia pronto per l'operatività.\nDevi averlo acceso cliccando con il mouse sul pulsante "Power Off->Normal"\n"
 echo -e "Premi un tasto per avviare i driver..."
 
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
 
 echo -e "\nProcedo con l'avvio del driver UR5e..."
-gnome-terminal --tab --title="Driver UR5e" -- bash -c "ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur5e robot_ip:=192.168.56.101 launch_rviz:=false; exec bash"
+gnome-terminal --tab --title="Driver UR5e" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur5e   robot_ip:=192.168.56.101  reverse_ip:=192.168.56.1   launch_rviz:=true  description_file:=$(ros2 pkg prefix arm_description)/share/arm_description/urdf/arm_driver_wrapper.urdf.xacro; exec bash"
+# ------------------------------------------------
 
 
+
+
+# ------------------------------------------------
 # Avvio MoveIt
 echo -e "\n================================================================="
 echo -e "ATTENZIONE: ATTESA DI SINCRONIZZAZIONE CON L'UTENTE"
 echo -e "================================================================="
-echo -e "Verifica che il driver sia partito correttamente.\nDevi aver selezionato senza problemi external control nel pannello di controllo dell'UR5e.\n"
+echo -e "Verifica che il driver sia partito correttamente.\nDevi aver selezionato "External control" dal teach pendant e aver premuto Play.\nDal terminale del driver dovresti vedere la scritta 'Robot ready to receive commands'.\n"
 echo -e "Premi un tasto per avviare Moveit..."
 
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
 
+
 echo "Avvio MoveIt con RViz..."
 echo -e "ATTENZIONE:"
-echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file left_arm_ur5e.ros2_control.xacro sezione hardware..."
-
+echo -e "-> Assicurati di aver decommentato il plugin ur_robot_driver nel file ur5e.ros2_control.xacro sezione hardware..."
 sleep 2
 
-gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
+gnome-terminal --tab --title="MoveGroup" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config move_group.launch.py; exec bash"
 sleep 10
 
+# gnome-terminal --tab --title="Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config moveit_rviz.launch.py; exec bash"
+# sleep 5
+# ------------------------------------------------
 
-# building scena RViz
+
+# ------------------------------------------------
+# builder della scena
 echo "Avvio Scene Builder..."
 gnome-terminal --tab --title="Scene Builder" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run scene_description scene_builder; exec bash"
 
 sleep 2
+# ------------------------------------------------
 
 
 
 if [[ "$execute_shot" == "true" ]]; then
 
+    # ------------------------------------------------
     # gestione del logging
     if [["$logging_enabled" == "true" ]]; then
         echo "Avvio Logging Nodes..."
@@ -155,8 +177,10 @@ if [[ "$execute_shot" == "true" ]]; then
             sleep 2
         fi
     fi
+    # ------------------------------------------------
 
 
+    # ------------------------------------------------
     # nodo che effettua il tiro vero e proprio
     if [["$logging_enabled" == "true" ]]; then      
             # Con logging
@@ -167,8 +191,10 @@ if [[ "$execute_shot" == "true" ]]; then
             echo "Avvio Shot Planning senza logging..."
             gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
         fi
+    # ------------------------------------------------
 
 
+    # ------------------------------------------------
     # game engine: se la variabile è vera, avvio il game engine reale, altrimenti quello fake
     if [[ "$use_real_game_engine" == "true" ]]; then
         
@@ -179,7 +205,7 @@ if [[ "$execute_shot" == "true" ]]; then
         gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/game_engine_params.yaml; exec bash"
         
     fi
-
+    # ------------------------------------------------
 fi
 
 

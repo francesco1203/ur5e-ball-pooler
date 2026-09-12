@@ -63,7 +63,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     #avvio del simulatore vero e proprio con MuJoCo e MoveIt
     echo "Avvio MuJoCo con MoveIt..."
     echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
+    echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file ur5e.ros2_control.xacro sezione hardware...\n"
     
     sleep 2
 
@@ -78,7 +78,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 else
     echo "Avvio MoveIt con RViz..."
     echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file arm_ur5e.ros2_control.xacro sezione hardware...\n"
+    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file ur5e.ros2_control.xacro sezione hardware...\n"
     sleep 2
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"

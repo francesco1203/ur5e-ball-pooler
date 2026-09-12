@@ -12,7 +12,7 @@ def generate_launch_description():
     package_name = 'logging_nodes'
 
     # Carica in automatico tutte le descrizioni (URDF, SRDF, kinematics) dal pacchetto moveit
-    moveit_config = MoveItConfigsBuilder("arm_ur5e", package_name="moveit_config").to_moveit_configs()
+    moveit_config = MoveItConfigsBuilder("ur5e", package_name="moveit_config").to_moveit_configs()
 
     cartesian_publisher_node = Node(
         package=package_name,

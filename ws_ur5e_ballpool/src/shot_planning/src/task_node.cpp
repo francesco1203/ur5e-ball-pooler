@@ -2,8 +2,6 @@
 //  task_node.cpp
 //  Nodo ROS2 che pianifica e ESEGUE movimenti del braccio usando MoveIt! MoveGroupInterface.
 //
-//  Eseguire con: ros2 run shot_planning task_node --ros-args --params-file $(ros2 pkg prefix shot_planning)/share/shot_planning/config/task_params.yaml
-//
 //  Struttura e metodi più importanti:
 //    - TaskNode (classe nodo ROS2)
 //        ├── moveToJointConfig    → pianifica ed esegue verso una configurazione di giunti specifica

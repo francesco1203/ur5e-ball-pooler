@@ -3,7 +3,7 @@
     This is a format for representing semantic information about the robot structure.
     A URDF file must exist for this robot as well, where the joints and the links that are referenced are defined
 -->
-<robot name="arm_ur5e">
+<robot name="ur5e">
     <!--GROUPS: Representation of a set of joints and links. This can be useful for specifying DOF to plan for, defining arms, end effectors, etc-->
     <!--LINKS: When a link is specified, the parent joint of that link (if it exists) is automatically included-->
     <!--JOINTS: When a joint is specified, the child link of that joint (which will always exist) is automatically included-->
@@ -13,10 +13,10 @@
         <chain base_link="base_link_inertia" tip_link="tool0"/>
     </group>
     <group name="holder_end_effector">
-        <joint name="flange-tool0"/>
-        <joint name="tool0_holder_joint"/>
-        <joint name="holder_cut_rod_joint"/>
-        <joint name="cut_rod_tip_joint"/>
+        <link name="tool0"/>
+        <link name="holder_link"/>
+        <link name="cut_rod_link"/>
+        <link name="rod_tip_virtual_link"/>
     </group>
 
     <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->

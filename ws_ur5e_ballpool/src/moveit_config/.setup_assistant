@@ -3,7 +3,7 @@ moveit_setup_assistant_config:
     package: arm_description
     relative_path: urdf/arm.urdf.xacro
   srdf:
-    relative_path: config/arm_ur5e.srdf
+    relative_path: config/ur5e.srdf
   package_settings:
     author_name: Schettini
     author_email: francesco.schettini12@gmail.com
