@@ -29,13 +29,29 @@ def generate_launch_description():
     rsp = include("rsp.launch.py")
     move_group = include("move_group.launch.py")
     moveit_rviz = include("moveit_rviz.launch.py")
-    spawn_controllers = include("spawn_controllers.launch.py")
+    # spawn_controllers = include("spawn_controllers.launch.py")
 
     controllers_file = os.path.join(
             get_package_share_directory("moveit_config"),
             "config",
             "ros2_controllers.yaml" # <-- verifica il nome esatto del tuo file nella cartella config
         )
+
+    # Nodo per il broadcaster dello stato (obbligatorio)
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        output="screen",
+    )
+
+    # Nodo per il controller per MuJoCo
+    arm_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["scaled_joint_trajectory_controller", "--controller-manager", "/controller_manager"],
+        output="screen",
+    )
 
     # Al posto del ros2_control_node standard (controller_manager),
     # usiamo quello fornito da mujoco_ros2_control, che fa girare
@@ -64,6 +80,8 @@ def generate_launch_description():
             mujoco_ros2_control_node,
             move_group,
             moveit_rviz,
-            spawn_controllers,
+            joint_state_broadcaster_spawner,
+            arm_controller_spawner,
+            # spawn_controllers,
         ]
     )

@@ -1,16 +1,16 @@
-# This config file is used by ros2_control
+# This config file is used ONLY by MuJoCo
 controller_manager:
   ros__parameters:
     update_rate: 100  # Hz
 
-    arm_controller:
+    # Lo chiamiamo come quello della UR, ma usiamo il tipo standard!
+    scaled_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
-
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-arm_controller:
+scaled_joint_trajectory_controller:
   ros__parameters:
     joints:
       - shoulder_pan_joint

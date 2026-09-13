@@ -29,7 +29,7 @@ def generate_launch_description():
     rsp = include("rsp.launch.py")
     move_group = include("move_group.launch.py")
     # moveit_rviz = include("moveit_rviz.launch.py")
-    spawn_controllers = include("spawn_controllers.launch.py")
+    # spawn_controllers = include("spawn_controllers.launch.py")
 
     controllers_file = os.path.join(
             get_package_share_directory("moveit_config"),
@@ -51,11 +51,27 @@ def generate_launch_description():
         ],
     )
 
+    # Nodo per il broadcaster dello stato (obbligatorio)
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        output="screen",
+    )
+
+    # Nodo per il controller per MuJoCo
+    arm_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["scaled_joint_trajectory_controller", "--controller-manager", "/controller_manager"],
+        output="screen",
+    )
+
     return LaunchDescription(
         [
             # Applica use_sim_time=True a TUTTI i nodi lanciati qui sotto,
             # inclusi quelli avviati tramite gli IncludeLaunchDescription
-            # (move_group, rsp, rviz, spawner). Necessario perche' MuJoCo
+            # (move_group, rsp, rviz). Necessario perche' MuJoCo
             # pubblica un clock di simulazione e i nodi devono sincronizzarsi
             # su quello invece che sull'orologio di sistema.
             SetParameter(name="use_sim_time", value=True),
@@ -64,6 +80,8 @@ def generate_launch_description():
             mujoco_ros2_control_node,
             move_group,
             # moveit_rviz,
-            spawn_controllers,
+            joint_state_broadcaster_spawner,
+            arm_controller_spawner,
+            # spawn_controllers,
         ]
     )

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
@@ -28,8 +29,7 @@ if [ ! -d "ws_ur5e_ballpool/install" ]; then
 fi
 # ------------------------------------------------
 
-# ------------------------------------------------
-# gestione della scelta del simuloatore, tra MuJoCo e FakeHardware (MoveIt+Rviz)
+
 echo "========================================"
 echo "      CONFIGURAZIONE AVVIO ROS 2        "
 echo "========================================"
@@ -38,23 +38,21 @@ read -p "Vuoi usare MuJoCo? (s/n): " scelta_mujoco
 
 if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
+    #------------------------------------------------
+    # gestione del setup di MuJoCo
+
+    # aggiornamento del plugin di MuJoCo nel file ur5e.ros2_control.xacro
+    echo "Aggiornamento del plugin MuJoCo nel file ur5e.ros2_control.xacro..."
+    python3 ws_ur5e_ballpool/src/moveit_config/config/ros2_control_hardware_auto_switch.py mujoco
+
+
     # devo generare la scena completa con le palline per MuJoCo con lo script autocreate_complete_scene.py
+    echo "Aggiornamento del file della scena MuJoCo con posizione delle palline..."
     python3 ws_ur5e_ballpool/src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py --yaml_path ws_ur5e_ballpool/src/camera_perception/fake_camera/config/fake_camera_config.yaml
             
 
-    # Controlliamo se lo script python è andato a buon fine ($? == 0)
-    if [ $? -ne 0 ]; then
-        echo "ERRORE: Generazione della scena MuJoCo fallita! Interruzione."
-        exit 1
-    fi
-    echo -e "Scena MuJoCo generata con successo!\n"
-
-
     #avvio del simulatore vero e proprio con MuJoCo e MoveIt
     echo "Avvio MuJoCo con MoveIt..."
-    echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin MuJoCo nel file ur5e.ros2_control.xacro sezione hardware...\n"
-    
     sleep 2
 
     if [[ "$open_rviz_when_using_mujoco" == "true" ]]; then
@@ -65,16 +63,23 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
         sleep 5
     fi
 
+    #------------------------------------------------
 else
+
+    #------------------------------------------------
+    # gestione del setup di Fake Hardware
+
+    # aggiornamento del plugin di MockHardware nel file ur5e.ros2_control.xacro
+    echo "Aggiornamento del plugin MockHardware nel file ur5e.ros2_control.xacro..."
+    python3 ws_ur5e_ballpool/src/moveit_config/config/ros2_control_hardware_auto_switch.py mock
+
     echo "Avvio MoveIt con RViz..."
-    echo -e "ATTENZIONE:"
-    echo -e "-> Assicurati di aver decommentato il plugin FakeHardware nel file ur5e.ros2_control.xacro sezione hardware...\n"
     sleep 2
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config demo.launch.py; exec bash"
     sleep 10
+    #------------------------------------------------
 fi
-# ------------------------------------------------
 
 
 # ------------------------------------------------

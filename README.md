@@ -59,19 +59,6 @@ Execute the following bash scripts to deploy the project (NOTE: give execution p
 4. Analyze the datas from bagfiles and csv
 - scripts/show_shot_parametrization.sh
 
----
-
-### Note for the simulation: using MuJoCo Vs using MockHardware vs using UrSim
-These following steps aren't automated yet. (TODO)
-
-You should modify by hand the config file ./ws_ur5e_ballpool/src/moveit_config/config/ur5e.ros2_control.xacro, hardware section, decommenting EXCLUSIVELY the Hardware of your interest:
-- MuJoCo plugin
-- FakeHardwer plugin
-- ur_robot_driver plugin with the right robot ip
-
-By forgetting these pre-steps, the correct execution isn't guaranteed
-
-
 ### Esame / Exam
 
 (IT) : progetto per l'esame di ROBOTICA - facoltà magistrale di Ingegneria Informatica, ramo Automazione e Robotica

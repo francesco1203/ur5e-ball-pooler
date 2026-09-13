@@ -5,16 +5,12 @@
 
         <ros2_control name="${name}" type="system">
             <hardware>
-                <!-- Qui si ha una lista di plugin: decommentare quello che si vuole usare, e commentare gli altri. -->
-
                 <!-- PLUGIN PER MUJOCO -->
                 <!-- <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
                 <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param> -->
 
-
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
                 <!-- <plugin>mock_components/GenericSystem</plugin> -->
-
 
                 <!-- PLUGIN PER HARDWARE REALE / UrSim -->
                 <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>
@@ -26,12 +22,10 @@
                 <param name="script_sender_port">50002</param>
                 <param name="script_command_port">50004</param>
                 <param name="trajectory_port">50003</param>
-                            
             </hardware>
             
             <joint name="shoulder_pan_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['shoulder_pan_joint']}</param>
                 </state_interface>
@@ -40,7 +34,6 @@
 
             <joint name="shoulder_lift_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['shoulder_lift_joint']}</param>
                 </state_interface>
@@ -49,7 +42,6 @@
 
             <joint name="elbow_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['elbow_joint']}</param>
                 </state_interface>
@@ -58,7 +50,6 @@
 
             <joint name="wrist_1_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_1_joint']}</param>
                 </state_interface>
@@ -67,7 +58,6 @@
 
             <joint name="wrist_2_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_2_joint']}</param>
                 </state_interface>
@@ -76,7 +66,6 @@
 
             <joint name="wrist_3_joint">
                 <command_interface name="position"/>
-                <command_interface name="velocity"/>
                 <state_interface name="position">
                   <param name="initial_value">${initial_positions['wrist_3_joint']}</param>
                 </state_interface>
