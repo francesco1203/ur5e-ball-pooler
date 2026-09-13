@@ -95,6 +95,7 @@
     </xacro:ur_robot>
 
 
+     <!-- NOTA: ANDRÀ TARATO REALISTIACAMENTE CON IL METODO DEL PIVOT!! -->
     <!-- 1. LINK: HOLDER (CAD) -->
     <link name="holder_link">
         <visual>

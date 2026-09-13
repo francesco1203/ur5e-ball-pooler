@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>fake_camera</name>
+  <name>real_camera</name>
   <version>0.0.0</version>
   <description>Naive camera: read balls position from a file and communicate to others</description>
   <maintainer email="francesco.schettini12@gmail.com">francesco</maintainer>
@@ -17,12 +17,12 @@
   <depend>shared_headers_pkg</depend>
 
   <depend>rclcpp</depend>
-  
   <depend>sensor_msgs</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
 
-  <depend>yaml-cpp</depend>
+  <depend>cv_bridge</depend>
+  <depend>OpenCV</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

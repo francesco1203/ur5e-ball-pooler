@@ -91,6 +91,7 @@ if [ "$install_realsense_camera" = true ]; then
     echo -e "\nInstallazione pacchetti Intel Realsense Camera..."
     sudo apt install -y ros-jazzy-realsense2-camera
     sudo apt install -y ros-jazzy-realsense2-description
+    sudo apt install ros-jazzy-cv-bridge ros-jazzy-vision-opencv libopencv-dev  #detection and image processing
 fi
 
 # 5.

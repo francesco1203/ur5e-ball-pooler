@@ -11,7 +11,7 @@ def generate_launch_description():
     default_config_path = os.path.join(
         get_package_share_directory('fake_camera'),
         'config',
-        'fake_camera_config_center_sx.yaml'
+        'fake_camera_config.yaml'
     )
 
 

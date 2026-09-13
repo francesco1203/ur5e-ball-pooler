@@ -186,7 +186,7 @@ if __name__ == "__main__":
     # Arguments
     #######################################
     ap = argparse.ArgumentParser()
-    ap.add_argument("--image_folder", default="./ws_ur5e_ballpool/src/camera_perception/camera_calibration/calib_data/data_09_09", type=str)
+    ap.add_argument("--image_folder", default="./ws_ur5e_ballpool/src/real_camera/camera_calibration/calib_data/data_09_09", type=str)
     ap.add_argument("--image_extension", default="jpg", type=str)
     ap.add_argument("--chessboard_size", default="7x6", type=str)
     ap.add_argument("--chessboard_square_size", default=0.015, type=float)

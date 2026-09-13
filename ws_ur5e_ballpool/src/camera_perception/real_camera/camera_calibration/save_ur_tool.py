@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     date = datetime.now().strftime("%d_%m")
 
-    output_path = f"./ws_ur5e_ballpool/src/camera_perception/camera_calibration/calib_data/data_{date}"
+    output_path = f"./ws_ur5e_ballpool/src/camera_perception/real_camera/camera_calibration/calib_data/data_{date}"
     os.makedirs(output_path, exist_ok=True)
     print("Saving images and poses to: ", output_path)
 
