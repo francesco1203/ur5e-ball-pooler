@@ -28,7 +28,17 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(ruckig REQUIRED)
 
 
-add_executable(task_node src/task_node.cpp)
+add_executable(task_node    #fatto di header, implementazione e main
+  src/main.cpp 
+  src/task_node.cpp
+)
+
+# Assicurati che CMake trovi la cartella "include" del tuo pacchetto
+target_include_directories(task_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 ament_target_dependencies(
   task_node
   "rclcpp"
@@ -78,6 +88,9 @@ install(DIRECTORY config
   DESTINATION share/${PROJECT_NAME})
 ################################################
 
+install(DIRECTORY include/
+  DESTINATION include
+)
 
 # ########## INSTALL the launch files ############
 # install(DIRECTORY launch
