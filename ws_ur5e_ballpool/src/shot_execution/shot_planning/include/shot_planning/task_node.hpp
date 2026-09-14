@@ -37,6 +37,7 @@
 
 // Servizi e Messaggi
 #include <std_srvs/srv/trigger.hpp>
+#include <std_srvs/srv/set_bool.hpp>
 #include "geometry_msgs/msg/pose_stamped.hpp" 
 #include "geometry_msgs/msg/pose.hpp" 
 #include "sensor_msgs/msg/joint_state.hpp"
@@ -71,6 +72,8 @@ public:
     using ShotParamsSubscription = rclcpp::Subscription<ShotParamsMsg>::SharedPtr;
     using TriggerSrv = std_srvs::srv::Trigger;
     using TriggerClient = rclcpp::Client<TriggerSrv>::SharedPtr;
+    using SetBoolSrv = std_srvs::srv::SetBool;
+    using SetBoolClient = rclcpp::Client<SetBoolSrv>::SharedPtr;
     using LogOnFileSrv = interfaces_pkg::srv::LogOnFile;
     using LogOnFileClient = rclcpp::Client<LogOnFileSrv>::SharedPtr;
     using TimerPtr              = rclcpp::TimerBase::SharedPtr;
@@ -100,10 +103,13 @@ public:
 
     bool build_scene();
     bool disable_white_ball_collision();
+    bool checkSceneIdentification(const std::string& reference_frame = WORLD_FRAME);
     
     bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled);
     bool stopLogging();
 
+    bool start_game_engine();
+    bool stop_game_engine();
     double getDirectionAngle() const;
     double getImpactShotVelocity() const;
     double getImpactAngle() const;
@@ -119,6 +125,7 @@ private:
     void paramsCallback(const ShotParamsMsg::SharedPtr msg);
     bool send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled);
     bool send_trigger_request(const TriggerClient& client, const std::string& service_name);
+    bool set_game_engine_state(bool state); 
 
     /* Variabili Privati (Copia qui tutte le tue variabili private) */
     MoveGroupInterfacePtr move_group_; 
@@ -129,6 +136,7 @@ private:
     TriggerClient build_scene_client_;
     TriggerClient remove_white_ball_client_;
     LogOnFileClient log_client_;
+    SetBoolClient toggle_game_engine_client_;
     rclcpp::CallbackGroup::SharedPtr logging_cb_group_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

@@ -22,3 +22,5 @@
 
    const std::string LOG_ON_OFF_SERVICE = "/log_on_off";  // servizio per abilitare/disabilitare il logging su file (cartesian, joint, torque, controller)
 
+   const std::string TOGGLE_GAME_ENGINE_SERVICE = "/toggle_game_engine";  // servizio per attivare/disattivare il calcolo dei parametri di tiro (motore di gioco)
+

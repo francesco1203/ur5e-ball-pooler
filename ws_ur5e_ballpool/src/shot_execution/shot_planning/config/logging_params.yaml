@@ -13,7 +13,7 @@ task_node:
     csv_ruckig_trajectory_path: "data/csv/ruckig_logging/ruckig_trajectory_log.csv"  # percorso del file csv di log della traiettoria calcolata da Ruckig
 
     #brutal logging vs only essential logging
-    # brutal_loging: false                  #serve a segnalare al nodo quale logging si sta facendo e quindi ottimizza le richieste, evitando di fare richieste a bag_writer   
+    #brutal_loging: false                  #serve a segnalare al nodo quale logging si sta facendo e quindi ottimizza le richieste, evitando di fare richieste a bag_writer   
 
     #type logging for only essential
     joints_logging_enabled: true

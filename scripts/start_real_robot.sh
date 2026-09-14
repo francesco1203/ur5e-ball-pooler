@@ -1,5 +1,13 @@
 #!/bin/bash
 
+#------------------------------------------------
+# PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
+WS_DIR="ws_ur5e_ballpool"
+INSTALL_DIR="${WS_DIR}/install"
+INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
+#------------------------------------------------
+
+
 # ------------------------------------------------
 # PARAMETRI DI RETE
 
@@ -11,8 +19,11 @@ reverse_ip="192.168.56.1"       #il tuo ip sulla rete del robot
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
+#launch container (solo per simulazione con URSim, non serve per robot reale)
+launch_container="false"                     #true se vuoi lanciare il container docker con URSim, false se non (esempio è già lanciato)
+
 #launch driver (se robot/container è già avviato e il driver è stato già lanciato, non serve rilanciare tutto)
-launch_driver="true"                         #true se vuoi lanciare il driver
+launch_driver="false"                         #true se vuoi lanciare il driver
 
 #avvio camera IntelRealsense
 use_real_camera="false"                      #true se vuoi usare la camera reale con detection, false se vuoi usare la camera fake (utile in fase di debug e setup)
@@ -31,13 +42,13 @@ only_essential_logging_folder="only_essential_logging"        #nome della cartel
 
 # ------------------------------------------------
 # Verifica preliminare della cartella di lavoro
-if [ ! -d "ws_ur5e_ballpool/install" ]; then
+if [ ! -d "${INSTALL_DIR}" ]; then
     echo "Errore: Cartella 'install' non trovata!"
     echo "Assicurati di lanciare questo script dalla root del workspace ROS 2."
     exit 1
 fi
 
-source ws_ur5e_ballpool/install/setup.bash
+source ${INSTALL_SETUP_BASH}
 # ------------------------------------------------
 
 
@@ -119,8 +130,10 @@ EOF
 
     #------------------------------------------------
     # aggiornamento del plugin di ur_robot_driver nel file ur5e.ros2_control.xacro
+    MOVEIT_CONFIG_DIR="${WS_DIR}/src/moveit_config/config"
+
     echo "Aggiornamento del plugin ur_robot_driver nel file ur5e.ros2_control.xacro..."
-    python3 ws_ur5e_ballpool/src/moveit_config/config/ros2_control_hardware_auto_switch.py driver --robot_ip="${robot_ip}" --reverse_ip="${reverse_ip}"
+    python3 ${MOVEIT_CONFIG_DIR}/ros2_control_hardware_auto_switch.py driver --robot_ip="${robot_ip}" --reverse_ip="${reverse_ip}"
     #------------------------------------------------
 
 
@@ -128,16 +141,19 @@ EOF
     # Gestione della scelta simulatore o robot vero con if-else
     if [[ "$scelta_URSim" =~ ^[sS][iI]?$ ]]; then
 
-        echo -e "Avvio URSim in un container Docker...\n"
+        if [[ "$launch_container" == "true" ]]; then
+            echo -e "\nAvvio URSim in un container Docker...\n"
 
+            # Forza la chiusura e la rimozione di un eventuale container precedente
+            echo "Pulizia di vecchi container URSim in corso..."
+            docker rm -f ursim >/dev/null 2>&1 || true
 
-        # Forza la chiusura e la rimozione di un eventuale container precedente
-        echo "Pulizia di vecchi container URSim in corso..."
-        docker rm -f ursim >/dev/null 2>&1 || true
-
-        # Avvia il container URSim
-        gnome-terminal --tab --title="URSim Launcher" -- bash -c "ros2 run ur_client_library start_ursim.sh; exec bash"
-        sleep 5
+            # Avvia il container URSim
+            gnome-terminal --tab --title="URSim Launcher" -- bash -c "ros2 run ur_client_library start_ursim.sh; exec bash"
+            sleep 5
+        else
+            echo -e "\nIl container non è stato lanciato. Assicurati che sia già in esecuzione all'IP 192.168.56.101."
+        fi
 
     else
         echo "Accendi il robot..."
@@ -162,9 +178,9 @@ EOF
     echo -e "\nProcedo con l'avvio del driver UR5e..."
 
     if [[ "$scelta_URSim" =~ ^[sS][iI]?$ ]]; then
-        gnome-terminal --tab --title="Driver UR5e" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur5e   robot_ip:=${robot_ip}  reverse_ip:=${reverse_ip}   launch_rviz:=false  description_file:=$(ros2 pkg prefix arm_description)/share/arm_description/urdf/arm_driver_wrapper.urdf.xacro; exec bash"
+        gnome-terminal --tab --title="Driver UR5e" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur5e   robot_ip:=${robot_ip}  reverse_ip:=${reverse_ip}   launch_rviz:=false  description_file:=$(ros2 pkg prefix arm_description)/share/arm_description/urdf/arm_driver_wrapper.urdf.xacro; exec bash"
     else
-        gnome-terminal --tab --title="Driver UR5e" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur5e   robot_ip:=${robot_ip}  reverse_ip:=${reverse_ip}   launch_rviz:=false  description_file:=$(ros2 pkg prefix arm_description)/share/arm_description/urdf/arm_driver_wrapper.urdf.xacro kinematics_params_file:=$(ros2 pkg prefix arm_description)/share/arm_description/config/uclv_right_ur5e_kinematics.yaml; exec bash"
+        gnome-terminal --tab --title="Driver UR5e" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur5e   robot_ip:=${robot_ip}  reverse_ip:=${reverse_ip}   launch_rviz:=false  description_file:=$(ros2 pkg prefix arm_description)/share/arm_description/urdf/arm_driver_wrapper.urdf.xacro kinematics_params_file:=$(ros2 pkg prefix arm_description)/share/arm_description/config/uclv_right_ur5e_kinematics.yaml; exec bash"
     fi
     # ------------------------------------------------
 
@@ -191,8 +207,8 @@ read -n 1 -s -r
 echo "Avvio MoveIt con RViz..."
 sleep 2
 
-gnome-terminal --tab --title="MoveGroup" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config move_group.launch.py use_sim_time:=false; exec bash"
-gnome-terminal --tab --title="Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config moveit_rviz.launch.py use_sim_time:=false; exec bash"
+gnome-terminal --tab --title="MoveGroup" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch moveit_config move_group.launch.py use_sim_time:=false; exec bash"
+gnome-terminal --tab --title="Rviz" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch moveit_config moveit_rviz.launch.py use_sim_time:=false; exec bash"
 sleep 10
 # ------------------------------------------------
 
@@ -202,7 +218,7 @@ sleep 10
 if [[ "$use_real_camera" == "true" ]]; then
     echo "Avvio Intel Realsense..."
 
-    gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch realsense2_camera rs_launch.py; exec bash"
+    gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch realsense2_camera rs_launch.py; exec bash"
     sleep 5
 
     #nodo per vision..
@@ -211,7 +227,7 @@ else
     #fake camera: lancia il nodo che pubblica la posizione da file yaml
     echo "Avvio Fake Camera..."
 
-    gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py yaml_path:=ws_ur5e_ballpool/src/camera_perception/fake_camera/config/fake_camera_config.yaml; exec bash"
+    gnome-terminal --tab --title="Fake Camera" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch fake_camera fake_camera.launch.py yaml_path:=ws_ur5e_ballpool/src/camera_perception/fake_camera/config/fake_camera_config.yaml; exec bash"
     sleep 2
 fi
 # ------------------------------------------------
@@ -220,7 +236,7 @@ fi
 # ------------------------------------------------
 # builder della scena
 echo "Avvio Scene Builder..."
-gnome-terminal --tab --title="Scene Builder" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run scene_description scene_builder; exec bash"
+gnome-terminal --tab --title="Scene Builder" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run scene_description scene_builder; exec bash"
 
 sleep 2
 # ------------------------------------------------
@@ -235,23 +251,28 @@ if [[ "$execute_shot" == "true" ]]; then
 
         #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
         echo "Avvio Nodo di debug cartesiano..."
-        gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
+        gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
         sleep 2
 
 
         #se logging brutale, non avvio il bag writer, perché farò un ros2 bag record manuale che registri tutti i topic in un altro terminale
         if [[ "$brutal_logging" == "true" ]]; then
-            echo "Avvio ros2 bag record manuale..."
 
-            rm -rf "data/bagdata/${brutal_logging_folder}"  #cancello la cartella di logging precedente se esiste, così da non avere conflitti
-            gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 bag record -o data/bagdata/${brutal_logging_folder} -a; exec bash"
+            BAGDATA_DIR="data/bagdata"
+            BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
+
+            #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+            rm -rf "${BAGDATA_DIR_BRUTAL}" 
+
+            echo "Avvio ros2 bag record manuale..."
+            gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
 
             sleep 2
 
         else
             echo "Avvio Bag Writer essenziale su richiesta..."
         
-            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
+            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
             sleep 2
         fi
     fi
@@ -260,27 +281,46 @@ if [[ "$execute_shot" == "true" ]]; then
 
     # ------------------------------------------------
     # nodo che effettua il tiro vero e proprio
-    if [["$logging_enable" == "true" ]]; then      
-            # Con logging
-            echo "Avvio Shot Planning con setup Logging..."      
-            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/logging_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
-        else
-            # Senza  logging
-            echo "Avvio Shot Planning senza logging..."
-            gnome-terminal --tab --title="Shot Planning" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning task_node --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/execution_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/shot_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/planning_params.yaml --params-file ws_ur5e_ballpool/src/shot_planning/config/moveit_fix.yaml; exec bash"
-        fi
+    SHOT_CONFIG_DIR="${WS_DIR}/src/shot_execution/shot_planning/config"
+
+    if [[ "$logging_enable" == "true" ]]; then      
+        # Con logging
+        echo "Avvio Shot Planning con setup Logging..."      
+        gnome-terminal --tab --title="Shot Planning" -- bash -c " \
+            source ${INSTALL_SETUP_BASH} && \
+            ros2 run shot_planning task_node --ros-args \
+                --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/logging_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
+            exec bash"
+    else
+        # Senza logging (rimosso il file logging_params.yaml)
+        echo "Avvio Shot Planning senza logging..."
+        gnome-terminal --tab --title="Shot Planning" -- bash -c " \
+            source ${INSTALL_SETUP_BASH} && \
+            ros2 run shot_planning task_node --ros-args \
+                --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
+                --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
+            exec bash"
+    fi
     # ------------------------------------------------
 
 
     # ------------------------------------------------
     # game engine: se la variabile è vera, avvio il game engine reale, altrimenti quello fake
+    GAME_ENGINE_CONFIG_DIR="${WS_DIR}/src/shot_execution/game_engine/config"
+
     if [[ "$use_real_game_engine" == "true" ]]; then
         
         echo "Avvio Game Engine Reale..."
-        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning game_engine --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/game_engine_params.yaml; exec bash"
+        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run game_engine game_engine --ros-args --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; exec bash"
     else
         echo "Avvio Fake Game Engine..."
-        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run shot_planning fake_game_engine --ros-args --params-file ws_ur5e_ballpool/src/shot_planning/config/game_engine_params.yaml; exec bash"
+        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run game_engine fake_game_engine --ros-args --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; exec bash"
         
     fi
     # ------------------------------------------------

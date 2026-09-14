@@ -11,6 +11,8 @@
 #include <memory>
 #include "rclcpp/rclcpp.hpp"
 
+#include <std_srvs/srv/set_bool.hpp>
+
 #include "shared_headers_pkg/ros2_architecture.hpp"     // header per topic name
 #include "interfaces_pkg/msg/shot_params.hpp"                // custom message
 
@@ -24,6 +26,9 @@ class FakeGameEngine : public rclcpp::Node
         /*Alias*/
         using ShotParamsMsg = interfaces_pkg::msg::ShotParams;   
         using ShotParamsPublisher = rclcpp::Publisher<ShotParamsMsg>::SharedPtr;
+
+        using SetBoolSrv = std_srvs::srv::SetBool;
+
 
         /* Builder */
         FakeGameEngine() : Node("fake_game_engine")
@@ -42,6 +47,12 @@ class FakeGameEngine : public rclcpp::Node
             // Crea il publisher
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC , 10);
 
+            /* Servizio per attivare/disattivare il calcolo */
+            toggle_service_ = this->create_service<SetBoolSrv>(
+                TOGGLE_GAME_ENGINE_SERVICE, 
+                std::bind(&FakeGameEngine::handle_activation, this, std::placeholders::_1, std::placeholders::_2)
+            );
+
             // Timer per pubblicare il tiro a ogni 2s
             timer_ = this->create_wall_timer(
                 2000ms, std::bind(&FakeGameEngine::publish_params, this));
@@ -54,9 +65,35 @@ class FakeGameEngine : public rclcpp::Node
         double direction_;
         double velocity_;
         double impact_angle_;
+
+        rclcpp::Service<SetBoolSrv>::SharedPtr toggle_service_;
+        bool is_active_; // Flag di stato
+
+
+        // Callback del servizio SetBool
+        void handle_activation(const std::shared_ptr<SetBoolSrv::Request> request,
+                               std::shared_ptr<SetBoolSrv::Response> response)
+        {
+            is_active_ = request->data;
+            response->success = true;
+            
+            if (is_active_) {
+                response->message = "Game Engine ATTIVATO.";
+                RCLCPP_INFO(this->get_logger(), "Servizio chiamato: Game Engine ATTIVATO.");
+            } else {
+                response->message = "Game Engine DISATTIVATO.";
+                RCLCPP_INFO(this->get_logger(), "Servizio chiamato: Game Engine DISATTIVATO.");
+            }
+        }
+
         //callback di pubblication
         void publish_params()
         {
+            // Se inattivo, usciamo subito dal timer senza consumare CPU né inviare messaggi
+            if (!is_active_) {
+                return;
+            }
+
             auto msg = ShotParamsMsg();
             msg.direction_angle_deg = direction_;
             msg.impact_angle_deg = impact_angle_;

@@ -25,20 +25,6 @@ int main(int argc, char* argv[])
 
 
     //------------------------------------------------------
-    /* LETTURA MOSSA DI GIOCO*/
-    RCLCPP_INFO(node->get_logger(), "In attesa che arrivino i parametri di tiro...");
-
-    // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
-    node->waitForParams();  
-
-    // Adesso posso usarli
-    double direction_angle_deg_ = node->getDirectionAngle(); 
-    double impact_shot_velocity_ = node->getImpactShotVelocity();
-    double impact_angle_deg_ = node->getImpactAngle();
-    //------------------------------------------------------
-
-
-    //------------------------------------------------------
     /* SHOT PLANNING PARAMETERS */
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
@@ -69,9 +55,11 @@ int main(int argc, char* argv[])
     /*CONTROL EXECUTION PARAMETERS*/
     node->declare_parameter<bool>("control_shot_start_execution_by_user_input", true);
     node->declare_parameter<bool>("control_shot_steps_execution_by_user_input", false);
-   
+    node->declare_parameter<bool>("user_confirm_for_right_identification", true);
+    
     bool control_shot_start_execution_by_user_input_ = node->get_parameter("control_shot_start_execution_by_user_input").as_bool();
     bool control_shot_steps_execution_by_user_input_ = node->get_parameter("control_shot_steps_execution_by_user_input").as_bool();
+    bool user_confirm_for_right_identification_ = node->get_parameter("user_confirm_for_right_identification").as_bool();
     //------------------------------------------------------
 
 
@@ -131,7 +119,7 @@ int main(int argc, char* argv[])
     
     //inizio
     if(control_shot_start_execution_by_user_input_){
-        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro..");
+        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro.. (primo step: away_from_table)");
     }
     else{
         RCLCPP_INFO(node->get_logger(), "\n\nInizio sequenza di tiro..");
@@ -169,10 +157,21 @@ int main(int argc, char* argv[])
     //-------------------------------------------
     /* IDENTIFICAZIONE SCENA DA TELECAMERA */
 
-    //qui la camera deve fare l'identificazione della scena
-    // o aspetto un po', oppure attendo conferma da qualche altro nodo..
-    
-    // ... code to write
+    //qui la camera deve fare l'identificazione della scena, le do il tempo di farlo prima di procedere con la pianificazione del tiro
+    RCLCPP_INFO(node->get_logger(), "\n\nIdentificazione scena in corso..");
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    if(node->checkSceneIdentification(WORLD_FRAME)){
+        if(user_confirm_for_right_identification_){
+            node->print_and_wait("\n\nPremi un tasto e INVIO per confermare l'identificazione della scena..");
+        }
+        
+        RCLCPP_INFO(node->get_logger(), "\n\nScena identificata. Procedo con la pianificazione del tiro..");
+    }
+    else{
+        RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Identificazione scena fallita! Impossibile procedere.");
+        return 1;
+    }
     //-------------------------------------------
 
 
@@ -183,6 +182,24 @@ int main(int argc, char* argv[])
     node->build_scene();  // costruisco la scena di pianificazione (tavolo, pallina, ecc..)
     //-------------------------------------------
 
+
+
+    //------------------------------------------------------
+    /* LETTURA MOSSA DI GIOCO*/
+
+    node->start_game_engine(); //avvio game engine
+
+    RCLCPP_INFO(node->get_logger(), "In attesa che arrivino i parametri di tiro...");
+    node->waitForParams();  // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
+
+    node->stop_game_engine();
+
+
+    // Adesso posso usarli
+    double direction_angle_deg_ = node->getDirectionAngle(); 
+    double impact_shot_velocity_ = node->getImpactShotVelocity();
+    double impact_angle_deg_ = node->getImpactAngle();
+    //------------------------------------------------------
 
 
 

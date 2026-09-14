@@ -97,6 +97,10 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
         logging_cb_group_                   // Callback group dedicato
     );
 
+    /* CLIENT PER ACCENDERE/SPEGNERE IL GAME ENGINE */
+    toggle_game_engine_client_ = this->create_client<SetBoolSrv>(
+        TOGGLE_GAME_ENGINE_SERVICE);
+
     /*TF*/
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -746,6 +750,106 @@ bool TaskNode::disable_white_ball_collision()
     return send_trigger_request(remove_white_ball_client_, "remove_white_ball");
 }
 
+//true se tutte le terne richieste sono presenti, false se almeno una terna obbligatoria è mancante
+bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
+{
+    // Funzione lambda locale per controllare e stampare una singola terna
+    auto check_and_print_frame = [&](const std::string& target_frame) -> bool {
+        try {
+            // Cerchiamo la trasformazione dal reference_frame al target_frame
+            geometry_msgs::msg::TransformStamped t = tf_buffer_->lookupTransform(
+                reference_frame, 
+                target_frame, 
+                tf2::TimePointZero, 
+                tf2::durationFromSec(0.1) // timeout breve di 100ms
+            );
+            
+            // Se la trova, stampiamo le coordinate
+            RCLCPP_INFO(this->get_logger(), "[TF Found] Terna '%s' a X:%.3f, Y:%.3f, Z:%.3f",
+                        target_frame.c_str(),
+                        t.transform.translation.x,
+                        t.transform.translation.y,
+                        t.transform.translation.z);
+            return true;
+        } catch (const tf2::TransformException & ex) {
+            // Se non la trova (o non è collegata all'albero), stampa un warning
+            RCLCPP_WARN(this->get_logger(), "[TF Missing] Terna '%s' non trovata.", target_frame.c_str());
+            return false;
+        }
+    };
+
+    bool all_mandatory_found = true;
+
+    RCLCPP_INFO(this->get_logger(), "\n\n--------------------DETECTION--------------------");
+
+    // 1. Controllo Biliardo
+    if (!check_and_print_frame(BILLIARD_TABLE_FRAME)) {
+        RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna biliardo mancante (%s)!", BILLIARD_TABLE_FRAME.c_str());
+        all_mandatory_found = false;
+    }else
+    {
+        RCLCPP_INFO(this->get_logger(), "→ Terna biliardo trovata correttamente.");
+    }
+
+    // 2. Controllo delle 6 buche
+    std::vector<std::string> holes = {
+        HOLE_TOP_RIGHT_FRAME, HOLE_TOP_LEFT_FRAME,
+        HOLE_MID_RIGHT_FRAME, HOLE_MID_LEFT_FRAME,
+        HOLE_BOTTOM_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME
+    };
+    bool holes_found = true;
+    for (const auto& hole : holes) {
+        if (!check_and_print_frame(hole)) {
+            RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna buca mancante (%s)!", hole.c_str());
+            all_mandatory_found = false;
+            holes_found = false;
+        }
+    }
+    if(holes_found) {
+        RCLCPP_INFO(this->get_logger(), "→ Tutte le 6 buche trovate correttamente.");
+    }
+
+    // 3. Controllo Pallina Bianca
+    if (!check_and_print_frame(WHITE_SOLID_BALL_FRAME)) {
+        RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna pallina bianca mancante (%s)!", WHITE_SOLID_BALL_FRAME.c_str());
+        all_mandatory_found = false;
+    }
+    else
+    {
+        RCLCPP_INFO(this->get_logger(), "→ Terna pallina bianca trovata correttamente.");
+    }
+
+    // 4. Controllo Palline Colorate (ne basta ALMENO una)
+    bool colored_ball_found = false;
+    std::vector<std::string> colored_balls = {
+        RED_SOLID_BALL_FRAME, 
+        BLUE_SOLID_BALL_FRAME, 
+        YELLOW_SOLID_BALL_FRAME
+    };
+    
+    for (const auto& ball : colored_balls) {
+        // Se troviamo una pallina colorata, settiamo il flag a true
+        if (check_and_print_frame(ball)) {
+            colored_ball_found = true;
+            RCLCPP_INFO(this->get_logger(), "→ Terna pallina %s trovata correttamente.", ball.c_str());
+        }
+        else 
+        {
+            // È solo un warning perché l'assenza di una specifica pallina colorata è lecita
+            RCLCPP_WARN(this->get_logger(), "Attenzione, non trovata pallina %s", ball.c_str());
+        }
+    }
+
+    // Se alla fine del ciclo non abbiamo trovato NESSUNA pallina colorata, allora è un errore
+    if (!colored_ball_found) {
+        RCLCPP_ERROR(this->get_logger(), "ERRORE: Nessuna pallina colorata trovata sul tavolo!");
+        all_mandatory_found = false;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "\n\n--------------------------------------------");
+    
+    return all_mandatory_found;
+}
 
 /*SERVIZI DI MONITORING DEI TIRI*/
 bool TaskNode::startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled)
@@ -766,6 +870,15 @@ bool TaskNode::stopLogging()
     return ok;
 }
 
+bool TaskNode::start_game_engine()
+{
+    return set_game_engine_state(true);
+}
+
+bool TaskNode::stop_game_engine()
+{
+    return set_game_engine_state(false);
+}
 
 /*ALTRI METODI DI UTILITIES*/
 
@@ -983,3 +1096,37 @@ bool TaskNode::send_trigger_request(const TriggerClient& client, const std::stri
         return false;
     }
 }
+
+bool TaskNode::set_game_engine_state(bool state)
+{
+    // Aspettiamo che il servizio sia disponibile (max 1 secondo)
+    if (!toggle_game_engine_client_->wait_for_service(std::chrono::seconds(1))) {
+        RCLCPP_ERROR(this->get_logger(), "Servizio [toggle_game_engine] non disponibile!");
+        return false;
+    }
+
+    // Creiamo la richiesta
+    auto request = std::make_shared<SetBoolSrv::Request>();
+    request->data = state; // true per accendere, false per spegnere
+
+    // Inviamo la richiesta in modo asincrono
+    auto future = toggle_game_engine_client_->async_send_request(request);
+
+    // Aspettiamo la risposta (sicuro da fare qui perché lo chiamiamo dal main e lo spinner gira in un altro thread)
+    if (future.wait_for(std::chrono::seconds(3)) == std::future_status::ready) {
+        auto response = future.get();
+        
+        if (!response->success) {
+            RCLCPP_WARN(this->get_logger(), "La richiesta a [toggle_game_engine] non è andata a buon fine: %s", response->message.c_str());
+            return false;
+        }
+        
+        RCLCPP_INFO(this->get_logger(), "Game Engine %s con successo.", state ? "ATTIVATO" : "DISATTIVATO");
+        return true;
+    } 
+    else {
+        RCLCPP_ERROR(this->get_logger(), "Timeout in attesa della risposta da [toggle_game_engine]");
+        return false;
+    }
+}
+    
