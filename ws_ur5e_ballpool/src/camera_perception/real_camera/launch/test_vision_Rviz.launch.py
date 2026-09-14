@@ -138,6 +138,7 @@ def generate_launch_description():
         name="rviz2",
         output="log",
         arguments=["-d", rviz_config_file],
+        parameters=[{"use_sim_time": True}], # OBBLIGATORIO PER VEDERE I DATI DI MUJOCO
     )
 
     # # faccio partire il nodo di vision da launch file separato

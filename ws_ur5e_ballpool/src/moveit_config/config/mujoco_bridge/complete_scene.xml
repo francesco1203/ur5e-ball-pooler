@@ -282,6 +282,24 @@
     <geom size="1.5 0.05 1" pos="0 0.5 0.3" type="box" class="structure_collision"/>
 
 
+    
+     <!-- directional: simula la luce solare overhead (buona per un'illuminazione uniforme) -->
+    <!-- castshadow="true": attiva le ombre per maggiore realismo -->
+    <light directional="true" diffuse=".8 .8 .8" specular=".2 .2 .2" pos="0 0 5" dir="0 0 -1" castshadow="true"/>
+
+    <!-- CAMERA -->
+    <body name="base_link_reference" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598">
+        
+        <!-- TELECAMERA (Coordinate relative al base_link, ovvero PARAMETRI ESTRINSECI) -->
+        <body name="realsense_mount" pos="-0.289 -0.473 0.048" quat="0.649210 -0.268593 -0.276830 -0.655553">
+            <geom type="box" size="0.045 0.012 0.012" rgba="0.2 0.2 0.2 1" />
+            <camera name="realsense_d435" pos="0 0 0" quat="0 1 0 0" mode="fixed" fovy="58"/>
+        </body>
+
+    </body>
+    
+    
+
     <!-- BRACCIO ur5e -->
     <body name="shoulder_link" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598" childclass="ur5e" gravcomp="1" >
       <inertial pos="0 -0.00193 -0.02561" quat="0.560239 0.250606 -0.316559 0.72327" mass="3.761" diaginertia="0.00703079 0.0070003 0.00602478"/>

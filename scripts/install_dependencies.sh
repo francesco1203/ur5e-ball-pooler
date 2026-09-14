@@ -75,6 +75,8 @@ fi
 if [ "$install_mujoco_plugin" = true ]; then
     echo -e "\nInstallazione pacchetto plug-in MuJoCo ROS2 Control..."
     sudo apt install -y ros-jazzy-mujoco-ros2-control
+    sudo apt install -y ros-jazzy-mujoco-ros2-control-plugins
+    #sudo apt install -y ros-jazzy-mujoco-vendor
 fi 
 
 

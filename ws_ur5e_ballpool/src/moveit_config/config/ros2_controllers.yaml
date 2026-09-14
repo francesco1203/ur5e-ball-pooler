@@ -1,9 +1,20 @@
 # This config file is used ONLY by MuJoCo
 controller_manager:
   ros__parameters:
+
     update_rate: 100  # Hz
 
-    # Lo chiamiamo come quello della UR, ma usiamo il tipo standard!
+    #plugin_telecamera
+    mujoco_plugins:
+      realsense_plugin:
+        type: "mujoco_ros2_control_plugins/CameraPlugin"
+        camera_publish_rate: 30.0
+        width: 640
+        height: 480
+        camera_name: "realsense_d435"
+        frame_id: "ignore_tf"
+
+    #controllers
     scaled_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 

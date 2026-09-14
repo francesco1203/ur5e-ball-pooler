@@ -6,14 +6,14 @@
         <ros2_control name="${name}" type="system">
             <hardware>
                 <!-- PLUGIN PER MUJOCO -->
-                <!-- <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
-                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param> -->
+                <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param>
 
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
                 <!-- <plugin>mock_components/GenericSystem</plugin> -->
 
                 <!-- PLUGIN PER HARDWARE REALE / UrSim -->
-                <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>
+                <!-- <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>
                 <param name="robot_ip">192.168.56.101</param>
                 <param name="script_filename">$(find ur_robot_driver)/resources/ros_control.urscript</param>
                 <param name="headless_mode">true</param>
@@ -21,7 +21,7 @@
                 <param name="reverse_port">50001</param>
                 <param name="script_sender_port">50002</param>
                 <param name="script_command_port">50004</param>
-                <param name="trajectory_port">50003</param>
+                <param name="trajectory_port">50003</param> -->
             </hardware>
             
             <joint name="shoulder_pan_joint">
