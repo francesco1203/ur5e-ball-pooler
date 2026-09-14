@@ -33,6 +33,8 @@ install_camera_calibration_dependencies=true
 #only for tool calibration in ros2 project
 install_ceres_optimization=true
 
+#only for image_view in ros2 project
+install_image_view=true
 
 
 
@@ -76,7 +78,7 @@ if [ "$install_mujoco_plugin" = true ]; then
     echo -e "\nInstallazione pacchetto plug-in MuJoCo ROS2 Control..."
     sudo apt install -y ros-jazzy-mujoco-ros2-control
     sudo apt install -y ros-jazzy-mujoco-ros2-control-plugins
-    #sudo apt install -y ros-jazzy-mujoco-vendor
+    sudo apt install -y ros-jazzy-mujoco-vendor
 fi 
 
 
@@ -113,6 +115,12 @@ fi
 if [ "$install_ceres_optimization" = true ]; then
     echo -e "\nInstallazione pacchetti per la calibrazione end effector..."
     sudo apt install -y libceres-dev
+fi
+
+#8.
+if [ "$install_image_view" = true ]; then
+    echo -e "\nInstallazione image view..."
+    sudo apt install ros-jazzy-image-view
 fi
 
 

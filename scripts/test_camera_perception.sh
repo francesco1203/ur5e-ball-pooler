@@ -19,17 +19,17 @@ use_mujoco_camera="true"                        #true se vuoi usare la camera si
 use_fake_camera_node="false"                    #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
 
 
-#parte vision
-launch_vision_node="false"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
-
-
 #simulatori per la percezione
-start_Rviz="false"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
-start_rqt_image_view="true"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
+start_image_view="false"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
+start_Rviz="true"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
+
+
+#parte vision
+launch_vision_node="true"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
 
 
 #costruzione scena
-launch_scene_builder="false"                  #true se vuoi lanciare il nodo scene_builder (per testare la percezione in tempo reale)
+launch_scene_builder="true"                  #true se vuoi lanciare il nodo scene_builder (per testare la percezione in tempo reale)
 auto_loop_build_scene="true"                   #true se vuoi che la scena venga costruita in loop (per testare la percezione in tempo reale)
 time_between_scene_builds=1                    #tempo in secondi tra una costruzione della scena e la successiva (se auto_loop_build_scene=true)
 user_input_to_build_scene="true"               #true se vuoi che la costruzione della scena avvenga solo dopo un input dell'utente (se auto_loop_build_scene=true)
@@ -143,6 +143,20 @@ else
 fi
 
 
+#   ------------------------------------------------
+# Avvio image_view
+if [ "$start_image_view" = true ]; then
+    echo "Avvio image_view..."
+    sleep 2
+
+    # Avvio image_view
+    gnome-terminal --tab --title="image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash &&  ros2 run image_view image_view --ros-args -r image:=/camera/color/image_raw; exec bash"
+    
+    sleep 1
+fi
+# ------------------------------------------------
+
+
 # ------------------------------------------------
 # Avvio Rviz
 
@@ -155,19 +169,6 @@ if [ "$start_Rviz" = true ]; then
 fi
 # ------------------------------------------------
 
-
-#   ------------------------------------------------
-# Avvio rqt_image_view
-if [ "$start_rqt_image_view" = true ]; then
-    echo "Avvio rqt_image_view..."
-    sleep 2
-
-    #gnome-terminal --tab --title="rqt_image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run rqt_image_view rqt_image_view; exec bash"
-    gnome-terminal --tab --title="rqt_image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run rqt_image_view rqt_image_view --ros-args -p use_sim_time:=true; exec bash"
-    
-    sleep 5
-fi
-# ------------------------------------------------
 
 
 if [ "$launch_scene_builder" = true ]; then

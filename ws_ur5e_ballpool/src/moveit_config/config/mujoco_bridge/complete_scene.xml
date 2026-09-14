@@ -293,7 +293,7 @@
         <!-- TELECAMERA (Coordinate relative al base_link, ovvero PARAMETRI ESTRINSECI) -->
         <body name="realsense_mount" pos="-0.289 -0.473 0.048" quat="0.649210 -0.268593 -0.276830 -0.655553">
             <geom type="box" size="0.045 0.012 0.012" rgba="0.2 0.2 0.2 1" />
-            <camera name="realsense_d435" pos="0 0 0" quat="0 1 0 0" mode="fixed" fovy="58"/>
+            <camera name="realsense_d435" pos="0 0 0" quat="0 1 0 0" mode="fixed" fovy="58" resolution="640 480"/>
         </body>
 
     </body>

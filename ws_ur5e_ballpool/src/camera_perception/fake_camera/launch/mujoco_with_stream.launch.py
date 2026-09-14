@@ -45,6 +45,11 @@ def generate_launch_description():
             controllers_file,
             # use_sim_time rimosso da qui perché gestito globalmente dal SetParameter in basso
         ],
+        remappings=[
+            ('/realsense_plugin/realsense_d435/color', '/camera/color/image_raw'),
+            ('/realsense_plugin/realsense_d435/depth','/camera/depth/image_raw'),
+            ('/realsense_plugin/realsense_d435/camera_info', '/camera/color/camera_info')
+        ]
     )
 
     joint_state_broadcaster_spawner = Node(
