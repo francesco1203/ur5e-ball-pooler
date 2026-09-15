@@ -2,7 +2,7 @@
 href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"
 ?>
 <package format="3">
-<name>fake_camera</name>
+<name>real_camera</name>
 <version>0.0.0</version>
 <description>
 Naive camera: read balls position from a file and communicate to others
