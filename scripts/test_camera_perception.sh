@@ -9,23 +9,22 @@
 use_real_camera="false"                      #true se vuoi usare la camera reale, false se vuoi usare i bag files o il nodo fake_camera_node
 launch_driver="false"                         #true se vuoi (ri)lanciare il driver (avviato solo con camera reale)
 
-
 #strumenti simulati (se non si usa la camera reale)
-use_bagfiles_stream="false"                     #true se vuoi usare i bag files per simulare lo stream della camera
-bagfiles_path="data/bagdata/camera_stream/.."   #percorso del file bag da usare se use_bagfiles_stream=true
+use_bagfiles_stream="false"                                              #true se vuoi usare i bag files per simulare lo stream della camera
+bagfile_path="data/bagdata/camera_stream/rosbag2_2026_09_11-12_01_28"   #percorso del file bag da usare se use_bagfiles_stream=true
 
 use_mujoco_camera="true"                        #true se vuoi usare la camera simulata in MuJoCo (per testare la percezione in tempo reale)
 
-use_fake_camera_node="false"                    #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
-
+use_fake_camera_node="false"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
+use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un prefisso ai frame pubblicati dal nodo fake_camera_node (utile per evitare conflitti di nomi dei frame)
 
 #simulatori per la percezione
-start_image_view="false"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
+start_image_view="true"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
 start_Rviz="true"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
 
 
 #parte vision
-launch_vision_node="true"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
+launch_vision_node="false"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
 
 
 #costruzione scena
@@ -80,9 +79,10 @@ else
         # avvio stream da bag files
 
         echo "Avvio stream da bag files..."
-        #...(TODO: implementare avvio stream da bag files)
+        gnome-terminal --tab --title="BagFile Player" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 bag play ${bagfile_path} ; exec bash"
+        
 
-        sleep 5
+        sleep 1
         # ------------------------------------------------
 
         # ------------------------------------------------
@@ -121,7 +121,7 @@ else
         if [ "$launch_vision_node" = true ]; then
             echo "Avvio Detection e Perception..."
             echo "NOTA: effettuata rimappatura dei topic da MuJoCo a quelli attesi dal nodo vision_node (color_topic, depth_topic, info_topic)"
-            gnome-terminal --tab --title="VisionNode" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera vision.launch.py color_topic:=/realsense_d435/color depth_topic:=/realsense_d435/depth info_topic:=/realsense_d435/camera_info; exec bash"
+            gnome-terminal --tab --title="VisionNode" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera vision.launch.py; exec bash"
             sleep 1
         fi
         # ------------------------------------------------  
@@ -132,8 +132,14 @@ else
         # ------------------------------------------------
         # avvio fake camera
 
-        echo "Avvio fake camera..."
-        gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
+        if [ "$use_prefix_for_fake_camera" = true ]; then
+            echo "Avvio fake camera con prefisso per i frame..."
+            gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py prefix:=fake_; exec bash"
+        else
+            echo "Avvio fake camera senza prefisso per i frame..."
+            gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
+        fi
+        
         sleep 1
         # ------------------------------------------------
 
@@ -147,10 +153,10 @@ fi
 # Avvio image_view
 if [ "$start_image_view" = true ]; then
     echo "Avvio image_view..."
-    sleep 2
+    sleep 1
 
     # Avvio image_view
-    gnome-terminal --tab --title="image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash &&  ros2 run image_view image_view --ros-args -r image:=/camera/color/image_raw; exec bash"
+    gnome-terminal --tab --title="image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash &&  ros2 run image_view image_view --ros-args -r image:=/camera/camera/color/image_raw; exec bash"
     
     sleep 1
 fi

@@ -46,4 +46,10 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+########## INSTALL the directories ############
+install(DIRECTORY launch rviz
+  DESTINATION share/${PROJECT_NAME})
+################################################
+
+
 ament_package()

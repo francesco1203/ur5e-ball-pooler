@@ -34,16 +34,14 @@ public:
     {
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
-        rclcpp::QoS sensor_qos = rclcpp::SensorDataQoS();
-
         sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/color/image_raw", sensor_qos, std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
+            "/camera/camera/color/image_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
         
         sub_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/depth/image_rect_raw", sensor_qos, std::bind(&VisionNode::depth_callback, this, std::placeholders::_1));
+            "/camera/camera/depth/image_rect_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::depth_callback, this, std::placeholders::_1));
 
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/camera/camera/color/camera_info", sensor_qos, std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
+            "/camera/camera/color/camera_info", rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
 
         RCLCPP_INFO(this->get_logger(), "Vision Node avviato (Soluzione A). In attesa dei dati...");
     }
@@ -71,12 +69,14 @@ private:
     void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
         try {
-            if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
-                cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_16UC1);
+            if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1 || msg->encoding == "16UC1") {
+                cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
                 cv_ptr->image.convertTo(current_depth_frame_, CV_32FC1, 0.001);
-            } else if (msg->encoding == sensor_msgs::image_encodings::TYPE_32FC1) {
-                cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_32FC1);
-                current_depth_frame_ = cv_ptr->image;
+            } 
+            else if (msg->encoding == sensor_msgs::image_encodings::TYPE_32FC1 || msg->encoding == "32FC1") {
+                cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
+                // IMPORTANTE: Aggiungiamo .clone() qui!
+                current_depth_frame_ = cv_ptr->image.clone(); 
             }
         } catch (cv_bridge::Exception& e) {
             RCLCPP_ERROR(this->get_logger(), "Errore cv_bridge depth: %s", e.what());
@@ -85,7 +85,20 @@ private:
 
     void rgb_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-        if (!has_camera_info_ || current_depth_frame_.empty()) return;
+        // LOG temporaneo per confermare che la callback parte
+        // RCLCPP_INFO(this->get_logger(), "Frame RGB ricevuto!"); 
+
+        if (!has_camera_info_) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
+                "In attesa di /camera/camera/color/camera_info...");
+            return;
+        }
+
+        if (current_depth_frame_.empty()) {
+            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
+                "In attesa di /camera/camera/depth/image_rect_raw...");
+            return;
+        }
 
         cv_bridge::CvImagePtr cv_ptr;
         try {
@@ -136,7 +149,7 @@ private:
                 }
                 double yaw_rad = angle_deg * (M_PI / 180.0);
                 
-                publish_table_tf("BILLIARD_TABLE_FRAME", x_t, y_t, z_table, yaw_rad, img_stamp);
+                publish_table_tf(BILLIARD_TABLE_FRAME, x_t, y_t, z_table, yaw_rad, img_stamp);
                 
                 double physical_w = (table_rect.size.width * z_table) / fx_;
                 double physical_h = (table_rect.size.height * z_table) / fy_;
@@ -171,7 +184,7 @@ private:
         red_mask = mask1 | mask2;
         cv::dilate(red_mask, red_mask, dilate_kernel);
         cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(red_mask, "RED_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(red_mask, RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // PALLINA ARANCIONE / GIALLA
         cv::Mat orange_mask;
@@ -179,14 +192,14 @@ private:
         cv::inRange(blurred_hsv, cv::Scalar(10, 80, 20), cv::Scalar(35, 255, 255), orange_mask);
         cv::dilate(orange_mask, orange_mask, dilate_kernel);
         cv::morphologyEx(orange_mask, orange_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(orange_mask, "ORANGE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(orange_mask, YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // PALLINA BLU
         cv::Mat blue_mask;
         cv::inRange(blurred_hsv, cv::Scalar(100, 80, 20), cv::Scalar(130, 255, 255), blue_mask);
         cv::dilate(blue_mask, blue_mask, dilate_kernel);
         cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(blue_mask, "BLUE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(blue_mask, BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // PALLINA BIANCA
         cv::Mat white_mask;
@@ -194,7 +207,7 @@ private:
         cv::inRange(blurred_hsv, cv::Scalar(0, 0, 130), cv::Scalar(180, 50, 255), white_mask);
         cv::dilate(white_mask, white_mask, dilate_kernel);
         cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(white_mask, "WHITE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(white_mask, WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
     }
 
     void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)

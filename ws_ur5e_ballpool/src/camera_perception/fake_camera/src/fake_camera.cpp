@@ -19,7 +19,10 @@ class FakeCamera : public rclcpp::Node
     {
       // 1. Dichiarazione dei parametri
       this->declare_parameter<std::string>("yaml_file_path", "config/fake_camera_config.yaml");
+      this->declare_parameter<std::string>("prefix", ""); // <--- NUOVO PARAMETRO
+
       std::string yaml_path = this->get_parameter("yaml_file_path").as_string();
+      std::string prefix = this->get_parameter("prefix").as_string(); // <--- LETTURA PARAMETRO
 
       // 2. Inizializzazione del Broadcaster STATICO (fondamentale per ONE-SHOT)
       static_tf_broadcaster_ = std::make_shared<tf2_ros::StaticTransformBroadcaster>(this);
@@ -51,15 +54,16 @@ class FakeCamera : public rclcpp::Node
       // --- TF 1: world -> billiard_table ---
       TransformStampedMsg t_table;
       t_table.header.stamp = now;
-      t_table.header.frame_id = WORLD_FRAME;
-      t_table.child_frame_id = BILLIARD_TABLE_FRAME;
+      t_table.header.frame_id = WORLD_FRAME; // Il world rimane fisso senza prefisso
+      // Aggiungiamo il prefisso al child
+      t_table.child_frame_id = prefix + BILLIARD_TABLE_FRAME; 
 
       t_table.transform.translation.x = table_x;
       t_table.transform.translation.y = table_y;
-      t_table.transform.translation.z = POOL_TABLE_FIELD_HEIGHT; // sposto la terna sul campo
+      t_table.transform.translation.z = POOL_TABLE_FIELD_HEIGHT;
 
       tf2::Quaternion q_table;
-      q_table.setRPY(0, 0, table_yaw + M_PI);     //CON M_PI rivolgo l'asse x verso il robot
+      q_table.setRPY(0, 0, table_yaw + M_PI);
       t_table.transform.rotation.x = q_table.x();
       t_table.transform.rotation.y = q_table.y();
       t_table.transform.rotation.z = q_table.z();
@@ -72,23 +76,23 @@ class FakeCamera : public rclcpp::Node
         for (const auto& ball : config["balls"]) {
           TransformStampedMsg t_ball;
           t_ball.header.stamp = now;
-          t_ball.header.frame_id = BILLIARD_TABLE_FRAME;
+          // Il genitore ora ha il prefisso
+          t_ball.header.frame_id = prefix + BILLIARD_TABLE_FRAME; 
 
           std::string color = ball["color"].as<std::string>();
           double ball_x = ball["pos"][0].as<double>();
           double ball_y = ball["pos"][1].as<double>();
 
-          // --- LOG PALLINA ---
           RCLCPP_INFO(this->get_logger(), "  - Pallina '%s' letta -> posizione: [%.3f, %.3f]", 
                       color.c_str(), ball_x, ball_y);
 
-          t_ball.child_frame_id = color + "_" + SOLID_BALL_FRAME;
+          // Aggiungiamo il prefisso anche alla pallina
+          t_ball.child_frame_id = prefix + color + "_" + SOLID_BALL_FRAME;
 
           t_ball.transform.translation.x = ball_x;
           t_ball.transform.translation.y = ball_y;
           t_ball.transform.translation.z = BALL_RADIUS;
 
-          // Le palline sono sferiche, manteniamo la rotazione neutra
           t_ball.transform.rotation.x = 0.0;
           t_ball.transform.rotation.y = 0.0;
           t_ball.transform.rotation.z = 0.0;
@@ -98,14 +102,10 @@ class FakeCamera : public rclcpp::Node
         }
       }
 
-      
       // --- TF 3: billiard_table -> holes (buche) ---
       double half_l = POOL_TABLE_FIELD_LENGTH / 2.0;
       double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
 
-      // Definiamo un array o vector con i nomi e le coordinate relative delle 6 buche
-
-  
       struct HoleDef { std::string name; double x; double y; };
       std::vector<HoleDef> holes = {
           {"hole_top_left",     -half_l + 0.01, -half_w + 0.02},
@@ -119,15 +119,15 @@ class FakeCamera : public rclcpp::Node
       for (const auto& hole : holes) {
           TransformStampedMsg t_hole;
           t_hole.header.stamp = now;
-          t_hole.header.frame_id = BILLIARD_TABLE_FRAME;
-          t_hole.child_frame_id = hole.name;
+          // Anche qui, il genitore ha il prefisso
+          t_hole.header.frame_id = prefix + BILLIARD_TABLE_FRAME;
+          // E la singola buca ha il prefisso
+          t_hole.child_frame_id = prefix + hole.name;
 
           t_hole.transform.translation.x = hole.x;
           t_hole.transform.translation.y = hole.y;
-          // Z = 0.0 rispetto a BILLIARD_TABLE_FRAME che è già ad altezza campo
           t_hole.transform.translation.z = 0.0; 
 
-          // Manteniamo la stessa rotazione del tavolo
           t_hole.transform.rotation.x = 0.0;
           t_hole.transform.rotation.y = 0.0;
           t_hole.transform.rotation.z = 0.0;
@@ -136,7 +136,7 @@ class FakeCamera : public rclcpp::Node
           transforms.push_back(t_hole);
       }
       
-      RCLCPP_INFO(this->get_logger(), "--------------------------------------------------"); // Separatore visivo per ogni ciclo
+      RCLCPP_INFO(this->get_logger(), "--------------------------------------------------");
 
       // Invio di TUTTE le trasformate statiche
       static_tf_broadcaster_->sendTransform(transforms);
@@ -147,21 +147,12 @@ class FakeCamera : public rclcpp::Node
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
 };
 
-
-/*NOTA IMPORTANTE: fake_camera deve rimanere a girare, perché altrimenti le terne pubblicate verranno perse con lui durante la sua chiusura */
-
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-
-  // Istanziamo il nodo (che esegue tutto nel costruttore)
   auto node = std::make_shared<FakeCamera>();
-
   RCLCPP_INFO(node->get_logger(), "Nodo avviato, mantengo attivo per pubblicazione TF statica.");
-
-  // Blocca ed esegue il nodo finché non riceve SIGINT (Ctrl+C)
   rclcpp::spin(node);
-
   RCLCPP_INFO(node->get_logger(), "Chiusura nodo.");
   rclcpp::shutdown();
   return 0;

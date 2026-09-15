@@ -21,18 +21,26 @@ def generate_launch_description():
         description='Path to the YAML configuration file for fake_camera'
     )
 
+    prefix_arg = DeclareLaunchArgument(
+        'prefix',
+        default_value='', # Di default è vuoto
+        description='Prefix to add to all published TF frames'
+    )
+
     fake_camera_node = Node(
         package="fake_camera",
         executable="fake_camera_node",
         output="screen",
         parameters=[{
             # Passiamo il LaunchConfiguration invece della stringa fissa
-            'yaml_file_path': LaunchConfiguration('yaml_path')
+            'yaml_file_path': LaunchConfiguration('yaml_path'),
+            'prefix': LaunchConfiguration('prefix')
         }]
     )
 
     # 4. Aggiungi sia l'argomento che il nodo alla LaunchDescription
     return LaunchDescription([
         yaml_path_arg,
+        prefix_arg,
         fake_camera_node
     ])
