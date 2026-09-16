@@ -17,7 +17,8 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
-
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
@@ -35,8 +36,11 @@ public:
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         pub_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("perception_markers", 10);
 
-        sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/color/image_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
+
+        // Dichiarazione del publisher nel costruttore:
+        pub_pointcloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/depth_pointcloud", 10);
+        pub_depth_vis_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/camera/depth/image_visual", 10);
+        sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/camera/color/image_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
         
         sub_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/camera/camera/depth/image_rect_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::depth_callback, this, std::placeholders::_1));
@@ -48,11 +52,12 @@ public:
     }
 
 private:
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_pointcloud_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_rgb_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_markers_;
-    
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_depth_vis_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     cv::Mat current_depth_frame_;
@@ -70,6 +75,24 @@ private:
 
     void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
+
+
+        if (!current_depth_frame_.empty()) {
+    cv::Mat depth_normalized;
+    // Converte la matrice di float (0.0 - 2.0 metri) in 8-bit (0 - 255) per la visualizzazione
+    cv::normalize(current_depth_frame_, depth_normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+    
+    // Applica una mappa di colori (es. COLORMAP_JET) per vedere il gradiente di profondità
+    cv::Mat depth_colored;
+    cv::applyColorMap(depth_normalized, depth_colored, cv::COLORMAP_JET);
+
+    std_msgs::msg::Header header;
+    header.stamp = this->now();
+    header.frame_id = "camera_color_optical_frame";
+
+    sensor_msgs::msg::Image::SharedPtr vis_msg = cv_bridge::CvImage(header, "bgr8", depth_colored).toImageMsg();
+    pub_depth_vis_->publish(*vis_msg);
+}
         try {
             if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1 || msg->encoding == "16UC1") {
                 cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
@@ -155,6 +178,9 @@ private:
                 cv::bitwise_and(hsv_frame, hsv_frame, masked_hsv, roi_mask);
                 hsv_frame = masked_hsv; 
             }
+
+            // In fondo a rgb_callback:
+            publish_pointcloud(img_stamp);
         }
 
         // ========================================================
@@ -204,6 +230,43 @@ private:
         publish_rviz_markers(img_stamp);
     }
 
+    void publish_pointcloud(rclcpp::Time stamp)
+{
+    if (current_depth_frame_.empty() || !has_camera_info_) return;
+
+    auto cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+    cloud_msg->header.stamp = stamp;
+    cloud_msg->header.frame_id = "camera_color_optical_frame";
+    cloud_msg->height = current_depth_frame_.rows;
+    cloud_msg->width = current_depth_frame_.cols;
+    cloud_msg->is_dense = false;
+    cloud_msg->is_bigendian = false;
+
+    sensor_msgs::PointCloud2Modifier modifier(*cloud_msg);
+    modifier.setPointCloud2FieldsByString(1, "xyz");
+    modifier.resize(cloud_msg->height * cloud_msg->width);
+
+    sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud_msg, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud_msg, "z");
+
+    for (int v = 0; v < current_depth_frame_.rows; ++v) {
+        for (int u = 0; u < current_depth_frame_.cols; ++u) {
+            float z = current_depth_frame_.at<float>(v, u);
+            if (std::isnan(z) || z <= 0.1f) {
+                *iter_x = *iter_y = *iter_z = std::numeric_limits<float>::quiet_NaN();
+            } else {
+                *iter_x = (u - cx_) * z / fx_;
+                *iter_y = (v - cy_) * z / fy_;
+                *iter_z = z;
+            }
+            ++iter_x; ++iter_y; ++iter_z;
+        }
+    }
+
+    pub_pointcloud_->publish(*cloud_msg);
+}
+
     void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)
     {
         std::vector<std::vector<cv::Point>> contours;
@@ -225,10 +288,10 @@ private:
             double u = m.m10 / m.m00;
             double v = m.m01 / m.m00;
 
-            float z = get_average_depth(u, v);
+           float z = get_average_depth(u, v);
             if (z > 0.0) {
-                // AGGIUNTO RAGGIO PALLINA: Spostiamo l'origine della TF dalla superficie al vero centro fisico 3D della palla
-                z += 0.0285f; 
+                // CORRETTO: Aggiungiamo il raggio della mini-pallina di MuJoCo (1.25 cm)
+                z += 0.0125f; 
 
                 double x_c = (u - cx_) * z / fx_;
                 double y_c = (v - cy_) * z / fy_;
@@ -253,6 +316,10 @@ private:
             }
         }
     }
+
+
+   
+
 
     float get_average_depth(int u_c, int v_c)
     {
@@ -341,9 +408,9 @@ void publish_rviz_markers(rclcpp::Time stamp)
             marker.pose.position.y = 0.0;
             marker.pose.position.z = 0.0; 
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.057; 
-            marker.scale.y = 0.057;
-            marker.scale.z = 0.057;
+            marker.scale.x = 0.025; // Diametro corretto per la simulazione
+            marker.scale.y = 0.025;
+            marker.scale.z = 0.025;
             marker.color.r = r; marker.color.g = g; marker.color.b = b; marker.color.a = 1.0;
             marker.lifetime = rclcpp::Duration(0, 500000000); 
             return marker;
@@ -370,7 +437,9 @@ void publish_rviz_markers(rclcpp::Time stamp)
             hole.action = visualization_msgs::msg::Marker::ADD;
             hole.pose.position.x = 0.0; hole.pose.position.y = 0.0; hole.pose.position.z = 0.0; 
             hole.pose.orientation.w = 1.0;
-            hole.scale.x = 0.12; hole.scale.y = 0.12; hole.scale.z = 0.005; // Solo 5 mm di spessore
+            hole.scale.x = 0.04; // Diametro buca ridotto a 4 cm
+            hole.scale.y = 0.04; 
+            hole.scale.z = 0.005;
             hole.color.r = 0.1; hole.color.g = 0.1; hole.color.b = 0.1; hole.color.a = 1.0;
             hole.lifetime = rclcpp::Duration(0, 500000000);
             marker_array.markers.push_back(hole);

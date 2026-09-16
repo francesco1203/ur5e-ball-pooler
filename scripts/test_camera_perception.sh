@@ -20,7 +20,7 @@ use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un pre
 
 #simulatori per la percezione
 start_image_view="true"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
-start_Rviz="false"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
+start_Rviz="true"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
 
 
 #parte vision

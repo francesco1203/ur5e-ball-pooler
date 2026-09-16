@@ -286,8 +286,7 @@
      <!-- directional: simula la luce solare overhead (buona per un'illuminazione uniforme) -->
     <!-- castshadow="true": attiva le ombre per maggiore realismo -->
     <light directional="true" diffuse=".8 .8 .8" specular=".2 .2 .2" pos="0 0 5" dir="0 0 -1" castshadow="true"/>
-
-    <!-- CAMERA -->
+<!-- CAMERA -->
     <body name="base_link_reference" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598">
         
         <!-- TELECAMERA (Coordinate relative al base_link, ovvero PARAMETRI ESTRINSECI) -->
@@ -297,8 +296,6 @@
         </body>
 
     </body>
-    
-    
 
     <!-- BRACCIO ur5e -->
     <body name="shoulder_link" pos="-0.303334 0.13575 0.441486" quat="0.270598 -0.653281 -0.653282 0.270598" childclass="ur5e" gravcomp="1" >
