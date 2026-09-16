@@ -1,14 +1,10 @@
 // ============================================================
-//  vision_node.cpp - SOLUZIONE A (HSV ROI & Morfologia)
+//  vision_node.cpp - SOLUZIONE A (Z-Upwards & Anti-Ghosting)
 // ============================================================
 #include <new>
 #include <iterator>
 #include <cstdint>
 #include <cstddef>
-
-#include <memory>
-#include <chrono>
-
 #include <memory>
 #include <chrono>
 #include <vector>
@@ -21,8 +17,12 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
+
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <tf2/LinearMath/Quaternion.h> 
+#include <visualization_msgs/msg/marker_array.hpp> // PER I MARKERS RVIZ
 
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
@@ -33,6 +33,7 @@ public:
     VisionNode() : Node("vision_node")
     {
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+        pub_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("perception_markers", 10);
 
         sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/camera/camera/color/image_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
@@ -43,13 +44,14 @@ public:
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             "/camera/camera/color/camera_info", rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
 
-        RCLCPP_INFO(this->get_logger(), "Vision Node avviato (Soluzione A). In attesa dei dati...");
+        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Assi Z verso l'alto e Anti-Ghosting attivi.");
     }
 
 private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_rgb_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_markers_;
     
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
@@ -75,7 +77,6 @@ private:
             } 
             else if (msg->encoding == sensor_msgs::image_encodings::TYPE_32FC1 || msg->encoding == "32FC1") {
                 cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
-                // IMPORTANTE: Aggiungiamo .clone() qui!
                 current_depth_frame_ = cv_ptr->image.clone(); 
             }
         } catch (cv_bridge::Exception& e) {
@@ -85,20 +86,7 @@ private:
 
     void rgb_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-        // LOG temporaneo per confermare che la callback parte
-        // RCLCPP_INFO(this->get_logger(), "Frame RGB ricevuto!"); 
-
-        if (!has_camera_info_) {
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
-                "In attesa di /camera/camera/color/camera_info...");
-            return;
-        }
-
-        if (current_depth_frame_.empty()) {
-            RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
-                "In attesa di /camera/camera/depth/image_rect_raw...");
-            return;
-        }
+        if (!has_camera_info_ || current_depth_frame_.empty()) return;
 
         cv_bridge::CvImagePtr cv_ptr;
         try {
@@ -115,7 +103,7 @@ private:
         cv::Mat dilate_kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
 
         // ========================================================
-        // 1. RILEVAMENTO TAVOLO E OSCURAMENTO SFONDO
+        // 1. RILEVAMENTO TAVOLO
         // ========================================================
         cv::Mat green_mask;
         cv::inRange(hsv_frame, cv::Scalar(35, 50, 50), cv::Scalar(85, 255, 255), green_mask);
@@ -143,27 +131,26 @@ private:
                 double x_t = (center_uv.x - cx_) * z_table / fx_;
                 double y_t = (center_uv.y - cy_) * z_table / fy_;
 
-                double angle_deg = table_rect.angle;
-                if (table_rect.size.width < table_rect.size.height) {
-                    angle_deg += 90.0;
+                cv::Point2f pts[4];
+                table_rect.points(pts);
+                double max_dist = 0.0;
+                cv::Point2f p1, p2;
+                for (int i = 0; i < 4; i++) {
+                    double dist = cv::norm(pts[i] - pts[(i + 1) % 4]);
+                    if (dist > max_dist) { max_dist = dist; p1 = pts[i]; p2 = pts[(i + 1) % 4]; }
                 }
-                double yaw_rad = angle_deg * (M_PI / 180.0);
+                double yaw_rad = std::atan2(p2.y - p1.y, p2.x - p1.x);
                 
-                publish_table_tf(BILLIARD_TABLE_FRAME, x_t, y_t, z_table, yaw_rad, img_stamp);
+                publish_table_tf("BILLIARD_TABLE_FRAME", x_t, y_t, z_table, yaw_rad, img_stamp);
                 
                 double physical_w = (table_rect.size.width * z_table) / fx_;
                 double physical_h = (table_rect.size.height * z_table) / fy_;
                 publish_holes_relative_to_table(img_stamp, std::max(physical_w, physical_h), std::min(physical_w, physical_h)); 
 
-                // --- CREAZIONE E "RESTRINGIMENTO" DELLA ROI ---
                 cv::Mat roi_mask = cv::Mat::zeros(hsv_frame.size(), CV_8U);
                 cv::drawContours(roi_mask, table_contours, best_table_idx, cv::Scalar(255), cv::FILLED);
-                
-                // L'Erosione mangia i bordi della maschera: le buche e le sponde vengono eliminate!
-                // Usiamo un kernel bello grande (25x25) per stringere il campo visivo in modo netto
                 cv::Mat roi_erosion_kernel = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(25, 25));
                 cv::erode(roi_mask, roi_mask, roi_erosion_kernel);
-
                 cv::Mat masked_hsv;
                 cv::bitwise_and(hsv_frame, hsv_frame, masked_hsv, roi_mask);
                 hsv_frame = masked_hsv; 
@@ -171,43 +158,50 @@ private:
         }
 
         // ========================================================
-        // 2. RILEVAMENTO PALLINE (HSV TUNING)
+        // 2. RILEVAMENTO PALLINE (ANTI-GHOSTING LOGIC)
         // ========================================================
         cv::Mat blurred_hsv;
         cv::GaussianBlur(hsv_frame, blurred_hsv, cv::Size(5, 5), 0);
         double ball_min_area = 80.0; 
 
-        // PALLINA ROSSA
+        // --- PALLINA ROSSA ---
         cv::Mat mask1, mask2, red_mask;
         cv::inRange(blurred_hsv, cv::Scalar(0, 80, 20), cv::Scalar(10, 255, 255), mask1);
         cv::inRange(blurred_hsv, cv::Scalar(170, 80, 20), cv::Scalar(180, 255, 255), mask2);
         red_mask = mask1 | mask2;
         cv::dilate(red_mask, red_mask, dilate_kernel);
         cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(red_mask, RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+        process_and_publish_ball(red_mask, "RED_SOLID_BALL_FRAME", ball_min_area, img_stamp);
 
-        // PALLINA ARANCIONE / GIALLA
-        cv::Mat orange_mask;
-        // Aumentato il limite H da 25 a 35 per includere le sfumature di giallo!
+        // --- PALLINA ARANCIONE (CON SOTTRAZIONE ROSSA) ---
+        cv::Mat orange_mask, red_inv;
         cv::inRange(blurred_hsv, cv::Scalar(10, 80, 20), cv::Scalar(35, 255, 255), orange_mask);
+        // Sottraiamo i pixel rossi per evitare che si sovrappongano!
+        cv::bitwise_not(red_mask, red_inv);
+        cv::bitwise_and(orange_mask, red_inv, orange_mask);
         cv::dilate(orange_mask, orange_mask, dilate_kernel);
         cv::morphologyEx(orange_mask, orange_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(orange_mask, YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+        process_and_publish_ball(orange_mask, "YELLOW_SOLID_BALL_FRAME", ball_min_area, img_stamp);
 
-        // PALLINA BLU
+        // --- PALLINA BLU ---
         cv::Mat blue_mask;
         cv::inRange(blurred_hsv, cv::Scalar(100, 80, 20), cv::Scalar(130, 255, 255), blue_mask);
         cv::dilate(blue_mask, blue_mask, dilate_kernel);
         cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(blue_mask, BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+        process_and_publish_ball(blue_mask, "BLUE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
 
-        // PALLINA BIANCA
-        cv::Mat white_mask;
-        // V min alzato a 130 per ignorare le macchie grigie. S max abbassato a 50 per ignorare colori chiari.
+        // --- PALLINA BIANCA (CON SOTTRAZIONE TUTTI I COLORI) ---
+        cv::Mat white_mask, all_colors_inv;
         cv::inRange(blurred_hsv, cv::Scalar(0, 0, 130), cv::Scalar(180, 50, 255), white_mask);
+        cv::Mat all_colors = red_mask | orange_mask | blue_mask;
+        cv::bitwise_not(all_colors, all_colors_inv);
+        cv::bitwise_and(white_mask, all_colors_inv, white_mask);
         cv::dilate(white_mask, white_mask, dilate_kernel);
         cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(white_mask, WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+        process_and_publish_ball(white_mask, "WHITE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+
+        // Pubblica la grafica su RViz!
+        publish_rviz_markers(img_stamp);
     }
 
     void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)
@@ -233,6 +227,9 @@ private:
 
             float z = get_average_depth(u, v);
             if (z > 0.0) {
+                // AGGIUNTO RAGGIO PALLINA: Spostiamo l'origine della TF dalla superficie al vero centro fisico 3D della palla
+                z += 0.0285f; 
+
                 double x_c = (u - cx_) * z / fx_;
                 double y_c = (v - cy_) * z / fy_;
                 
@@ -243,7 +240,14 @@ private:
                 t.transform.translation.x = x_c;
                 t.transform.translation.y = y_c;
                 t.transform.translation.z = z;
-                t.transform.rotation.w = 1.0; 
+                
+                // Capovolge l'asse Z verso l'alto (Roll = 180)
+                tf2::Quaternion q;
+                q.setRPY(M_PI, 0.0, 0.0);
+                t.transform.rotation.x = q.x();
+                t.transform.rotation.y = q.y();
+                t.transform.rotation.z = q.z();
+                t.transform.rotation.w = q.w();
 
                 tf_broadcaster_->sendTransform(t);
             }
@@ -280,10 +284,13 @@ private:
         t.transform.translation.y = y;
         t.transform.translation.z = z;
 
-        t.transform.rotation.x = 0.0;
-        t.transform.rotation.y = 0.0;
-        t.transform.rotation.z = std::sin(yaw_rad / 2.0);
-        t.transform.rotation.w = std::cos(yaw_rad / 2.0);
+        tf2::Quaternion q;
+        q.setRPY(M_PI, 0.0, yaw_rad); 
+        
+        t.transform.rotation.x = q.x();
+        t.transform.rotation.y = q.y();
+        t.transform.rotation.z = q.z();
+        t.transform.rotation.w = q.w();
 
         tf_broadcaster_->sendTransform(t);
     }
@@ -310,14 +317,85 @@ private:
             t_hole.header.stamp = stamp;
             t_hole.header.frame_id = "BILLIARD_TABLE_FRAME";
             t_hole.child_frame_id = hole.name;
-            
             t_hole.transform.translation.x = hole.x;
             t_hole.transform.translation.y = hole.y;
             t_hole.transform.translation.z = 0.0; 
             t_hole.transform.rotation.w = 1.0;
-
             tf_broadcaster_->sendTransform(t_hole);
         }
+    }
+
+void publish_rviz_markers(rclcpp::Time stamp)
+    {
+        visualization_msgs::msg::MarkerArray marker_array;
+        
+        auto create_ball_marker = [&](const std::string& frame_id, int id, float r, float g, float b) {
+            visualization_msgs::msg::Marker marker;
+            marker.header.stamp = stamp;
+            marker.header.frame_id = frame_id;
+            marker.ns = "balls";
+            marker.id = id;
+            marker.type = visualization_msgs::msg::Marker::SPHERE;
+            marker.action = visualization_msgs::msg::Marker::ADD;
+            marker.pose.position.x = 0.0;
+            marker.pose.position.y = 0.0;
+            marker.pose.position.z = 0.0; 
+            marker.pose.orientation.w = 1.0;
+            marker.scale.x = 0.057; 
+            marker.scale.y = 0.057;
+            marker.scale.z = 0.057;
+            marker.color.r = r; marker.color.g = g; marker.color.b = b; marker.color.a = 1.0;
+            marker.lifetime = rclcpp::Duration(0, 500000000); 
+            return marker;
+        };
+
+        // Palline
+        marker_array.markers.push_back(create_ball_marker("WHITE_SOLID_BALL_FRAME", 0, 1.0, 1.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker("RED_SOLID_BALL_FRAME", 1, 1.0, 0.0, 0.0));
+        marker_array.markers.push_back(create_ball_marker("BLUE_SOLID_BALL_FRAME", 2, 0.0, 0.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker("YELLOW_SOLID_BALL_FRAME", 3, 1.0, 0.6, 0.0));
+
+        // Buche (Fori piatti sulla superficie)
+        std::vector<std::string> holes = {
+            "hole_top_left", "hole_top_right", "hole_mid_left", 
+            "hole_mid_right", "hole_bottom_left", "hole_bottom_right"
+        };
+        for (size_t i = 0; i < holes.size(); i++) {
+            visualization_msgs::msg::Marker hole;
+            hole.header.stamp = stamp;
+            hole.header.frame_id = holes[i];
+            hole.ns = "holes";
+            hole.id = 20 + i;
+            hole.type = visualization_msgs::msg::Marker::CYLINDER;
+            hole.action = visualization_msgs::msg::Marker::ADD;
+            hole.pose.position.x = 0.0; hole.pose.position.y = 0.0; hole.pose.position.z = 0.0; 
+            hole.pose.orientation.w = 1.0;
+            hole.scale.x = 0.12; hole.scale.y = 0.12; hole.scale.z = 0.005; // Solo 5 mm di spessore
+            hole.color.r = 0.1; hole.color.g = 0.1; hole.color.b = 0.1; hole.color.a = 1.0;
+            hole.lifetime = rclcpp::Duration(0, 500000000);
+            marker_array.markers.push_back(hole);
+        }
+
+        // Superficie di gioco (Panno verde)
+        visualization_msgs::msg::Marker table_marker;
+        table_marker.header.stamp = stamp;
+        table_marker.header.frame_id = "BILLIARD_TABLE_FRAME";
+        table_marker.ns = "table_surface";
+        table_marker.id = 10;
+        table_marker.type = visualization_msgs::msg::Marker::CUBE;
+        table_marker.action = visualization_msgs::msg::Marker::ADD;
+        table_marker.pose.position.x = 0.0;
+        table_marker.pose.position.y = 0.0;
+        table_marker.pose.position.z = -0.005; // Abbassato di mezzo cm per essere a filo della TF
+        table_marker.pose.orientation.w = 1.0;
+        table_marker.scale.x = 1.0; 
+        table_marker.scale.y = 0.5;
+        table_marker.scale.z = 0.01; // Spessore reale della superficie letta dalla camera (1 cm)
+        table_marker.color.r = 0.0; table_marker.color.g = 0.4; table_marker.color.b = 0.0; table_marker.color.a = 0.8;
+        table_marker.lifetime = rclcpp::Duration(0, 500000000);
+        marker_array.markers.push_back(table_marker);
+
+        pub_markers_->publish(marker_array);
     }
 };
 

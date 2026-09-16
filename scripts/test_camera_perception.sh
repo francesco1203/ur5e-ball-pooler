@@ -20,15 +20,15 @@ use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un pre
 
 #simulatori per la percezione
 start_image_view="true"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
-start_Rviz="true"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
+start_Rviz="false"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
 
 
 #parte vision
-launch_vision_node="false"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
+launch_vision_node="true"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
 
 
 #costruzione scena
-launch_scene_builder="true"                  #true se vuoi lanciare il nodo scene_builder (per testare la percezione in tempo reale)
+launch_scene_builder="false"                  #true se vuoi lanciare il nodo scene_builder (per testare la percezione in tempo reale)
 auto_loop_build_scene="true"                   #true se vuoi che la scena venga costruita in loop (per testare la percezione in tempo reale)
 time_between_scene_builds=1                    #tempo in secondi tra una costruzione della scena e la successiva (se auto_loop_build_scene=true)
 user_input_to_build_scene="true"               #true se vuoi che la costruzione della scena avvenga solo dopo un input dell'utente (se auto_loop_build_scene=true)
