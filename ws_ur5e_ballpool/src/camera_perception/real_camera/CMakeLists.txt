@@ -17,7 +17,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(shared_headers_pkg REQUIRED)
-
+find_package(visualization_msgs REQUIRED)
 # --- NUOVE DIPENDENZE AGGIUNTE PER I QUATERNIONI ---
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)

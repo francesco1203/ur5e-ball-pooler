@@ -22,7 +22,7 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2/LinearMath/Quaternion.h> 
-#include <visualization_msgs/msg/marker_array.hpp> // PER I MARKERS RVIZ
+
 
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
