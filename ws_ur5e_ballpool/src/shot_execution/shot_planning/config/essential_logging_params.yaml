@@ -1,5 +1,6 @@
-# src/shot_planning/config/logging_params.yaml
-task_node:
+# src/shot_planning/config/logging_essential_params.yaml
+#this file should be used only when in the logging_essential_mode
+
   ros__parameters:
 
     #DEBUG PARAMETERS
@@ -11,9 +12,6 @@ task_node:
     #ruckig shot generated trajectory  logging
     log_ruckig_trajectory: true                                                      # attiva log in file della traiettoria calcolata da Ruckig (in moveCartesianPathAsymmTriangle, tiro)
     csv_ruckig_trajectory_path: "data/csv/ruckig_logging/ruckig_trajectory_log.csv"  # percorso del file csv di log della traiettoria calcolata da Ruckig
-
-    #brutal logging vs only essential logging
-    #brutal_loging: false                  #serve a segnalare al nodo quale logging si sta facendo e quindi ottimizza le richieste, evitando di fare richieste a bag_writer   
 
     #type logging for only essential
     joints_logging_enabled: true

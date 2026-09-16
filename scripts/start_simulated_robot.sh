@@ -22,12 +22,12 @@ execute_shot="true"                            #false se vuoi solo fare visualiz
 use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging
-logging_enable="false"                                        #true se vuoi fare logging
+logging_enable="true"                                        #true se vuoi fare logging
 
 only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
-only_camera_logging="false"                                   #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
+only_camera_logging="true"                                   #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
 only_camera_logging_folder="only_camera_logging"              #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
 brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
@@ -131,11 +131,11 @@ if [[ "$execute_shot" == "true" ]]; then
 
     # ------------------------------------------------
     # gestione del logging
-    if [[ "$logging_enabled" == "true" ]]; then
+    if [[ "$logging_enable" == "true" ]]; then
 
         BAGDATA_DIR="data/bagdata"
 
-        if [[ "only_essential_logging" == "true" ]]; then
+        if [[ "$only_essential_logging" == "true" ]]; then
 
             # ------------------------------------------------
             # solo logging essenziale, topic principali durante il tiro
@@ -155,7 +155,7 @@ if [[ "$execute_shot" == "true" ]]; then
         fi
 
 
-        if [[ "only_camera_logging" == "true" ]]; then
+        if [[ "$only_camera_logging" == "true" ]]; then
 
             # ------------------------------------------------
             # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
@@ -201,68 +201,38 @@ if [[ "$execute_shot" == "true" ]]; then
 
 
     # ------------------------------------------------
-    # nodo che effettua il tiro (distinguo i casi con MuJoCo e senza, con logging e senza logging)
+    # nodo che effettua il tiro (distinguo i casi con MuJoCo e senza, con essenzial_logging e senza essential_logging, in quanto devo passare parametri aggiuntivi)
 
     SHOT_CONFIG_DIR="${WS_DIR}/src/shot_execution/shot_planning/config"
 
-    if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+    # Definisco i parametri di base (sempre presenti)
+    NODE_ARGS="--ros-args \
+        --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml"
 
-        if [[ "$logging_enabled" == "true" ]]; then      
-            # MuJoCo + logging
-            echo "Avvio Shot Planning con setup UseMuJoCo+Logging..."      
-            gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-                source ${INSTALL_SETUP_BASH} && \
-                ros2 run shot_planning task_node --ros-args \
-                    --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/logging_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/using_mujoco.yaml; \
-                exec bash"
-        else
-            # MuJoCo senza logging
-            echo "Avvio Shot Planning con setup UseMuJoCo..."
-            gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-                source ${INSTALL_SETUP_BASH} && \
-                ros2 run shot_planning task_node --ros-args \
-                    --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/using_mujoco.yaml; \
-                exec bash"
-        fi
-
-    else
-
-        if [[ "$logging_enabled" == "true" ]]; then  
-            # senza MuJoCo + logging
-            echo "Avvio Shot Planning con setup Logging..."
-            gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-                source ${INSTALL_SETUP_BASH} && \
-                ros2 run shot_planning task_node --ros-args \
-                    --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/logging_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
-                exec bash"
-        else
-            # senza MuJoCo senza logging
-            echo "Avvio Shot Planning senza setup Logging..."
-            gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-                source ${INSTALL_SETUP_BASH} && \
-                ros2 run shot_planning task_node --ros-args \
-                    --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                    --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
-                exec bash"
-        fi
+    # Aggiungo il file di essential_logging se richiesto
+    if [[ "$logging_enable" == "true" && "$only_essential_logging" == "true" ]]; then
+        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/essential_logging_params.yaml"
     fi
+
+    # Aggiungo il file di MuJoCo se richiesto
+    if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/using_mujoco.yaml"
+    fi
+
+ 
+    echo "Avvio Shot Planning..."
+
+    # 5. Eseguo il comando finale passando la stringa generata
+    gnome-terminal --tab --title="Shot Planning" -- bash -c " \
+        source ${INSTALL_SETUP_BASH} && \
+        ros2 run shot_planning task_node ${NODE_ARGS}; \
+        exec bash"
     sleep 5
     # ------------------------------------------------
+
 
     # ------------------------------------------------
     # game engine

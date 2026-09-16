@@ -32,12 +32,17 @@ use_real_camera="false"                      #true se vuoi usare la camera reale
 execute_shot="true"                           #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro (utile in fase di debug e setup)
 use_real_game_engine="true"                   #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
-#logging:  brutal (tutti i topic) vs only_essential (solo i topic essenziali)
+#logging
 logging_enable="false"                                        #true se vuoi fare logging
-brutal_logging="false"                                        #true se vuoi fare logging brutale (di tutti i topic), false se vuoi fare logging solo dei dati essenziali
-brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+
+only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
-# ------------------------------------------------
+
+only_camera_logging="false"                                   #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
+only_camera_logging_folder="only_camera_logging"              #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+
+brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
+brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title># ------------------------------------------------
 
 
 # ------------------------------------------------
@@ -247,33 +252,74 @@ if [[ "$execute_shot" == "true" ]]; then
 
     # ------------------------------------------------
     # gestione del logging
-    if [["$logging_enabled" == "true" ]]; then
+    if [["$logging_enable" == "true" ]]; then
 
-        #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
-        echo "Avvio Nodo di debug cartesiano..."
-        gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
-        sleep 2
+        # ------------------------------------------------
+    # gestione del logging
+    if [[ "$logging_enable" == "true" ]]; then
+
+        BAGDATA_DIR="data/bagdata"
+
+        if [[ "$only_essential_logging" == "true" ]]; then
+
+            # ------------------------------------------------
+            # solo logging essenziale, topic principali durante il tiro
+
+            #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
+            echo "Avvio Nodo di debug cartesiano..."
+            gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
+            sleep 1
+
+            # solo logging essenziale, topic principali durante il tiro
+            echo "Avvio Bag Writer essenziale su richiesta..."
+            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
+
+            sleep 2
+
+            # ------------------------------------------------
+        fi
 
 
-        #se logging brutale, non avvio il bag writer, perché farò un ros2 bag record manuale che registri tutti i topic in un altro terminale
+        if [[ "$only_camera_logging" == "true" ]]; then
+
+            # ------------------------------------------------
+            # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
+
+            BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}"
+
+            #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+            rm -rf "${BAGDATA_DIR_CAMERA}"  
+
+            # solo logging della camera
+            echo "ros2 bag record dei topic della camera..."
+            gnome-terminal --tab --title="ros2bag camera record" -- \
+                bash -c "source ${INSTALL_SETUP_BASH} && \
+                ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
+                /camera/camera/color/camera_info \
+                /camera/camera/color/image_raw \
+                /camera/camera/depth/image_rect_raw; \
+                exec bash"
+
+            sleep 2
+            # ------------------------------------------------
+        fi
+
+        
         if [[ "$brutal_logging" == "true" ]]; then
+    
+            # ------------------------------------------------
+            # logging di tutti i topic, durante l'esecuzione di tutto il programma
 
-            BAGDATA_DIR="data/bagdata"
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
 
             #cancello la cartella di logging precedente se esiste, così da non avere conflitti
-            rm -rf "${BAGDATA_DIR_BRUTAL}" 
+            rm -rf "${BAGDATA_DIR_BRUTAL}"  
 
             echo "Avvio ros2 bag record manuale..."
-            gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
+            gnome-terminal --tab --title="ros2bag brutal record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
 
             sleep 2
 
-        else
-            echo "Avvio Bag Writer essenziale su richiesta..."
-        
-            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
-            sleep 2
         fi
     fi
     # ------------------------------------------------
@@ -283,30 +329,26 @@ if [[ "$execute_shot" == "true" ]]; then
     # nodo che effettua il tiro vero e proprio
     SHOT_CONFIG_DIR="${WS_DIR}/src/shot_execution/shot_planning/config"
 
-    if [[ "$logging_enable" == "true" ]]; then      
-        # Con logging
-        echo "Avvio Shot Planning con setup Logging..."      
-        gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-            source ${INSTALL_SETUP_BASH} && \
-            ros2 run shot_planning task_node --ros-args \
-                --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/logging_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
-            exec bash"
-    else
-        # Senza logging (rimosso il file logging_params.yaml)
-        echo "Avvio Shot Planning senza logging..."
-        gnome-terminal --tab --title="Shot Planning" -- bash -c " \
-            source ${INSTALL_SETUP_BASH} && \
-            ros2 run shot_planning task_node --ros-args \
-                --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
-                --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml; \
-            exec bash"
+    # Definisco i parametri di base (sempre presenti)
+    NODE_ARGS="--ros-args \
+        --params-file ${SHOT_CONFIG_DIR}/execution_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/shot_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
+        --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml"
+
+    # Aggiungo il file di essential_logging se richiesto
+    if [[ "$logging_enable" == "true" && "$only_essential_logging" == "true" ]]; then
+        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/essential_logging_params.yaml"
     fi
+
+    echo "Avvio Shot Planning..."
+
+    # 5. Eseguo il comando finale passando la stringa generata
+    gnome-terminal --tab --title="Shot Planning" -- bash -c " \
+        source ${INSTALL_SETUP_BASH} && \
+        ros2 run shot_planning task_node ${NODE_ARGS}; \
+        exec bash"
+    sleep 5
     # ------------------------------------------------
 
 
