@@ -138,6 +138,26 @@ def generate_launch_description():
     joint_state_publisher_node = Node(
         package="joint_state_publisher_gui",
         executable="joint_state_publisher_gui",
+        parameters=[
+            {
+                # "zeros": {
+                #     "shoulder_pan_joint": 0.08,
+                #     "shoulder_lift_joint": 0.375,
+                #     "elbow_joint": -1.92,          
+                #     "wrist_1_joint": -0.09,
+                #     "wrist_2_joint": -3.9,
+                #     "wrist_3_joint": 2.2
+                # }
+                "zeros": {
+                    "shoulder_pan_joint": 0.016,
+                    "shoulder_lift_joint": 0.31,
+                    "elbow_joint": -2.074,          
+                    "wrist_1_joint": 0.144,
+                    "wrist_2_joint": -3.96,
+                    "wrist_3_joint": -0.815
+                }
+            }
+        ]
     )
     
     robot_state_publisher_node = Node(

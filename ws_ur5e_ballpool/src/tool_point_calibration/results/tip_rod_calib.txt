@@ -1,0 +1,3 @@
+Calibrated tcp respect to tool0 [meters]
+
+[x,y,z] = [ 0.115204  0.108042 0.0825857]

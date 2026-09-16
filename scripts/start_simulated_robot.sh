@@ -21,11 +21,18 @@ build_scene_rviz="true"                        #true se vuoi costruire la scena 
 execute_shot="true"                            #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro (utile in fase di debug e setup)
 use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
-#logging brutal vs only essential
+#logging
 logging_enable="false"                                        #true se vuoi fare logging
+
+only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
+only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+
+only_camera_logging="false"                                   #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
+only_camera_logging_folder="only_camera_logging"              #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+
 brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
 brutal_logging_folder="brutal_logging"                        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
-only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
+
 # ------------------------------------------------
 
 
@@ -126,31 +133,68 @@ if [[ "$execute_shot" == "true" ]]; then
     # gestione del logging
     if [[ "$logging_enabled" == "true" ]]; then
 
-        #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
-        echo "Avvio Nodo di debug cartesiano..."
-        gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
-        sleep 2
+        BAGDATA_DIR="data/bagdata"
+
+        if [[ "only_essential_logging" == "true" ]]; then
+
+            # ------------------------------------------------
+            # solo logging essenziale, topic principali durante il tiro
+
+            #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
+            echo "Avvio Nodo di debug cartesiano..."
+            gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
+            sleep 1
+
+            # solo logging essenziale, topic principali durante il tiro
+            echo "Avvio Bag Writer essenziale su richiesta..."
+            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
+
+            sleep 2
+
+            # ------------------------------------------------
+        fi
 
 
-        #se logging brutale, non avvio il bag writer, perché farò un ros2 bag record manuale che registri tutti i topic in un altro terminale
+        if [[ "only_camera_logging" == "true" ]]; then
+
+            # ------------------------------------------------
+            # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
+
+            BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}"
+
+            #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+            rm -rf "${BAGDATA_DIR_CAMERA}"  
+
+            # solo logging della camera
+            echo "ros2 bag record dei topic della camera..."
+            gnome-terminal --tab --title="ros2bag camera record" -- \
+                bash -c "source ${INSTALL_SETUP_BASH} && \
+                ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
+                /camera/camera/color/camera_info \
+                /camera/camera/color/image_raw \
+                /camera/camera/depth/image_rect_raw; \
+                exec bash"
+
+            sleep 2
+            # ------------------------------------------------
+        fi
+
+        
         if [[ "$brutal_logging" == "true" ]]; then
     
-            BAGDATA_DIR="data/bagdata"
+            # ------------------------------------------------
+            # logging di tutti i topic, durante l'esecuzione di tutto il programma
+
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
 
             #cancello la cartella di logging precedente se esiste, così da non avere conflitti
             rm -rf "${BAGDATA_DIR_BRUTAL}"  
 
             echo "Avvio ros2 bag record manuale..."
-            gnome-terminal --tab --title="ros2 bag record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
+            gnome-terminal --tab --title="ros2bag brutal record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
 
             sleep 2
 
-        else
-            echo "Avvio Bag Writer essenziale su richiesta..."
-        
-            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
-            sleep 2
         fi
     fi
     # ------------------------------------------------

@@ -74,6 +74,10 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        camera_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         cut_rod_link:
           Alpha: 1
           Show Axes: false
@@ -115,6 +119,16 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        wall_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        world:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         wrist_1_link:
           Alpha: 1
           Show Axes: false
@@ -126,16 +140,6 @@ Visualization Manager:
           Show Trail: false
           Value: true
         wrist_3_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        wall_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-          Value: true
-        world:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -161,6 +165,8 @@ Visualization Manager:
           Value: false
         base_link_inertia:
           Value: false
+        camera_color_optical_frame:
+          Value: true
         cut_rod_link:
           Value: false
         flange:
@@ -179,15 +185,15 @@ Visualization Manager:
           Value: false
         upper_arm_link:
           Value: false
+        wall_link:
+          Value: false
+        world:
+          Value: false
         wrist_1_link:
           Value: false
         wrist_2_link:
           Value: false
         wrist_3_link:
-          Value: false
-        wall_link:
-          Value: false
-        world:
           Value: false
       Marker Scale: 0.15000000596046448
       Name: TF
@@ -198,7 +204,8 @@ Visualization Manager:
         world:
           base_link:
             base:
-              {}
+              camera_color_optical_frame:
+                {}
             base_link_inertia:
               shoulder_link:
                 upper_arm_link:
@@ -210,8 +217,9 @@ Visualization Manager:
                             tool0:
                               holder_link:
                                 cut_rod_link:
-                                  rod_tip_virtual_link:
-                                    {}
+                                  {}
+                              rod_tip_virtual_link:
+                                {}
                           ft_frame:
                             {}
           wall_link:
@@ -264,25 +272,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 0.30673229694366455
+      Distance: 0.07037597894668579
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.44480475783348083
-        Y: -0.664760947227478
-        Z: 0.7482285499572754
+        X: -0.7510475516319275
+        Y: -0.3848010003566742
+        Z: 0.2105153650045395
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.16753588616847992
+      Pitch: 0.8725352883338928
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.252989768981934
+      Yaw: 3.762989044189453
     Saved: ~
 Window Geometry:
   Displays:

@@ -32,7 +32,7 @@
         <joint name="shoulder_pan_joint" value="0.08"/>         <!-- 4.6° -->
         <joint name="wrist_1_joint" value="-0.09"/>             <!-- -5.2° -->
         <joint name="wrist_2_joint" value="-3.9"/>              <!-- -223.4° -->
-        <joint name="wrist_3_joint" value="3.14"/>              <!-- 180.0° -->
+        <joint name="wrist_3_joint" value="2.2"/>               <!-- 126.1° -->
     </group_state>
 
     <!-- scoperto il campo - GOMITO ALTO -->
@@ -42,7 +42,7 @@
         <joint name="shoulder_pan_joint" value="-0.332"/>       <!-- -19.0° -->
         <joint name="wrist_1_joint" value="-0.17"/>             <!-- -10.0° -->
         <joint name="wrist_2_joint" value="-3.96"/>             <!-- -227.0° -->
-        <joint name="wrist_3_joint" value="2.0"/>               <!-- 114.6° -->
+        <joint name="wrist_3_joint" value="1.4"/>               <!-- 80.0° -->
     </group_state>
 
 
