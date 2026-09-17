@@ -10,12 +10,12 @@ use_real_camera="false"                      #true se vuoi usare la camera reale
 launch_driver="false"                         #true se vuoi (ri)lanciare il driver (avviato solo con camera reale)
 
 #strumenti simulati (se non si usa la camera reale)
-use_bagfiles_stream="false"                                              #true se vuoi usare i bag files per simulare lo stream della camera
+use_bagfiles_stream="true"                                              #true se vuoi usare i bag files per simulare lo stream della camera
 bagfile_path="data/bagdata/camera_stream/rosbag2_2026_09_11-12_01_28"   #percorso del file bag da usare se use_bagfiles_stream=true
 
-use_mujoco_camera="true"                        #true se vuoi usare la camera simulata in MuJoCo (per testare la percezione in tempo reale)
+use_mujoco_camera="false"                        #true se vuoi usare la camera simulata in MuJoCo (per testare la percezione in tempo reale)
 
-use_fake_camera_node="true"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
+use_fake_camera_node="false"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
 use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un prefisso ai frame pubblicati dal nodo fake_camera_node (utile per evitare conflitti di nomi dei frame)
 
 #simulatori per la percezione
@@ -53,7 +53,7 @@ if [ "$use_real_camera" = true ] && [ "$launch_driver" = true ]; then
 
     if [ "$launch_driver" = true ]; then
         echo "Avvio driver IntelRealSense..."
-        gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch realsense2_camera rs_launch.py; exec bash"
+        gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x30 pointcloud.enable:=true enable_rgbd:=true align_depth.enable:=true ; exec bash"
         sleep 5
     else
         echo -e "Driver IntelRealSense non avviati da questo script. Assicurati che siano già attivi..."
