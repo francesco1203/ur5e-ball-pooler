@@ -288,8 +288,7 @@
     <light directional="true" diffuse=".8 .8 .8" specular=".2 .2 .2" pos="0 0 5" dir="0 0 -1" castshadow="true"/>
 
     <!-- CAMERA -->
-    <!-- Quota Z traslata di 16,2 cm per la differenza di terne tra MuJoCo e gli urdf (0.441486 + 0.162) -->
-    <body name="base_link_reference" pos="-0.303334 0.13575 0.603486" quat="0.270598 -0.653281 -0.653282 0.270598"> 
+    <body name="base_link_reference" pos="-0.188 0.13575 0.556" quat="0.270598 -0.653281 -0.653282 0.270598"> 
 
         <!-- TELECAMERA (Coordinate relative al base_link, ovvero PARAMETRI ESTRINSECI) -->
         <body name="realsense_mount" pos="-0.289 -0.473 0.048" quat="0.649210 -0.268593 -0.276830 -0.655553">
