@@ -36,17 +36,20 @@ public:
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         pub_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("perception_markers", 10);
 
+        // Dichiarazione del publisher per la point cloud
+        pub_pointcloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(DEPTH_POINTCLOUD_TOPIC, 10);
+        pub_depth_vis_ = this->create_publisher<sensor_msgs::msg::Image>(DEPTH_IMAGE_VISUAL_TOPIC, 10);
 
-        // Dichiarazione del publisher nel costruttore:
-        pub_pointcloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/depth_pointcloud", 10);
-        pub_depth_vis_ = this->create_publisher<sensor_msgs::msg::Image>("/camera/camera/depth/image_visual", 10);
-        sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>("/camera/camera/color/image_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
+        // Sottoscrizione ai topic della camera
+        sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
+            RGB_IMAGE_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
         
         sub_depth_ = this->create_subscription<sensor_msgs::msg::Image>(
-            "/camera/camera/depth/image_rect_raw", rclcpp::SensorDataQoS(), std::bind(&VisionNode::depth_callback, this, std::placeholders::_1));
+            DEPTH_IMAGE_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::depth_callback, this, std::placeholders::_1));
 
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/camera/camera/color/camera_info", rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
+            CAMERA_INFO_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
+
 
         RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Assi Z verso l'alto e Anti-Ghosting attivi.");
     }
@@ -76,23 +79,23 @@ private:
     void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
 
-
         if (!current_depth_frame_.empty()) {
-    cv::Mat depth_normalized;
-    // Converte la matrice di float (0.0 - 2.0 metri) in 8-bit (0 - 255) per la visualizzazione
-    cv::normalize(current_depth_frame_, depth_normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-    
-    // Applica una mappa di colori (es. COLORMAP_JET) per vedere il gradiente di profondità
-    cv::Mat depth_colored;
-    cv::applyColorMap(depth_normalized, depth_colored, cv::COLORMAP_JET);
+            cv::Mat depth_normalized;
+            // Converte la matrice di float (0.0 - 2.0 metri) in 8-bit (0 - 255) per la visualizzazione
+            cv::normalize(current_depth_frame_, depth_normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
+            
+            // Applica una mappa di colori (es. COLORMAP_JET) per vedere il gradiente di profondità
+            cv::Mat depth_colored;
+            cv::applyColorMap(depth_normalized, depth_colored, cv::COLORMAP_JET);
 
-    std_msgs::msg::Header header;
-    header.stamp = this->now();
-    header.frame_id = "camera_color_optical_frame";
+            std_msgs::msg::Header header;
+            header.stamp = this->now();
+            header.frame_id = CAMERA_FRAME ;
 
-    sensor_msgs::msg::Image::SharedPtr vis_msg = cv_bridge::CvImage(header, "bgr8", depth_colored).toImageMsg();
-    pub_depth_vis_->publish(*vis_msg);
-}
+            sensor_msgs::msg::Image::SharedPtr vis_msg = cv_bridge::CvImage(header, "bgr8", depth_colored).toImageMsg();
+            pub_depth_vis_->publish(*vis_msg);
+        }
+
         try {
             if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1 || msg->encoding == "16UC1") {
                 cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
@@ -164,7 +167,7 @@ private:
                 }
                 double yaw_rad = std::atan2(p2.y - p1.y, p2.x - p1.x);
                 
-                publish_table_tf("BILLIARD_TABLE_FRAME", x_t, y_t, z_table, yaw_rad, img_stamp);
+                publish_table_tf(BILLIARD_TABLE_FRAME, x_t, y_t, z_table, yaw_rad, img_stamp);
                 
                 double physical_w = (table_rect.size.width * z_table) / fx_;
                 double physical_h = (table_rect.size.height * z_table) / fy_;
@@ -197,7 +200,7 @@ private:
         red_mask = mask1 | mask2;
         cv::dilate(red_mask, red_mask, dilate_kernel);
         cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(red_mask, "RED_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(red_mask, RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // --- PALLINA ARANCIONE (CON SOTTRAZIONE ROSSA) ---
         cv::Mat orange_mask, red_inv;
@@ -207,14 +210,14 @@ private:
         cv::bitwise_and(orange_mask, red_inv, orange_mask);
         cv::dilate(orange_mask, orange_mask, dilate_kernel);
         cv::morphologyEx(orange_mask, orange_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(orange_mask, "YELLOW_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(orange_mask, YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // --- PALLINA BLU ---
         cv::Mat blue_mask;
         cv::inRange(blurred_hsv, cv::Scalar(100, 80, 20), cv::Scalar(130, 255, 255), blue_mask);
         cv::dilate(blue_mask, blue_mask, dilate_kernel);
         cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(blue_mask, "BLUE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(blue_mask, BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // --- PALLINA BIANCA (CON SOTTRAZIONE TUTTI I COLORI) ---
         cv::Mat white_mask, all_colors_inv;
@@ -224,48 +227,48 @@ private:
         cv::bitwise_and(white_mask, all_colors_inv, white_mask);
         cv::dilate(white_mask, white_mask, dilate_kernel);
         cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
-        process_and_publish_ball(white_mask, "WHITE_SOLID_BALL_FRAME", ball_min_area, img_stamp);
+        process_and_publish_ball(white_mask, WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
         // Pubblica la grafica su RViz!
         publish_rviz_markers(img_stamp);
     }
 
     void publish_pointcloud(rclcpp::Time stamp)
-{
-    if (current_depth_frame_.empty() || !has_camera_info_) return;
+    {
+        if (current_depth_frame_.empty() || !has_camera_info_) return;
 
-    auto cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-    cloud_msg->header.stamp = stamp;
-    cloud_msg->header.frame_id = "camera_color_optical_frame";
-    cloud_msg->height = current_depth_frame_.rows;
-    cloud_msg->width = current_depth_frame_.cols;
-    cloud_msg->is_dense = false;
-    cloud_msg->is_bigendian = false;
+        auto cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+        cloud_msg->header.stamp = stamp;
+        cloud_msg->header.frame_id = CAMERA_FRAME ;
+        cloud_msg->height = current_depth_frame_.rows;
+        cloud_msg->width = current_depth_frame_.cols;
+        cloud_msg->is_dense = false;
+        cloud_msg->is_bigendian = false;
 
-    sensor_msgs::PointCloud2Modifier modifier(*cloud_msg);
-    modifier.setPointCloud2FieldsByString(1, "xyz");
-    modifier.resize(cloud_msg->height * cloud_msg->width);
+        sensor_msgs::PointCloud2Modifier modifier(*cloud_msg);
+        modifier.setPointCloud2FieldsByString(1, "xyz");
+        modifier.resize(cloud_msg->height * cloud_msg->width);
 
-    sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
-    sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud_msg, "y");
-    sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud_msg, "z");
+        sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
+        sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud_msg, "y");
+        sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud_msg, "z");
 
-    for (int v = 0; v < current_depth_frame_.rows; ++v) {
-        for (int u = 0; u < current_depth_frame_.cols; ++u) {
-            float z = current_depth_frame_.at<float>(v, u);
-            if (std::isnan(z) || z <= 0.1f) {
-                *iter_x = *iter_y = *iter_z = std::numeric_limits<float>::quiet_NaN();
-            } else {
-                *iter_x = (u - cx_) * z / fx_;
-                *iter_y = (v - cy_) * z / fy_;
-                *iter_z = z;
+        for (int v = 0; v < current_depth_frame_.rows; ++v) {
+            for (int u = 0; u < current_depth_frame_.cols; ++u) {
+                float z = current_depth_frame_.at<float>(v, u);
+                if (std::isnan(z) || z <= 0.1f) {
+                    *iter_x = *iter_y = *iter_z = std::numeric_limits<float>::quiet_NaN();
+                } else {
+                    *iter_x = (u - cx_) * z / fx_;
+                    *iter_y = (v - cy_) * z / fy_;
+                    *iter_z = z;
+                }
+                ++iter_x; ++iter_y; ++iter_z;
             }
-            ++iter_x; ++iter_y; ++iter_z;
         }
-    }
 
-    pub_pointcloud_->publish(*cloud_msg);
-}
+        pub_pointcloud_->publish(*cloud_msg);
+    }
 
     void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)
     {
@@ -291,14 +294,14 @@ private:
            float z = get_average_depth(u, v);
             if (z > 0.0) {
                 // CORRETTO: Aggiungiamo il raggio della mini-pallina di MuJoCo (1.25 cm)
-                z += 0.0125f; 
+                z += BALL_RADIUS; 
 
                 double x_c = (u - cx_) * z / fx_;
                 double y_c = (v - cy_) * z / fy_;
                 
                 geometry_msgs::msg::TransformStamped t;
                 t.header.stamp = stamp; 
-                t.header.frame_id = "camera_color_optical_frame";
+                t.header.frame_id = CAMERA_FRAME;
                 t.child_frame_id = frame_name;
                 t.transform.translation.x = x_c;
                 t.transform.translation.y = y_c;
@@ -345,7 +348,7 @@ private:
     {
         geometry_msgs::msg::TransformStamped t;
         t.header.stamp = stamp;
-        t.header.frame_id = "camera_color_optical_frame";
+        t.header.frame_id = CAMERA_FRAME;
         t.child_frame_id = child_frame;
         t.transform.translation.x = x;
         t.transform.translation.y = y;
@@ -371,18 +374,18 @@ private:
 
         struct HoleDef { std::string name; double x; double y; };
         std::vector<HoleDef> holes = {
-            {"hole_top_left",     -half_l + offset_x, -half_w + offset_y},
-            {"hole_top_right",    -half_l + offset_x,  half_w - offset_y},
-            {"hole_mid_left",      0.0,               -half_w + (offset_y/2)},
-            {"hole_mid_right",     0.0,                half_w - (offset_y/2)},
-            {"hole_bottom_left",   half_l - offset_x, -half_w + offset_y},
-            {"hole_bottom_right",  half_l - offset_x,  half_w - offset_y}
+            {HOLE_TOP_LEFT_FRAME,     -half_l + offset_x, -half_w + offset_y},
+            {HOLE_TOP_RIGHT_FRAME,    -half_l + offset_x,  half_w - offset_y},
+            {HOLE_MID_LEFT_FRAME,      0.0,               -half_w + (offset_y/2)},
+            {HOLE_MID_RIGHT_FRAME,     0.0,                half_w - (offset_y/2)},
+            {HOLE_BOTTOM_LEFT_FRAME,   half_l - offset_x, -half_w + offset_y},
+            {HOLE_BOTTOM_RIGHT_FRAME,  half_l - offset_x,  half_w - offset_y}
         };
 
         for (const auto& hole : holes) {
             geometry_msgs::msg::TransformStamped t_hole;
             t_hole.header.stamp = stamp;
-            t_hole.header.frame_id = "BILLIARD_TABLE_FRAME";
+            t_hole.header.frame_id = BILLIARD_TABLE_FRAME;
             t_hole.child_frame_id = hole.name;
             t_hole.transform.translation.x = hole.x;
             t_hole.transform.translation.y = hole.y;
@@ -417,15 +420,15 @@ void publish_rviz_markers(rclcpp::Time stamp)
         };
 
         // Palline
-        marker_array.markers.push_back(create_ball_marker("WHITE_SOLID_BALL_FRAME", 0, 1.0, 1.0, 1.0));
-        marker_array.markers.push_back(create_ball_marker("RED_SOLID_BALL_FRAME", 1, 1.0, 0.0, 0.0));
-        marker_array.markers.push_back(create_ball_marker("BLUE_SOLID_BALL_FRAME", 2, 0.0, 0.0, 1.0));
-        marker_array.markers.push_back(create_ball_marker("YELLOW_SOLID_BALL_FRAME", 3, 1.0, 0.6, 0.0));
+        marker_array.markers.push_back(create_ball_marker(WHITE_SOLID_BALL_FRAME, 0, 1.0, 1.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker(RED_SOLID_BALL_FRAME, 1, 1.0, 0.0, 0.0));
+        marker_array.markers.push_back(create_ball_marker(BLUE_SOLID_BALL_FRAME, 2, 0.0, 0.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker(YELLOW_SOLID_BALL_FRAME, 3, 1.0, 0.6, 0.0));
 
         // Buche (Fori piatti sulla superficie)
         std::vector<std::string> holes = {
-            "hole_top_left", "hole_top_right", "hole_mid_left", 
-            "hole_mid_right", "hole_bottom_left", "hole_bottom_right"
+            HOLE_TOP_LEFT_FRAME, HOLE_TOP_RIGHT_FRAME, HOLE_MID_LEFT_FRAME,
+            HOLE_MID_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME, HOLE_BOTTOM_RIGHT_FRAME
         };
         for (size_t i = 0; i < holes.size(); i++) {
             visualization_msgs::msg::Marker hole;
@@ -448,7 +451,7 @@ void publish_rviz_markers(rclcpp::Time stamp)
         // Superficie di gioco (Panno verde)
         visualization_msgs::msg::Marker table_marker;
         table_marker.header.stamp = stamp;
-        table_marker.header.frame_id = "BILLIARD_TABLE_FRAME";
+        table_marker.header.frame_id = BILLIARD_TABLE_FRAME;
         table_marker.ns = "table_surface";
         table_marker.id = 10;
         table_marker.type = visualization_msgs::msg::Marker::CUBE;

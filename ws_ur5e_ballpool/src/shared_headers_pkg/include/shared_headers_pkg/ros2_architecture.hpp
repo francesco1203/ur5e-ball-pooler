@@ -16,6 +16,15 @@
    const std::string ACTUATORS_STATES_MUJOCO_TOPIC = "/mujoco_actuators_states";        // topic per lo stato degli attuatori in MuJoCo
    const std::string CONTROLLER_STATE_TOPIC = "/arm_controller/controller_state";  // topic per lo stato del controller
 
+   //CAMERA TOPCIS
+   //da realsense
+   const std::string RGB_IMAGE_TOPIC = "/camera/camera/color/image_raw";            // topic per l'immagine RGB della camera
+   const std::string DEPTH_IMAGE_TOPIC = "/camera/camera/depth/image_rect_raw";  // topic per l'immagine di profondità della camera
+   const std::string CAMERA_INFO_TOPIC = "/camera/camera/color/camera_info";  // topic per le informazioni della camera
+   //per nuvola di punti
+   const std::string DEPTH_POINTCLOUD_TOPIC = "/depth_pointcloud";                    // topic per la point cloud di profondità
+   const std::string DEPTH_IMAGE_VISUAL_TOPIC = "/camera/camera/depth/image_visual";  // topic per l'immagine di profondità visualizzata con mappa di colori (
+   
 /* SERVIZI */
    const std::string BUILD_SCENE_SERVICE = "/build_scene";  // servizio per costruire la scena (biliardo + palline)
    const std::string REMOVE_WHITE_BALL_SERVICE = "/remove_white_ball";  // servizio per rimuovere la pallina bianca

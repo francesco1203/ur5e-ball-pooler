@@ -15,7 +15,7 @@ bagfile_path="data/bagdata/camera_stream/rosbag2_2026_09_11-12_01_28"   #percors
 
 use_mujoco_camera="true"                        #true se vuoi usare la camera simulata in MuJoCo (per testare la percezione in tempo reale)
 
-use_fake_camera_node="false"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
+use_fake_camera_node="true"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
 use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un prefisso ai frame pubblicati dal nodo fake_camera_node (utile per evitare conflitti di nomi dei frame)
 
 #simulatori per la percezione

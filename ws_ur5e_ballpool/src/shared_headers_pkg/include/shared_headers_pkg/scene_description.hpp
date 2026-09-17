@@ -28,7 +28,10 @@
     const std::string HOLE_BOTTOM_LEFT_FRAME    = "hole_bottom_left";
 
 
-/* POOL TABLE*/
+    //camera
+    const std::string CAMERA_FRAME = "camera_color_optical_frame";  // nome della terna della camera (frame ottico della camera)
+
+    /* POOL TABLE*/
 
     //id
     const std::string ID_MINI_POOL_TABLE = "mini_pool_table";
