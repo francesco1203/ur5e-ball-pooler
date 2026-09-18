@@ -1,43 +1,44 @@
 #!/bin/bash
 
-
+#------------------------------------------------
+# PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
+WS_DIR="ws_ur5e_ballpool"
+INSTALL_DIR="${WS_DIR}/install"
+INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
+#------------------------------------------------
 
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
-#true se vuoi usare la camera reale
-use_real_camera="false"                      #true se vuoi usare la camera reale, false se vuoi usare i bag files o il nodo fake_camera_node
-launch_driver="false"                         #true se vuoi (ri)lanciare il driver (avviato solo con camera reale)
+use_real_camera="true"                       
+launch_driver="true"                         
 
 #strumenti simulati (se non si usa la camera reale)
-use_bagfiles_stream="true"                                              #true se vuoi usare i bag files per simulare lo stream della camera
-bagfile_path="data/bagdata/camera_stream/rosbag2_2026_09_11-12_01_28"   #percorso del file bag da usare se use_bagfiles_stream=true
+use_camera_bagfiles_stream="false"                          
+CAMERA_BAGFILES_FOLDER="data/bagdata/camera_stream"   
+CAMERA_BAGFILE_PATH="${CAMERA_BAGFILES_FOLDER}/..."         
 
-use_mujoco_camera="false"                        #true se vuoi usare la camera simulata in MuJoCo (per testare la percezione in tempo reale)
-
-use_fake_camera_node="false"                     #true se vuoi usare il nodo fake_camera_node per simulare completamente la detection a valle
-use_prefix_for_fake_camera="true"                #true se vuoi aggiungere un prefisso ai frame pubblicati dal nodo fake_camera_node (utile per evitare conflitti di nomi dei frame)
+use_mujoco_camera="false"                        
+use_fake_camera_node="false"                     
+use_prefix_for_fake_camera="true"                
 
 #simulatori per la percezione
-start_image_view="true"                        #true se vuoi lanciare rqt_image_view per visualizzare i topic della camera (color, depth, info)
-start_Rviz="true"                                 #true se vuoi lanciare Rviz per visualizzare la scena e i risultati della percezione
-
+start_image_view="false"                        
+start_Rviz="false"                                 
 
 #parte vision
-launch_vision_node="true"                   #true se vuoi lanciare il nodo vision_node (per testare la percezione in tempo reale)
-
+launch_vision_node="true"                   
 
 #costruzione scena
-launch_scene_builder="false"                  #true se vuoi lanciare il nodo scene_builder (per testare la percezione in tempo reale)
-auto_loop_build_scene="true"                   #true se vuoi che la scena venga costruita in loop (per testare la percezione in tempo reale)
-time_between_scene_builds=1                    #tempo in secondi tra una costruzione della scena e la successiva (se auto_loop_build_scene=true)
-user_input_to_build_scene="true"               #true se vuoi che la costruzione della scena avvenga solo dopo un input dell'utente (se auto_loop_build_scene=true)
+launch_scene_builder="false"                  
+auto_loop_build_scene="true"                   
+time_between_scene_builds=1                    
+user_input_to_build_scene="false"              # Se auto_loop è true, meglio tenere questo a false (sono esclusivi nella logica sotto)
 # ------------------------------------------------
-
 
 # ------------------------------------------------
 # Verifica preliminare della cartella di lavoro
-if [ ! -d "ws_ur5e_ballpool/install" ]; then
+if [ ! -d "${INSTALL_DIR}" ]; then
     echo "Errore: Cartella 'install' non trovata!"
     echo "Assicurati di lanciare questo script dalla root del workspace ROS 2."
     exit 1
@@ -45,187 +46,167 @@ fi
 # ------------------------------------------------
 
 
-
-if [ "$use_real_camera" = true ] && [ "$launch_driver" = true ]; then
+# ================================================
+# LOGICA DI LANCIO CAMERA (REALE VS SIMULATA)
+# ================================================
+if [ "$use_real_camera" == "true" ]; then
 
     # ------------------------------------------------
     # avvio driver per la camera reale per stream live
-
-    if [ "$launch_driver" = true ]; then
+    if [ "$launch_driver" == "true" ]; then
         echo "Avvio driver IntelRealSense..."
-        gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch realsense2_camera rs_launch.py depth_module.depth_profile:=1280x720x30 pointcloud.enable:=true enable_rgbd:=true align_depth.enable:=true ; exec bash"
-        sleep 5
+        gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch realsense2_camera rs_launch.py \
+                              depth_module.depth_profile:=1280x720x30 \
+                              pointcloud.enable:=true \
+                              enable_rgbd:=true \
+                              align_depth.enable:=true ; \
+                         exec bash"
+        sleep 3
     else
         echo -e "Driver IntelRealSense non avviati da questo script. Assicurati che siano già attivi..."
-    fi
-    # ------------------------------------------------
-
-
-    # ------------------------------------------------
-    # avvio del nodo di detection e perception che lavora con la camera reale
-
-    if [ "$launch_vision_node" = true ]; then
-        echo "Avvio Detection e Perception..."
-        gnome-terminal --tab --title="VisionNode" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera vision.launch.py; exec bash"
-        sleep 1
     fi
     # ------------------------------------------------
 
 else
     #strumenti simulati
 
-    if [ "$use_bagfiles_stream" = true ]; then
-        # ------------------------------------------------
-        # avvio stream da bag files
-
+    if [ "$use_camera_bagfiles_stream" == "true" ]; then
         echo "Avvio stream da bag files..."
-        gnome-terminal --tab --title="BagFile Player" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 bag play ${bagfile_path} ; exec bash"
-        
-
+        gnome-terminal --tab --title="BagFile Player" -- bash -c \
+                       "source ${INSTALL_SETUP_BASH} && \
+                       ros2 bag play ${CAMERA_BAGFILE_PATH} ; \
+                       exec bash"
         sleep 1
-        # ------------------------------------------------
-
-        # ------------------------------------------------
-        # avvio del nodo di detection e perception che lavora con la camera reale
-
-        if [ "$launch_vision_node" = true ]; then
-            echo "Avvio Detection e Perception..."
-            gnome-terminal --tab --title="VisionNode" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera vision.launch.py; exec bash"
-            sleep 1
-        fi
-        # ------------------------------------------------
 
     fi
 
-    if [ "$use_mujoco_camera" = true ]; then
-        # ------------------------------------------------
-        # avvio camera simulata in MuJoCo
-
-        # aggiornamento del plugin di MuJoCo nel file ur5e.ros2_control.xacro
+    if [ "$use_mujoco_camera" == "true" ]; then
         echo "Aggiornamento del plugin MuJoCo nel file ur5e.ros2_control.xacro..."
-        python3 ws_ur5e_ballpool/src/moveit_config/config/ros2_control_hardware_auto_switch.py mujoco
+        python3 ${WS_DIR}/src/moveit_config/config/ros2_control_hardware_auto_switch.py mujoco
 
-
-        # devo generare la scena completa con le palline per MuJoCo con lo script autocreate_complete_scene.py
         echo "Aggiornamento del file della scena MuJoCo con posizione delle palline..."
-        python3 ws_ur5e_ballpool/src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py --yaml_path ws_ur5e_ballpool/src/camera_perception/fake_camera/config/fake_camera_config.yaml
+        python3 ${WS_DIR}/src/camera_perception/fake_camera/mujoco_automation/autocreate_complete_scene.py --yaml_path ${WS_DIR}/src/camera_perception/fake_camera/config/fake_camera_config.yaml
                 
-
-        # avvio MuJoCo con la scena completa
         echo "Avvio scena con camera simulata in MuJoCo..."
-        gnome-terminal --tab --title="MuJoCo Simulation" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera mujoco_with_stream.launch.py; exec bash"
+        gnome-terminal --tab --title="MuJoCo Simulation" -- bash -c \
+                       "source ${INSTALL_SETUP_BASH} && \
+                       ros2 launch fake_camera mujoco_with_stream.launch.py; \
+                       exec bash"
         sleep 2
 
-        # ------------------------------------------------
-        # avvio del nodo di detection e perception che lavora con la camera simulata in
-        if [ "$launch_vision_node" = true ]; then
-            echo "Avvio Detection e Perception..."
-            echo "NOTA: effettuata rimappatura dei topic da MuJoCo a quelli attesi dal nodo vision_node (color_topic, depth_topic, info_topic)"
-            gnome-terminal --tab --title="VisionNode" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera vision.launch.py; exec bash"
-            sleep 1
-        fi
-        # ------------------------------------------------  
     fi
 
-
-    if [ "$use_fake_camera_node" = true ]; then
-        # ------------------------------------------------
-        # avvio fake camera
-
-        if [ "$use_prefix_for_fake_camera" = true ]; then
+    if [ "$use_fake_camera_node" == "true" ]; then
+        if [ "$use_prefix_for_fake_camera" == "true" ]; then
             echo "Avvio fake camera con prefisso per i frame..."
-            gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py prefix:=fake_; exec bash"
+            gnome-terminal --tab --title="Fake Camera" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch fake_camera fake_camera.launch.py \
+                                prefix:=fake_; \
+                           exec bash"
         else
             echo "Avvio fake camera senza prefisso per i frame..."
-            gnome-terminal --tab --title="Fake Camera" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch fake_camera fake_camera.launch.py; exec bash"
+            gnome-terminal --tab --title="Fake Camera" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch fake_camera fake_camera.launch.py; \
+                           exec bash"
         fi
-        
         sleep 1
-        # ------------------------------------------------
-
-        #NOTA: NON SERVE VISION NODE, PERCHE' IL NODO FAKE CAMERA SIMULA A VALLE DELLA DETECTION
     fi
-    
 fi
 
 
-#   ------------------------------------------------
-# Avvio image_view
-if [ "$start_image_view" = true ]; then
+# ================================================
+# NODO DI DETECTION E PERCEPTION (Camera Reale o Simulata)
+# ================================================
+
+if [ "$launch_vision_node" == "true" ]; then
+    echo "Avvio Detection e Perception..."
+    gnome-terminal --tab --title="VisionNode" -- bash -c \
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 launch real_camera vision.launch.py; \
+                    exec bash"
+    sleep 1
+fi
+
+
+# ================================================
+# TOOL DI VISUALIZZAZIONE
+# ================================================
+
+if [ "$start_image_view" == "true" ]; then
     echo "Avvio image_view..."
-    sleep 1
-
-    # Avvio image_view
-    gnome-terminal --tab --title="image_view" -- bash -c "source ws_ur5e_ballpool/install/setup.bash &&  ros2 run image_view image_view --ros-args -r image:=/camera/camera/color/image_raw; exec bash"
-    
+    gnome-terminal --tab --title="image_view" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 run image_view image_view --ros-args -r \
+                           image:=/camera/camera/color/image_raw; \
+                           exec bash"
     sleep 1
 fi
-# ------------------------------------------------
 
-
-# ------------------------------------------------
-# Avvio Rviz
-
-if [ "$start_Rviz" = true ]; then
+if [ "$start_Rviz" == "true" ]; then
     echo "Avvio Rviz..."
-    sleep 2
-
-    gnome-terminal --tab --title="Rviz" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch real_camera test_vision_Rviz.launch.py; exec bash"
+    gnome-terminal --tab --title="Rviz" -- bash -c "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch real_camera test_vision_Rviz.launch.py; \
+                           exec bash"
     sleep 5
 fi
-# ------------------------------------------------
 
 
+# ================================================
+# SCENE BUILDER
+# ================================================
 
-if [ "$launch_scene_builder" = true ]; then
-   # ------------------------------------------------
-    # avvio builder della scena
-
-    echo "Avvio Scene Builder..."   #nota: ho bisogno di movegroup, che avvio sotto subito prima
-
-    gnome-terminal --tab --title="Move Group" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 launch moveit_config move_group.launch.py; exec bash"
+if [ "$launch_scene_builder" == "true" ]; then
+    echo "Avvio Move Group e Scene Builder..."
+    gnome-terminal --tab --title="Move Group" -- bash -c "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch moveit_config move_group.launch.py; \
+                           exec bash"
     sleep 2
 
-    gnome-terminal --tab --title="Scene Builder" -- bash -c "source ws_ur5e_ballpool/install/setup.bash && ros2 run scene_description scene_builder; exec bash"
+    gnome-terminal --tab --title="Scene Builder" -- bash -c "source ${INSTALL_SETUP_BASH} && \
+                           ros2 run scene_description scene_builder; \
+                           exec bash"
     sleep 2
-    # ------------------------------------------------
+fi
+
+# Stampa il messaggio di successo PRIMA di entrare nei cicli bloccanti
+echo "Tutti i terminali e i nodi sono stati avviati!"
 
 
-    # ------------------------------------------------
-    # costruzione della scena in loop (per testare la percezione in tempo reale)
+# ================================================
+# CICLI DI AGGIORNAMENTO SCENA (Bloccanti)
+# ================================================
+if [ "$launch_scene_builder" == "true" ]; then
 
-    if [ "$auto_loop_build_scene" = true ]; then
+    # Uso elif per renderli mutuamente esclusivi
+    if [ "$auto_loop_build_scene" == "true" ]; then
         echo "=== Aggiornamento automatico in loop della scena ==="
-        echo "Aggiornamento ogni $time_between_scene_builds secondi."
+        echo "Aggiornamento ogni $time_between_scene_builds secondi (Premi Ctrl+C in questo terminale per fermare)."
         echo "======================================="
+        while true; do 
+            ros2 service call /build_scene std_srvs/srv/Trigger "{}"
+            sleep $time_between_scene_builds
+        done
 
-        while true; do ros2 service call /build_scene std_srvs/srv/Trigger "{}"; sleep $time_between_scene_builds; done
-    fi
-
-    if [ "$user_input_to_build_scene" = true ]; then
+    elif [ "$user_input_to_build_scene" == "true" ]; then
         echo "=== Controllo manuale Scene Builder ==="
         echo "Premi [INVIO] per aggiornare la scena."
         echo "Digita 'q' e premi [INVIO] per uscire (oppure usa Ctrl+C)."
         echo "======================================="
 
         while true; do
-            # Attende l'input dell'utente
             read -p "Premi [INVIO] per lanciare /build_scene... " input
-            
-            # Se l'utente digita 'q' o 'Q', esce dal ciclo
             if [[ "$input" == "q" || "$input" == "Q" ]]; then
                 echo "Uscita dallo script."
                 break
             fi
-            
-            # Chiama il servizio
             echo "Richiamo il servizio /build_scene..."
             ros2 service call /build_scene std_srvs/srv/Trigger "{}"
             echo "---------------------------------------"
         done
-        fi
-    #------------------------------------------------
+    fi
+
 fi
-
-
-echo "Tutti i nodi sono stati avviati!"

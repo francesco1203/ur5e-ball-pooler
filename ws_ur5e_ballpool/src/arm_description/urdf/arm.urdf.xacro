@@ -124,8 +124,11 @@
         <parent link="tool0" />
         <child link="holder_link" />
 
+        <!-- vecchio cad -->
+        <!-- <origin xyz="0 0 0" rpy="0 0 0" /> -->
+
+        <!-- nuovo cad -->
         <origin xyz="0 0 0" rpy="0 0 0" />
-        <!-- <origin xyz="0 0 0" rpy="0 0 ${pi/4}" /> -->
     </joint>
 
 
@@ -176,9 +179,11 @@
         <parent link="tool0" />
         <child link="rod_tip_virtual_link" />
 
-       
-        <origin xyz="-0.118 0 0.081" rpy="0 ${-pi/2} 0" />
-        <!-- <origin xyz="-0.115204 -0.108042 0.0825857" rpy="${pi/4} ${-pi/2} 0" /> -->
+        <!-- vecchio cad -->
+        <!-- <origin xyz="-0.118 0 0.081" rpy="0 ${-pi/2} 0" /> -->
+
+        <!-- nuovo cad -->
+        <origin xyz="0.115204 0.108042 0.0825857" rpy="${pi/4} ${-pi/2} 0" />
     </joint>
     <!-- NOTA: ANDRÀ TARATO REALISTIACAMENTE CON IL METODO DEL PIVOT!! -->
 
