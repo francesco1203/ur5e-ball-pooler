@@ -97,13 +97,13 @@ echo -e "Premi un tasto per avviare Rviz..."
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
 
-echo "Avvio MoveIt..."
-gnome-terminal --tab --title="MoveGroup" -- bash -c \
-                "source ${INSTALL_SETUP_BASH} && \
-                ros2 launch moveit_config move_group.launch.py \
-                    use_sim_time:=false; \
-                exec bash"
-sleep 5
+# echo "Avvio MoveIt..."
+# gnome-terminal --tab --title="MoveGroup" -- bash -c \
+#                 "source ${INSTALL_SETUP_BASH} && \
+#                 ros2 launch moveit_config move_group.launch.py \
+#                     use_sim_time:=false; \
+#                 exec bash"
+# sleep 5
 
 
 echo "Avvio RViz..."
@@ -127,6 +127,7 @@ gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c \
                     depth_module.depth_profile:=1280x720x30 \
                     pointcloud.enable:=true \
                     enable_rgbd:=true \
+                    enable_sync:=true \
                     align_depth.enable:=true ; \
                 exec bash"
 sleep 3
