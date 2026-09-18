@@ -5,7 +5,6 @@
 WS_DIR="ws_ur5e_ballpool"
 INSTALL_DIR="${WS_DIR}/install"
 INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
-source "${INSTALL_SETUP_BASH}"
 #------------------------------------------------
 
 
@@ -97,6 +96,14 @@ echo -e "Premi un tasto per avviare Rviz..."
 
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
+
+echo "Avvio MoveIt..."
+gnome-terminal --tab --title="MoveGroup" -- bash -c \
+                "source ${INSTALL_SETUP_BASH} && \
+                ros2 launch moveit_config move_group.launch.py \
+                    use_sim_time:=false; \
+                exec bash"
+sleep 5
 
 
 echo "Avvio RViz..."

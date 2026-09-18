@@ -14,10 +14,10 @@
 
                 <!-- PLUGIN PER HARDWARE REALE / UrSim -->
                 <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>
-                <param name="robot_ip">192.168.1.110</param>
+                <param name="robot_ip">192.168.56.101</param>
                 <param name="script_filename">$(find ur_robot_driver)/resources/ros_control.urscript</param>
                 <param name="headless_mode">true</param>
-                <param name="reverse_ip"></param>
+                <param name="reverse_ip">192.168.56.1</param>
                 <param name="reverse_port">50001</param>
                 <param name="script_sender_port">50002</param>
                 <param name="script_command_port">50004</param>
