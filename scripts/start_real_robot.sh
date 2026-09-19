@@ -10,7 +10,7 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 
 # ------------------------------------------------
 # PARAMETRI DI RETE
-LAB_ROBOT_IP="192.168.1.10"
+LAB_ROBOT_IP="192.168.1.110"
 
 URSIM_ROBOT_IP="192.168.56.101"
 UR_SIM_REVERSE_IP="192.168.56.1"  #il tuo ip sulla rete del robot simulato
