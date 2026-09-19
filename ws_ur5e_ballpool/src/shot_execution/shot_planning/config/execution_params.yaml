@@ -2,5 +2,5 @@
 task_node:
   ros__parameters:
     control_shot_start_execution_by_user_input: true
-    control_shot_steps_execution_by_user_input: false
+    control_shot_steps_execution_by_user_input: true
     user_confirm_for_right_identification: true

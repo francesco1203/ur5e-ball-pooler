@@ -61,7 +61,6 @@ if [ "$use_real_camera" == "true" ]; then
                               depth_module.depth_profile:=1280x720x30 \
                               pointcloud.enable:=true \
                               enable_rgbd:=true \
-                              enable_sync:=true \
                               align_depth.enable:=true ; \
                          exec bash"
         sleep 3

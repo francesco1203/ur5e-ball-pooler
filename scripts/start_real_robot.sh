@@ -31,7 +31,7 @@ use_real_camera="false"        #se false, uso le terne ideali di fake camera
 start_image_view="false"       #simulatore per la percezione             
 
 #esecuzione tiro
-execute_shot="true"                           
+execute_shot="false"                           
 use_real_game_engine="true"                   
 
 #logging
@@ -412,7 +412,7 @@ if [[ "$execute_shot" == "true" ]]; then
 
             echo "Avvio ros2 bag record manuale..."
             gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
-                            "source \"${INSTALL_SETUP_BASH}\" && \
+                            "source ${INSTALL_SETUP_BASH} && \
                             ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; \
                             exec bash"
 

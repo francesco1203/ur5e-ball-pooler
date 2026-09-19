@@ -63,8 +63,9 @@ fi
 
 # 1.
 if [ "$install_moveit" = true ]; then
-    echo -e "\nInstallazione pacchetti MoveIt2..."
+    echo -e "\nInstallazione pacchetti MoveIt2 e ros-control..."
     sudo apt install -y ros-jazzy-moveit
+    sudo apt install -y ros-jazzy-ros2-control ros-jazzy-ros2-controllers ros-jazzy-ros2-controllers ros-jazzy-moveit-ros-control-interface
 fi
 
 if [ "$install_ur_description" = true ]; then
@@ -95,7 +96,7 @@ if [ "$install_realsense_camera" = true ]; then
     echo -e "\nInstallazione pacchetti Intel Realsense Camera..."
     sudo apt install -y ros-jazzy-realsense2-camera
     sudo apt install -y ros-jazzy-realsense2-description
-    sudo apt install ros-jazzy-cv-bridge ros-jazzy-vision-opencv libopencv-dev  #detection and image processing
+    sudo apt install -y ros-jazzy-cv-bridge ros-jazzy-vision-opencv libopencv-dev  #detection and image processing
 fi
 
 # 5.
@@ -120,7 +121,7 @@ fi
 #8.
 if [ "$install_image_view" = true ]; then
     echo -e "\nInstallazione image view..."
-    sudo apt install ros-jazzy-image-view
+    sudo apt install -y ros-jazzy-image-view
 fi
 
 

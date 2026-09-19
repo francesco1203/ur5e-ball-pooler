@@ -14,7 +14,11 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
 #simulazione
-open_rviz_when_using_mujoco="false"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+
+#scena e detection
+use_vision_node="false"                         #true se vuoi usare il nodo di vision, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
+start_image_view="true"                        #true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
 build_scene_rviz="true"                        #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
 
 #esecuzione tiro
@@ -22,7 +26,7 @@ execute_shot="true"                            #false se vuoi solo fare visualiz
 use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging
-logging_enable="true"                                        #true se vuoi fare logging
+logging_enable="false"                                        #true se vuoi fare logging
 
 only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
@@ -46,6 +50,9 @@ fi
 # ------------------------------------------------
 
 
+# ================================================
+# AVVIO SIMULATORI + MOVEIT
+# ================================================
 echo "========================================"
 echo "      CONFIGURAZIONE AVVIO ROS 2        "
 echo "========================================"
@@ -77,11 +84,17 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     sleep 2
 
     if [[ "$open_rviz_when_using_mujoco" == "true" ]]; then
-        gnome-terminal --tab --title="Moveit+MuJoCo+Rviz" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch moveit_config mujoco_and_rviz_demo.launch.py; exec bash"
+        gnome-terminal --tab --title="Moveit+MuJoCo+Rviz" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch moveit_config mujoco_and_rviz_demo.launch.py; \
+                        exec bash"
         sleep 10
     else
-        gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch moveit_config mujoco_demo.launch.py; exec bash"
-        sleep 5
+        gnome-terminal --tab --title="Moveit+MuJoCo" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch moveit_config mujoco_demo.launch.py; \
+                        exec bash"
+        sleep 10
     fi
 
     #------------------------------------------------
@@ -99,38 +112,83 @@ else
     echo "Avvio MoveIt con RViz..."
     sleep 2
 
-    gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch moveit_config demo.launch.py; exec bash"
+    gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch moveit_config demo.launch.py; \
+                        exec bash"
     sleep 10
     #------------------------------------------------
 fi
 
 
-# ------------------------------------------------
-#fake camera: lancia il nodo che pubblica la posizione da file yaml
-FAKE_CAMERA_CONFIG_DIR="${WS_DIR}/src/camera_perception/fake_camera/config"
+# ================================================
+# AVVIO PERCEZIONE SIMULATA
+# ================================================
+# modalità:
+#   - uso la camera simulata in MuJoCo (use_vision_node=true e scelta_mujoco=s)
+#   - uso la scena ideale con le terne messe da fake_camera (use_vision_node=false)
 
-echo "Avvio Fake Camera..."
-gnome-terminal --tab --title="Fake Camera" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch fake_camera fake_camera.launch.py yaml_path:=${FAKE_CAMERA_CONFIG_DIR}/fake_camera_config.yaml; exec bash"
-sleep 2
-# ------------------------------------------------
+if [[ "$use_vision_node" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+
+    # avvio detection da telecamera simulata in MuJoCo
+    # NOTA: se uso MuJoCo, la telecamera simulata è già presente, quindi lancio il nodo di vision che legge i topic della camera e pubblica la posizione delle palline
+
+    #image_view per visualizzare il feed della camera
+    if [ "$start_image_view" == "true" ]; then
+        echo "Avvio image_view..."
+        gnome-terminal --tab --title="image_view" -- bash -c \
+                            "source ${INSTALL_SETUP_BASH} && \
+                            ros2 run image_view image_view --ros-args -r \
+                                image:=/camera/camera/color/image_raw; \
+                            exec bash"
+        sleep 1
+    fi
+   
+    #avvio nodo di visione che effettua la detection e la perception
+    echo "Avvio nodo di visione..."
+    gnome-terminal --tab --title="VisionNode" -- bash -c \
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 launch real_camera vision.launch.py; \
+                    exec bash"
+    sleep 1
+else
+    # NOTA: se uso la scena ideale con le terne messe da fake_camera, lancio il nodo che pubblica idealmente già la posizione da file yaml
+
+    FAKE_CAMERA_CONFIG_DIR="${WS_DIR}/src/camera_perception/fake_camera/config"
+
+    echo "Avvio Fake Camera..."
+    gnome-terminal --tab --title="Fake Camera" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch fake_camera fake_camera.launch.py \
+                            yaml_path:=${FAKE_CAMERA_CONFIG_DIR}/fake_camera_config.yaml; \
+                        exec bash"
+    sleep 2
+    
+fi
 
 
-# ------------------------------------------------
-# building scena RViz
+# ================================================
+# BUILDER DELLA SCENA
+# ================================================
 if [[ "$build_scene_rviz" == "true" ]]; then
     echo "Avvio Scene Builder..."
-    gnome-terminal --tab --title="Scene Builder" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run scene_description scene_builder; exec bash"
+    gnome-terminal --tab --title="Scene Builder" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 run scene_description scene_builder; \
+                        exec bash"
 
     sleep 2
 fi
-# ------------------------------------------------
 
 
-
+# ================================================
+# ESECUZIONE
+# ================================================
 if [[ "$execute_shot" == "true" ]]; then
 
-    # ------------------------------------------------
-    # gestione del logging
+    # ================================================
+    # GESTIONE DEL LOGGING
+    # ================================================
     if [[ "$logging_enable" == "true" ]]; then
 
         BAGDATA_DIR="data/bagdata"
@@ -140,17 +198,24 @@ if [[ "$execute_shot" == "true" ]]; then
             # ------------------------------------------------
             # solo logging essenziale, topic principali durante il tiro
 
+
             #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
             echo "Avvio Nodo di debug cartesiano..."
-            gnome-terminal --tab --title="CartesianPublisher" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes cartesian_pub_launcher.launch.py; exec bash"
+            gnome-terminal --tab --title="CartesianPublisher" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes cartesian_pub_launcher.launch.py; \
+                           exec bash"
             sleep 1
+
 
             # solo logging essenziale, topic principali durante il tiro
             echo "Avvio Bag Writer essenziale su richiesta..."
-            gnome-terminal --tab --title="Logging nodes" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 launch logging_nodes bag_writer.launch.py test_title:='${only_essential_logging_folder}' ; exec bash"
-
-            sleep 2
-
+            gnome-terminal --tab --title="Logging nodes" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes bag_writer.launch.py \
+                                test_title:='${only_essential_logging_folder}'; \
+                            exec bash"
+            sleep 1
             # ------------------------------------------------
         fi
 
@@ -160,6 +225,7 @@ if [[ "$execute_shot" == "true" ]]; then
             # ------------------------------------------------
             # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
 
+
             BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}"
 
             #cancello la cartella di logging precedente se esiste, così da non avere conflitti
@@ -168,11 +234,11 @@ if [[ "$execute_shot" == "true" ]]; then
             # solo logging della camera
             echo "ros2 bag record dei topic della camera..."
             gnome-terminal --tab --title="ros2bag camera record" -- \
-                bash -c "source ${INSTALL_SETUP_BASH} && \
+                bash -c "source \"${INSTALL_SETUP_BASH}\" && \
                 ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
-                /camera/camera/color/camera_info \
-                /camera/camera/color/image_raw \
-                /camera/camera/depth/image_rect_raw; \
+                    /camera/camera/color/camera_info \
+                    /camera/camera/color/image_raw \
+                    /camera/camera/depth/image_rect_raw; \
                 exec bash"
 
             sleep 2
@@ -185,23 +251,36 @@ if [[ "$execute_shot" == "true" ]]; then
             # ------------------------------------------------
             # logging di tutti i topic, durante l'esecuzione di tutto il programma
 
+
+            #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
+            echo "Avvio Nodo di debug cartesiano..."
+            gnome-terminal --tab --title="CartesianPublisher" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes cartesian_pub_launcher.launch.py; \
+                           exec bash"
+            sleep 1
+
+
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
 
             #cancello la cartella di logging precedente se esiste, così da non avere conflitti
             rm -rf "${BAGDATA_DIR_BRUTAL}"  
 
             echo "Avvio ros2 bag record manuale..."
-            gnome-terminal --tab --title="ros2bag brutal record" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; exec bash"
+            gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
+                            "source ${INSTALL_SETUP_BASH} && \
+                            ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; \
+                            exec bash"
 
             sleep 2
 
         fi
     fi
-    # ------------------------------------------------
+   
 
-
-    # ------------------------------------------------
-    # nodo che effettua il tiro (distinguo i casi con MuJoCo e senza, con essenzial_logging e senza essential_logging, in quanto devo passare parametri aggiuntivi)
+    # ================================================
+    # TIRO VERO E PROPRIO (TASK NODE DI SHOT PLANNING)
+    # ================================================
 
     SHOT_CONFIG_DIR="${WS_DIR}/src/shot_execution/shot_planning/config"
 
@@ -223,31 +302,37 @@ if [[ "$execute_shot" == "true" ]]; then
     fi
 
  
+    #eseguo il nodo di shot planning con i parametri definiti
     echo "Avvio Shot Planning..."
-
-    # 5. Eseguo il comando finale passando la stringa generata
     gnome-terminal --tab --title="Shot Planning" -- bash -c " \
         source ${INSTALL_SETUP_BASH} && \
         ros2 run shot_planning task_node ${NODE_ARGS}; \
         exec bash"
     sleep 5
-    # ------------------------------------------------
+    
 
-
-    # ------------------------------------------------
-    # game engine
+    # ================================================
+    # GAME ENGINE (REALE O SIMULATO)
+    # ================================================
     GAME_ENGINE_CONFIG_DIR="${WS_DIR}/src/shot_execution/game_engine/config"
 
     if [[ "$use_real_game_engine" == "true" ]]; then
         
         echo "Avvio Game Engine Reale..."
-        gnome-terminal --tab --title="Game Engine Reale" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run game_engine game_engine --ros-args --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; exec bash"
+        gnome-terminal --tab --title="Game Engine Reale" -- bash -c \
+                       "source ${INSTALL_SETUP_BASH} && \
+                       ros2 run game_engine game_engine --ros-args \
+                           --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; \
+                       exec bash"
     else
         echo "Avvio Fake Game Engine..."
-        gnome-terminal --tab --title="Fake Game Engine" -- bash -c "source ${INSTALL_SETUP_BASH} && ros2 run game_engine fake_game_engine --ros-args --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; exec bash"
+        gnome-terminal --tab --title="Fake Game Engine" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 run game_engine fake_game_engine --ros-args \
+                            --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; \
+                        exec bash"
         
     fi
-    # ------------------------------------------------
 fi
 
 

@@ -14,6 +14,6 @@ balls:
   - color: "blue"
     pos: [-0.12, 0.07]
   - color: "yellow"
-    pos: [0.15, 0.05]
+    pos: [-0.10, 0.0]
 
 

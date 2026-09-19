@@ -14,7 +14,7 @@ fake_game_engine:
     use_sim_time: true 
     
     # SHOT PARAMETERS (for simulate game engine, used by fake_game_engine)
-    direction_angle_deg: -167.95                       # angolo di direzione del tiro rispetto all'asse x del campo in gradi
-    impact_angle_deg: 25.0                             # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda
-    impact_shot_velocity: 0.05                         # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
+    direction_angle_deg: 0.0                       # angolo di direzione del tiro rispetto all'asse x del campo in gradi
+    impact_angle_deg: 10.0                         # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda
+    impact_shot_velocity: 0.05                   # velocità di impatto asta con pallina del tiro in m/s (0.1 m/s = 10 cm/s)
 
