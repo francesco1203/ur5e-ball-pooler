@@ -1,7 +1,7 @@
 billiard_table:
   pos: [-0.61, -0.33]                   # Posizionamento sul banco rispetto al world
   yaw_angle_rad: 0.0                    # Orientamento sul banco rispetto al world  
-
+  rialzo_vention: 0.0065                 # Rialzo del tavolo rispetto al banco (montato nel laboratorio sottile rialzo)
 #per ora usiamo solo palline piene, possibile futura implementazione -> type: "solid" o "striped"
 
 

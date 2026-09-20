@@ -18,6 +18,8 @@ URSIM_ROBOT_IP="192.168.56.101"
 UR_SIM_REVERSE_IP="192.168.56.1"  #il tuo ip sulla rete del robot simulato
 #------------------------------------------------
 
+scelta_URSim = "s"  # "s" per usare URSim, "r" per usare il robot reale
+
 
 ARM_DESC_DIR="$(ros2 pkg prefix arm_description)/share/arm_description"
 

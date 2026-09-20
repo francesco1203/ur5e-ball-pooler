@@ -47,9 +47,11 @@ class FakeCamera : public rclcpp::Node
       double table_x = config["billiard_table"]["pos"][0].as<double>();
       double table_y = config["billiard_table"]["pos"][1].as<double>();
       double table_yaw = config["billiard_table"]["yaw_angle_rad"].as<double>();
+      double vention_rialzo = config["billiard_table"]["rialzo_vention"].as<double>();
       
-      RCLCPP_INFO(this->get_logger(), "Biliardo letto da file -> posizione: [%.2f, %.2f], yaw: %.2f rad", 
-                  table_x, table_y, table_yaw);
+
+      RCLCPP_INFO(this->get_logger(), "Biliardo letto da file -> posizione: [%.2f, %.2f], yaw: %.2f rad, rialzo: %.3f", 
+                  table_x, table_y, table_yaw, vention_rialzo);
 
       // --- TF 1: world -> billiard_table ---
       TransformStampedMsg t_table;
@@ -60,7 +62,7 @@ class FakeCamera : public rclcpp::Node
 
       t_table.transform.translation.x = table_x;
       t_table.transform.translation.y = table_y;
-      t_table.transform.translation.z = POOL_TABLE_FIELD_HEIGHT;
+      t_table.transform.translation.z = POOL_TABLE_FIELD_HEIGHT + vention_rialzo;
 
       tf2::Quaternion q_table;
       q_table.setRPY(0, 0, table_yaw + M_PI);

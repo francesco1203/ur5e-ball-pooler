@@ -10,15 +10,15 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
-use_real_camera="true"                       
-launch_driver="true"                         
+use_real_camera="false"                       
+launch_driver="true"                    # solo se use_real_camera è true, altrimenti non serve             
 
 #strumenti simulati (se non si usa la camera reale)
 use_camera_bagfiles_stream="false"                          
 CAMERA_BAGFILES_FOLDER="data/bagdata/camera_stream"   
 CAMERA_BAGFILE_PATH="${CAMERA_BAGFILES_FOLDER}/..."         
 
-use_mujoco_camera="false"                        
+use_mujoco_camera="true"                        
 use_fake_camera_node="false"                     
 use_prefix_for_fake_camera="true"                
 
