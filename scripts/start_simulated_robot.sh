@@ -17,8 +17,8 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 
 #scena e detection
-use_vision_node="false"                         #true se vuoi usare il nodo di vision, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
-start_image_view="true"                        #true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
+use_vision_node_for_mujoco="true"              #true se vuoi usare il nodo di vision, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
+start_image_view="false"                       #true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
 build_scene_rviz="true"                        #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
 
 #esecuzione tiro
@@ -128,7 +128,7 @@ fi
 #   - uso la camera simulata in MuJoCo (use_vision_node=true e scelta_mujoco=s)
 #   - uso la scena ideale con le terne messe da fake_camera (use_vision_node=false)
 
-if [[ "$use_vision_node" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
     # avvio detection da telecamera simulata in MuJoCo
     # NOTA: se uso MuJoCo, la telecamera simulata è già presente, quindi lancio il nodo di vision che legge i topic della camera e pubblica la posizione delle palline
@@ -148,7 +148,8 @@ if [[ "$use_vision_node" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
     echo "Avvio nodo di visione..."
     gnome-terminal --tab --title="VisionNode" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
-                    ros2 launch real_camera vision.launch.py; \
+                    ros2 launch real_camera vision.launch.py \
+                    use_sim_time:=true; \
                     exec bash"
     sleep 1
 else
@@ -238,7 +239,7 @@ if [[ "$execute_shot" == "true" ]]; then
                 ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
                     /camera/camera/color/camera_info \
                     /camera/camera/color/image_raw \
-                    /camera/camera/depth/image_rect_raw; \
+                    /camera/camera/aligned_depth_to_color/image_raw; \
                 exec bash"
 
             sleep 2

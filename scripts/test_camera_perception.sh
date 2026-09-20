@@ -10,7 +10,7 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
-use_real_camera="false"                       
+use_real_camera="false"                  # se true, si usa la camera reale, altrimenti si usano strumenti simulati
 launch_driver="true"                    # solo se use_real_camera è true, altrimenti non serve             
 
 #strumenti simulati (se non si usa la camera reale)
@@ -19,7 +19,7 @@ CAMERA_BAGFILES_FOLDER="data/bagdata/camera_stream"
 CAMERA_BAGFILE_PATH="${CAMERA_BAGFILES_FOLDER}/..."         
 
 use_mujoco_camera="true"                        
-use_fake_camera_node="false"                     
+use_fake_camera_node="true"                     
 use_prefix_for_fake_camera="true"                
 
 #simulatori per la percezione
@@ -58,10 +58,14 @@ if [ "$use_real_camera" == "true" ]; then
         gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
                         ros2 launch realsense2_camera rs_launch.py \
-                              depth_module.depth_profile:=1280x720x30 \
-                              pointcloud.enable:=true \
                               enable_rgbd:=true \
-                              align_depth.enable:=true ; \
+                              rgb_camera.color_profile:=1280x720x15 \
+                              depth_module.depth_profile:=1280x720x15 \
+                              align_depth.enable:=true \
+                              pointcloud.enable:=true; \
+                              pointcloud.allow_no_texture_points:=false \
+                              spatial_filter.enable:=true \
+                              temporal_filter.enable:=true; \
                          exec bash"
         sleep 3
     else

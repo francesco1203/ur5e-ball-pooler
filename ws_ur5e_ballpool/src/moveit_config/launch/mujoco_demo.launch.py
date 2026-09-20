@@ -51,7 +51,7 @@ def generate_launch_description():
         ],
         remappings=[
             ('/mujoco_camera_plugin/realsense_d435/color', 'camera/camera/color/image_raw'),
-            ('/mujoco_camera_plugin/realsense_d435/depth','camera/camera/depth/image_rect_raw'),
+            ('/mujoco_camera_plugin/realsense_d435/depth','camera/camera/aligned_depth_to_color/image_raw'),
             ('/mujoco_camera_plugin/realsense_d435/camera_info', 'camera/camera/color/camera_info')
         ]
     )

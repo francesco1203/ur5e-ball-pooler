@@ -319,7 +319,7 @@ double TaskNode::moveCartesianPath(const Vector3d& posizione,
     // 1. Inizializza la posa originale come PoseStamped
     PoseStampedMsg pose_stamped_in;
     pose_stamped_in.header.frame_id = frame_id;
-    pose_stamped_in.header.stamp = this->get_clock()->now();
+    pose_stamped_in.header.stamp = rclcpp::Time(0); // timestamp 0 per prendere l'ultima trasformazione disponibile
 
     pose_stamped_in.pose.position.x = posizione.x();
     pose_stamped_in.pose.position.y = posizione.y();
@@ -458,7 +458,7 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
     // 1. Setup iniziale e trasformazione coordinate
     PoseStampedMsg pose_stamped_in;
     pose_stamped_in.header.frame_id = frame_id;
-    pose_stamped_in.header.stamp = this->get_clock()->now();
+    pose_stamped_in.header.stamp = rclcpp::Time(0); // timestamp 0 per prendere l'ultima trasformazione disponibile
     pose_stamped_in.pose.position.x = posizione.x();
     pose_stamped_in.pose.position.y = posizione.y();
     pose_stamped_in.pose.position.z = posizione.z();

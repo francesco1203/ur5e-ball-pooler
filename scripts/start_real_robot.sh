@@ -275,13 +275,17 @@ if [[ "$use_real_camera" == "true" ]]; then
     gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 launch realsense2_camera rs_launch.py \
-                        depth_module.depth_profile:=1280x720x30 \
-                        pointcloud.enable:=true \
-                        enable_rgbd:=true \
-                        align_depth.enable:=true ; \
-                    exec bash"
+                            enable_rgbd:=true \
+                            rgb_camera.color_profile:=1280x720x15 \
+                            depth_module.depth_profile:=1280x720x15 \
+                            align_depth.enable:=true \
+                            pointcloud.enable:=true; \
+                            pointcloud.allow_no_texture_points:=false \
+                            spatial_filter.enable:=true \
+                            temporal_filter.enable:=true; \
+                        exec bash"
     sleep 3
-
+    
     #image_view per visualizzare il feed della camera
     if [ "$start_image_view" == "true" ]; then
         echo "Avvio image_view..."
@@ -382,7 +386,7 @@ if [[ "$execute_shot" == "true" ]]; then
                 ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
                     /camera/camera/color/camera_info \
                     /camera/camera/color/image_raw \
-                    /camera/camera/depth/image_rect_raw; \
+                    /camera/camera/aligned_depth_to_color/image_raw; \
                 exec bash"
 
             sleep 2
