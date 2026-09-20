@@ -1,5 +1,6 @@
 // ============================================================
-//  vision_node.cpp - SOLUZIONE A (Z-Upwards & Anti-Ghosting)
+//  vision_node.cpp - SOLUZIONE DEFINITIVA
+//  Orientamento Stabilizzato, No PointCloud, Buche Geometriche Fisse
 // ============================================================
 #include <new>
 #include <iterator>
@@ -17,13 +18,10 @@
 #include <cv_bridge/cv_bridge.hpp>
 #include <opencv2/opencv.hpp>
 
-#include <sensor_msgs/msg/point_cloud2.hpp>
-#include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/msg/transform_stamped.hpp>
 #include <tf2/LinearMath/Quaternion.h> 
-
 
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
@@ -35,12 +33,8 @@ public:
     {
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         pub_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("perception_markers", 10);
-
-        // Dichiarazione del publisher per la point cloud
-        pub_pointcloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(DEPTH_POINTCLOUD_TOPIC, 10);
         pub_depth_vis_ = this->create_publisher<sensor_msgs::msg::Image>(DEPTH_IMAGE_VISUAL_TOPIC, 10);
 
-        // Sottoscrizione ai topic della camera
         sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
             RGB_IMAGE_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
         
@@ -50,12 +44,10 @@ public:
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             CAMERA_INFO_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
 
-
-        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Assi Z verso l'alto e Anti-Ghosting attivi.");
+        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Buche ancorate alla geometria fisica pura del tavolo.");
     }
 
 private:
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_pointcloud_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_rgb_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_;
@@ -66,6 +58,9 @@ private:
     cv::Mat current_depth_frame_;
     double fx_ = 0.0, fy_ = 0.0, cx_ = 0.0, cy_ = 0.0;
     bool has_camera_info_ = false;
+    
+    // Variabile per mantenere l'orientamento globale stabile
+    double current_table_yaw_ = 0.0;
 
     void info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
     {
@@ -78,13 +73,9 @@ private:
 
     void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-
         if (!current_depth_frame_.empty()) {
             cv::Mat depth_normalized;
-            // Converte la matrice di float (0.0 - 2.0 metri) in 8-bit (0 - 255) per la visualizzazione
             cv::normalize(current_depth_frame_, depth_normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-            
-            // Applica una mappa di colori (es. COLORMAP_JET) per vedere il gradiente di profondità
             cv::Mat depth_colored;
             cv::applyColorMap(depth_normalized, depth_colored, cv::COLORMAP_JET);
 
@@ -129,7 +120,7 @@ private:
         cv::Mat dilate_kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
 
         // ========================================================
-        // 1. RILEVAMENTO TAVOLO
+        // 1. RILEVAMENTO TAVOLO E STABILIZZAZIONE ASSI
         // ========================================================
         cv::Mat green_mask;
         cv::inRange(hsv_frame, cv::Scalar(35, 50, 50), cv::Scalar(85, 255, 255), green_mask);
@@ -161,17 +152,29 @@ private:
                 table_rect.points(pts);
                 double max_dist = 0.0;
                 cv::Point2f p1, p2;
+                
                 for (int i = 0; i < 4; i++) {
                     double dist = cv::norm(pts[i] - pts[(i + 1) % 4]);
-                    if (dist > max_dist) { max_dist = dist; p1 = pts[i]; p2 = pts[(i + 1) % 4]; }
+                    if (dist > max_dist) { 
+                        max_dist = dist; 
+                        p1 = pts[i]; 
+                        p2 = pts[(i + 1) % 4]; 
+                    }
                 }
+                
+                // STABILIZZAZIONE: Forza il vettore p1->p2 a puntare sempre a destra
+                if (p1.x > p2.x) {
+                    std::swap(p1, p2);
+                }
+                
                 double yaw_rad = std::atan2(p2.y - p1.y, p2.x - p1.x);
+                current_table_yaw_ = yaw_rad; // Salviamo lo yaw per allinearci le palline
                 
                 publish_table_tf(BILLIARD_TABLE_FRAME, x_t, y_t, z_table, yaw_rad, img_stamp);
                 
-                double physical_w = (table_rect.size.width * z_table) / fx_;
-                double physical_h = (table_rect.size.height * z_table) / fy_;
-                publish_holes_relative_to_table(img_stamp, std::max(physical_w, physical_h), std::min(physical_w, physical_h)); 
+                // NOVITÀ: Non calcoliamo più w/h dalla telecamera. Passiamo solo lo stamp.
+                // Le buche verranno calcolate usando la geometria fissa del tavolo.
+                publish_holes_fixed_geometry(img_stamp); 
 
                 cv::Mat roi_mask = cv::Mat::zeros(hsv_frame.size(), CV_8U);
                 cv::drawContours(roi_mask, table_contours, best_table_idx, cv::Scalar(255), cv::FILLED);
@@ -181,9 +184,6 @@ private:
                 cv::bitwise_and(hsv_frame, hsv_frame, masked_hsv, roi_mask);
                 hsv_frame = masked_hsv; 
             }
-
-            // In fondo a rgb_callback:
-            publish_pointcloud(img_stamp);
         }
 
         // ========================================================
@@ -202,10 +202,9 @@ private:
         cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
         process_and_publish_ball(red_mask, RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
-        // --- PALLINA ARANCIONE (CON SOTTRAZIONE ROSSA) ---
+        // --- PALLINA ARANCIONE ---
         cv::Mat orange_mask, red_inv;
         cv::inRange(blurred_hsv, cv::Scalar(10, 80, 20), cv::Scalar(35, 255, 255), orange_mask);
-        // Sottraiamo i pixel rossi per evitare che si sovrappongano!
         cv::bitwise_not(red_mask, red_inv);
         cv::bitwise_and(orange_mask, red_inv, orange_mask);
         cv::dilate(orange_mask, orange_mask, dilate_kernel);
@@ -219,7 +218,7 @@ private:
         cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
         process_and_publish_ball(blue_mask, BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
-        // --- PALLINA BIANCA (CON SOTTRAZIONE TUTTI I COLORI) ---
+        // --- PALLINA BIANCA ---
         cv::Mat white_mask, all_colors_inv;
         cv::inRange(blurred_hsv, cv::Scalar(0, 0, 130), cv::Scalar(180, 50, 255), white_mask);
         cv::Mat all_colors = red_mask | orange_mask | blue_mask;
@@ -231,43 +230,6 @@ private:
 
         // Pubblica la grafica su RViz!
         publish_rviz_markers(img_stamp);
-    }
-
-    void publish_pointcloud(rclcpp::Time stamp)
-    {
-        if (current_depth_frame_.empty() || !has_camera_info_) return;
-
-        auto cloud_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
-        cloud_msg->header.stamp = stamp;
-        cloud_msg->header.frame_id = CAMERA_FRAME ;
-        cloud_msg->height = current_depth_frame_.rows;
-        cloud_msg->width = current_depth_frame_.cols;
-        cloud_msg->is_dense = false;
-        cloud_msg->is_bigendian = false;
-
-        sensor_msgs::PointCloud2Modifier modifier(*cloud_msg);
-        modifier.setPointCloud2FieldsByString(1, "xyz");
-        modifier.resize(cloud_msg->height * cloud_msg->width);
-
-        sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
-        sensor_msgs::PointCloud2Iterator<float> iter_y(*cloud_msg, "y");
-        sensor_msgs::PointCloud2Iterator<float> iter_z(*cloud_msg, "z");
-
-        for (int v = 0; v < current_depth_frame_.rows; ++v) {
-            for (int u = 0; u < current_depth_frame_.cols; ++u) {
-                float z = current_depth_frame_.at<float>(v, u);
-                if (std::isnan(z) || z <= 0.1f) {
-                    *iter_x = *iter_y = *iter_z = std::numeric_limits<float>::quiet_NaN();
-                } else {
-                    *iter_x = (u - cx_) * z / fx_;
-                    *iter_y = (v - cy_) * z / fy_;
-                    *iter_z = z;
-                }
-                ++iter_x; ++iter_y; ++iter_z;
-            }
-        }
-
-        pub_pointcloud_->publish(*cloud_msg);
     }
 
     void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)
@@ -293,7 +255,6 @@ private:
 
            float z = get_average_depth(u, v);
             if (z > 0.0) {
-                // CORRETTO: Aggiungiamo il raggio della mini-pallina di MuJoCo (1.25 cm)
                 z += BALL_RADIUS; 
 
                 double x_c = (u - cx_) * z / fx_;
@@ -307,9 +268,9 @@ private:
                 t.transform.translation.y = y_c;
                 t.transform.translation.z = z;
                 
-                // Capovolge l'asse Z verso l'alto (Roll = 180)
+                // STABILIZZAZIONE: Usa lo stesso yaw del tavolo.
                 tf2::Quaternion q;
-                q.setRPY(M_PI, 0.0, 0.0);
+                q.setRPY(M_PI, 0.0, current_table_yaw_);
                 t.transform.rotation.x = q.x();
                 t.transform.rotation.y = q.y();
                 t.transform.rotation.z = q.z();
@@ -319,10 +280,6 @@ private:
             }
         }
     }
-
-
-   
-
 
     float get_average_depth(int u_c, int v_c)
     {
@@ -365,27 +322,32 @@ private:
         tf_broadcaster_->sendTransform(t);
     }
 
-    void publish_holes_relative_to_table(rclcpp::Time stamp, double field_length, double field_width)
+    // NOVITÀ: Questa funzione ora dipende ESCLUSIVAMENTE dai macro del tavolo
+    void publish_holes_fixed_geometry(rclcpp::Time stamp)
     {
-        double half_l = field_length / 2.0;
-        double half_w = field_width / 2.0;
-        double offset_x = 0.01; 
-        double offset_y = 0.02;
+        // Usiamo la vera geometria CAD/fisica del tavolo prelevata dagli header!
+        double half_l = POOL_TABLE_FIELD_LENGTH / 2.0;
+        double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
+        
+        // --- OFFSET DELLE BUCHE ---
+        double corner_inset_x = 0.045; 
+        double corner_inset_y = 0.045; 
+        double mid_inset_y = 0.025;    
 
         struct HoleDef { std::string name; double x; double y; };
         std::vector<HoleDef> holes = {
-            {HOLE_TOP_LEFT_FRAME,     -half_l + offset_x, -half_w + offset_y},
-            {HOLE_TOP_RIGHT_FRAME,    -half_l + offset_x,  half_w - offset_y},
-            {HOLE_MID_LEFT_FRAME,      0.0,               -half_w + (offset_y/2)},
-            {HOLE_MID_RIGHT_FRAME,     0.0,                half_w - (offset_y/2)},
-            {HOLE_BOTTOM_LEFT_FRAME,   half_l - offset_x, -half_w + offset_y},
-            {HOLE_BOTTOM_RIGHT_FRAME,  half_l - offset_x,  half_w - offset_y}
+            {HOLE_TOP_LEFT_FRAME,     -half_l + corner_inset_x, -half_w + corner_inset_y},
+            {HOLE_TOP_RIGHT_FRAME,    -half_l + corner_inset_x,  half_w - corner_inset_y},
+            {HOLE_MID_LEFT_FRAME,      0.0,                     -half_w + mid_inset_y},
+            {HOLE_MID_RIGHT_FRAME,     0.0,                      half_w - mid_inset_y},
+            {HOLE_BOTTOM_LEFT_FRAME,   half_l - corner_inset_x, -half_w + corner_inset_y},
+            {HOLE_BOTTOM_RIGHT_FRAME,  half_l - corner_inset_x,  half_w - corner_inset_y}
         };
 
         for (const auto& hole : holes) {
             geometry_msgs::msg::TransformStamped t_hole;
             t_hole.header.stamp = stamp;
-            t_hole.header.frame_id = BILLIARD_TABLE_FRAME;
+            t_hole.header.frame_id = BILLIARD_TABLE_FRAME; // Ancorate saldamente al centro del tavolo
             t_hole.child_frame_id = hole.name;
             t_hole.transform.translation.x = hole.x;
             t_hole.transform.translation.y = hole.y;
@@ -395,7 +357,7 @@ private:
         }
     }
 
-void publish_rviz_markers(rclcpp::Time stamp)
+    void publish_rviz_markers(rclcpp::Time stamp)
     {
         visualization_msgs::msg::MarkerArray marker_array;
         
@@ -411,7 +373,7 @@ void publish_rviz_markers(rclcpp::Time stamp)
             marker.pose.position.y = 0.0;
             marker.pose.position.z = 0.0; 
             marker.pose.orientation.w = 1.0;
-            marker.scale.x = 0.025; // Diametro corretto per la simulazione
+            marker.scale.x = 0.025;
             marker.scale.y = 0.025;
             marker.scale.z = 0.025;
             marker.color.r = r; marker.color.g = g; marker.color.b = b; marker.color.a = 1.0;
@@ -425,7 +387,7 @@ void publish_rviz_markers(rclcpp::Time stamp)
         marker_array.markers.push_back(create_ball_marker(BLUE_SOLID_BALL_FRAME, 2, 0.0, 0.0, 1.0));
         marker_array.markers.push_back(create_ball_marker(YELLOW_SOLID_BALL_FRAME, 3, 1.0, 0.6, 0.0));
 
-        // Buche (Fori piatti sulla superficie)
+        // Buche
         std::vector<std::string> holes = {
             HOLE_TOP_LEFT_FRAME, HOLE_TOP_RIGHT_FRAME, HOLE_MID_LEFT_FRAME,
             HOLE_MID_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME, HOLE_BOTTOM_RIGHT_FRAME
@@ -440,7 +402,7 @@ void publish_rviz_markers(rclcpp::Time stamp)
             hole.action = visualization_msgs::msg::Marker::ADD;
             hole.pose.position.x = 0.0; hole.pose.position.y = 0.0; hole.pose.position.z = 0.0; 
             hole.pose.orientation.w = 1.0;
-            hole.scale.x = 0.04; // Diametro buca ridotto a 4 cm
+            hole.scale.x = 0.04; 
             hole.scale.y = 0.04; 
             hole.scale.z = 0.005;
             hole.color.r = 0.1; hole.color.g = 0.1; hole.color.b = 0.1; hole.color.a = 1.0;
@@ -448,7 +410,7 @@ void publish_rviz_markers(rclcpp::Time stamp)
             marker_array.markers.push_back(hole);
         }
 
-        // Superficie di gioco (Panno verde)
+        // Superficie di gioco
         visualization_msgs::msg::Marker table_marker;
         table_marker.header.stamp = stamp;
         table_marker.header.frame_id = BILLIARD_TABLE_FRAME;
@@ -458,11 +420,12 @@ void publish_rviz_markers(rclcpp::Time stamp)
         table_marker.action = visualization_msgs::msg::Marker::ADD;
         table_marker.pose.position.x = 0.0;
         table_marker.pose.position.y = 0.0;
-        table_marker.pose.position.z = -0.005; // Abbassato di mezzo cm per essere a filo della TF
+        table_marker.pose.position.z = -0.005; 
         table_marker.pose.orientation.w = 1.0;
-        table_marker.scale.x = 1.0; 
-        table_marker.scale.y = 0.5;
-        table_marker.scale.z = 0.01; // Spessore reale della superficie letta dalla camera (1 cm)
+        // La grafica RViz usa anch'essa le macro fisse per essere coerente
+        table_marker.scale.x = POOL_TABLE_FIELD_LENGTH; 
+        table_marker.scale.y = POOL_TABLE_FIELD_WIDTH;
+        table_marker.scale.z = 0.01; 
         table_marker.color.r = 0.0; table_marker.color.g = 0.4; table_marker.color.b = 0.0; table_marker.color.a = 0.8;
         table_marker.lifetime = rclcpp::Duration(0, 500000000);
         marker_array.markers.push_back(table_marker);
