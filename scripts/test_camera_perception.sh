@@ -10,7 +10,7 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
-use_real_camera="false"                  # se true, si usa la camera reale, altrimenti si usano strumenti simulati
+use_real_camera="true"                  # se true, si usa la camera reale, altrimenti si usano strumenti simulati
 launch_driver="true"                    # solo se use_real_camera è true, altrimenti non serve             
 
 #strumenti simulati (se non si usa la camera reale)
@@ -18,9 +18,9 @@ use_camera_bagfiles_stream="false"
 CAMERA_BAGFILES_FOLDER="data/bagdata/camera_stream"   
 CAMERA_BAGFILE_PATH="${CAMERA_BAGFILES_FOLDER}/..."         
 
-use_mujoco_camera="true"                        
-use_fake_camera_node="true"                     
-use_prefix_for_fake_camera="true"                
+use_mujoco_camera="false"                        
+use_fake_camera_node="false"                     
+use_prefix_for_fake_camera="fake"                
 
 #simulatori per la percezione
 start_image_view="true"                        
@@ -30,7 +30,7 @@ start_Rviz="true"
 launch_vision_node="true"                   
 
 #costruzione scena
-launch_scene_builder="false"                  
+launch_scene_builder="true"                  
 auto_loop_build_scene="true"                   
 time_between_scene_builds=1                    
 user_input_to_build_scene="false"              # Se auto_loop è true, meglio tenere questo a false (sono esclusivi nella logica sotto)

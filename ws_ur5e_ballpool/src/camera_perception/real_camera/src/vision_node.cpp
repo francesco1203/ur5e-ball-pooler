@@ -1,6 +1,6 @@
 // ============================================================
 //  vision_node.cpp - SOLUZIONE DEFINITIVA
-//  Orientamento Stabilizzato, No PointCloud, Buche Geometriche Fisse
+//  Orientamento Stabilizzato, No PointCloud, No Depth Vis, Buche Fisse
 // ============================================================
 #include <new>
 #include <iterator>
@@ -33,7 +33,6 @@ public:
     {
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         pub_markers_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("perception_markers", 10);
-        pub_depth_vis_ = this->create_publisher<sensor_msgs::msg::Image>(DEPTH_IMAGE_VISUAL_TOPIC, 10);
 
         sub_rgb_ = this->create_subscription<sensor_msgs::msg::Image>(
             RGB_IMAGE_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::rgb_callback, this, std::placeholders::_1));
@@ -44,7 +43,7 @@ public:
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             CAMERA_INFO_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
 
-        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Buche ancorate alla geometria fisica pura del tavolo.");
+        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. PointCloud e Visualizzazione Depth DISABILITATI. Buche Fisse attive.");
     }
 
 private:
@@ -52,7 +51,6 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_depth_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr sub_info_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_markers_;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_depth_vis_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
     cv::Mat current_depth_frame_;
@@ -73,20 +71,6 @@ private:
 
     void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-        if (!current_depth_frame_.empty()) {
-            cv::Mat depth_normalized;
-            cv::normalize(current_depth_frame_, depth_normalized, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-            cv::Mat depth_colored;
-            cv::applyColorMap(depth_normalized, depth_colored, cv::COLORMAP_JET);
-
-            std_msgs::msg::Header header;
-            header.stamp = this->now();
-            header.frame_id = CAMERA_FRAME ;
-
-            sensor_msgs::msg::Image::SharedPtr vis_msg = cv_bridge::CvImage(header, "bgr8", depth_colored).toImageMsg();
-            pub_depth_vis_->publish(*vis_msg);
-        }
-
         try {
             if (msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1 || msg->encoding == "16UC1") {
                 cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg->encoding);
@@ -171,9 +155,6 @@ private:
                 current_table_yaw_ = yaw_rad; // Salviamo lo yaw per allinearci le palline
                 
                 publish_table_tf(BILLIARD_TABLE_FRAME, x_t, y_t, z_table, yaw_rad, img_stamp);
-                
-                // NOVITÀ: Non calcoliamo più w/h dalla telecamera. Passiamo solo lo stamp.
-                // Le buche verranno calcolate usando la geometria fissa del tavolo.
                 publish_holes_fixed_geometry(img_stamp); 
 
                 cv::Mat roi_mask = cv::Mat::zeros(hsv_frame.size(), CV_8U);
@@ -187,7 +168,7 @@ private:
         }
 
         // ========================================================
-        // 2. RILEVAMENTO PALLINE (ANTI-GHOSTING LOGIC)
+        // 2. RILEVAMENTO PALLINE
         // ========================================================
         cv::Mat blurred_hsv;
         cv::GaussianBlur(hsv_frame, blurred_hsv, cv::Size(5, 5), 0);
@@ -228,7 +209,6 @@ private:
         cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
         process_and_publish_ball(white_mask, WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
-        // Pubblica la grafica su RViz!
         publish_rviz_markers(img_stamp);
     }
 
@@ -322,17 +302,14 @@ private:
         tf_broadcaster_->sendTransform(t);
     }
 
-    // NOVITÀ: Questa funzione ora dipende ESCLUSIVAMENTE dai macro del tavolo
     void publish_holes_fixed_geometry(rclcpp::Time stamp)
     {
-        // Usiamo la vera geometria CAD/fisica del tavolo prelevata dagli header!
         double half_l = POOL_TABLE_FIELD_LENGTH / 2.0;
         double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
         
-        // --- OFFSET DELLE BUCHE ---
-        double corner_inset_x = 0.045; 
-        double corner_inset_y = 0.045; 
-        double mid_inset_y = 0.025;    
+        double corner_inset_x = 0.01; 
+        double corner_inset_y = 0.02; 
+        double mid_inset_y = 0.0125;    
 
         struct HoleDef { std::string name; double x; double y; };
         std::vector<HoleDef> holes = {
@@ -347,7 +324,7 @@ private:
         for (const auto& hole : holes) {
             geometry_msgs::msg::TransformStamped t_hole;
             t_hole.header.stamp = stamp;
-            t_hole.header.frame_id = BILLIARD_TABLE_FRAME; // Ancorate saldamente al centro del tavolo
+            t_hole.header.frame_id = BILLIARD_TABLE_FRAME; 
             t_hole.child_frame_id = hole.name;
             t_hole.transform.translation.x = hole.x;
             t_hole.transform.translation.y = hole.y;
@@ -422,7 +399,6 @@ private:
         table_marker.pose.position.y = 0.0;
         table_marker.pose.position.z = -0.005; 
         table_marker.pose.orientation.w = 1.0;
-        // La grafica RViz usa anch'essa le macro fisse per essere coerente
         table_marker.scale.x = POOL_TABLE_FIELD_LENGTH; 
         table_marker.scale.y = POOL_TABLE_FIELD_WIDTH;
         table_marker.scale.z = 0.01; 

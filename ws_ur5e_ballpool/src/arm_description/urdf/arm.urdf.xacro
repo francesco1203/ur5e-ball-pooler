@@ -192,23 +192,23 @@
     <!-- ========================================== -->
     <!-- Terna della Telecamera (Parametri Estrinseci) -->
     <!-- ========================================== -->
-    <link name="camera_color_optical_frame" />
+    <link name="camera_color_frame" />
 
     <joint name="base_to_camera_joint" type="fixed">
         <!-- Parent link impostato sulla terna REALE del controller UR -->
         <parent link="base" />
         
-        <child link="camera_color_optical_frame" />
+        <child link="camera_color_frame" />
         <origin xyz="-0.288986 -0.473449 0.048187" rpy="0.020224 -0.791766 -1.588972" />
     </joint>
 
-    <link name="camera_depth_optical_frame" />
+    <link name="camera_depth_frame" />
 
     <joint name="base_to_camera_depth_joint" type="fixed">
         <!-- Parent link impostato sulla terna REALE del controller UR -->
         <parent link="base" />
         
-        <child link="camera_depth_optical_frame" />
+        <child link="camera_depth_frame" />
         <origin xyz="-0.288986 -0.473449 0.048187" rpy="0.020224 -0.791766 -1.588972" />
     </joint>
 
