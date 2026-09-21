@@ -192,24 +192,32 @@
     <!-- ========================================== -->
     <!-- Terna della Telecamera (Parametri Estrinseci) -->
     <!-- ========================================== -->
-    <link name="camera_color_frame" />
 
-    <joint name="base_to_camera_joint" type="fixed">
-        <!-- Parent link impostato sulla terna REALE del controller UR -->
+    <!-- ========================================== -->
+    <!-- 1. Posizione esatta della Lente RGB (Calibrazione) -->
+    <!-- ========================================== -->
+    <link name="camera_rgb_calibrated" />
+
+    <joint name="base_to_rgb_joint" type="fixed">
         <parent link="base" />
-        
-        <child link="camera_color_frame" />
+        <child link="camera_rgb_calibrated" />
         <origin xyz="-0.288986 -0.473449 0.048187" rpy="0.020224 -0.791766 -1.588972" />
     </joint>
 
-    <link name="camera_depth_frame" />
+    <!-- ========================================== -->
+    <!-- 2. Offset fisico su +X (1.48cm) + Rotazione asse Z -->
+    <!-- ========================================== -->
+    <link name="camera_link" />
 
-    <joint name="base_to_camera_depth_joint" type="fixed">
-        <!-- Parent link impostato sulla terna REALE del controller UR -->
-        <parent link="base" />
+    <joint name="rgb_to_camera_link_joint" type="fixed">
+        <parent link="camera_rgb_calibrated" />
+        <child link="camera_link" />
         
-        <child link="camera_depth_frame" />
-        <origin xyz="-0.288986 -0.473449 0.048187" rpy="0.020224 -0.791766 -1.588972" />
+        <!-- 
+          Traslazione (xyz): Sposta di 1.48 cm lungo l'asse X positivo (0.0148).
+          Rotazione (rpy): Ruota di 90 gradi (1.5708 rad) su Z.
+        -->
+        <origin xyz="0.0148 0 0" rpy="0 0 1.5708" />
     </joint>
 
 

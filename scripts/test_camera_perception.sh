@@ -23,14 +23,14 @@ use_fake_camera_node="false"
 use_prefix_for_fake_camera="fake"                
 
 #simulatori per la percezione
-start_image_view="true"                        
+start_image_view="false"                        
 start_Rviz="true"                                 
 
 #parte vision
-launch_vision_node="true"                   
+launch_vision_node="false"                   
 
 #costruzione scena
-launch_scene_builder="true"                  
+launch_scene_builder="false"                  
 auto_loop_build_scene="true"                   
 time_between_scene_builds=1                    
 user_input_to_build_scene="false"              # Se auto_loop è true, meglio tenere questo a false (sono esclusivi nella logica sotto)
@@ -51,6 +51,12 @@ fi
 # ================================================
 if [ "$use_real_camera" == "true" ]; then
 
+    #------------------------------------------------
+    # chiusura eventuali nodi realsense2_camera_node già in esecuzione
+    echo "Chiudo eventuali nodi realsense2_camera_node già in esecuzione..."
+    killall -9 realsense2_camera_node
+
+
     # ------------------------------------------------
     # avvio driver per la camera reale per stream live
     if [ "$launch_driver" == "true" ]; then
@@ -59,11 +65,11 @@ if [ "$use_real_camera" == "true" ]; then
                         "source ${INSTALL_SETUP_BASH} && \
                         ros2 launch realsense2_camera rs_launch.py \
                               enable_rgbd:=true \
+                              enable_sync:=true \
                               rgb_camera.color_profile:=1280x720x15 \
                               depth_module.depth_profile:=1280x720x15 \
                               align_depth.enable:=true \
-                              pointcloud.enable:=true; \
-                              pointcloud.allow_no_texture_points:=false \
+                              pointcloud.enable:=true \
                               spatial_filter.enable:=true \
                               temporal_filter.enable:=true; \
                          exec bash"
