@@ -27,8 +27,8 @@ launch_container="true"
 launch_robot_driver="true"                         
 
 #avvio camera IntelRealsense
-use_real_camera="false"        #se false, uso le terne ideali di fake camera
-start_image_view="false"       #simulatore per la percezione             
+use_real_camera="true"        #se false, uso le terne ideali di fake camera
+start_image_view="true"       #simulatore per la percezione             
 
 #esecuzione tiro
 execute_shot="false"                           
@@ -276,13 +276,20 @@ if [[ "$use_real_camera" == "true" ]]; then
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 launch realsense2_camera rs_launch.py \
                             enable_rgbd:=true \
+                            enable_sync:=true \
                             rgb_camera.color_profile:=1280x720x15 \
                             depth_module.depth_profile:=1280x720x15 \
                             align_depth.enable:=true \
-                            pointcloud.enable:=true; \
-                            pointcloud.allow_no_texture_points:=false \
+                            pointcloud.enable:=true \
                             spatial_filter.enable:=true \
-                            temporal_filter.enable:=true; \
+                            spatial_filter.filter_magnitude:=3 \
+                            spatial_filter.filter_smooth_alpha:=0.3 \
+                            spatial_filter.filter_smooth_delta:=20 \
+                            temporal_filter.enable:=true \
+                            temporal_filter.filter_smooth_alpha:=0.1 \
+                            temporal_filter.filter_smooth_delta:=20 \
+                            temporal_filter.filter_persistency:=8 \
+                            hole_filling_filter.enable:=true; \
                         exec bash"
     sleep 3
     
@@ -327,6 +334,8 @@ gnome-terminal --tab --title="Scene Builder" -- bash -c \
                 exec bash"
 
 sleep 2
+
+ros2 service call /build_scene std_srvs/srv/Trigger "{}"
 
 
 # ================================================

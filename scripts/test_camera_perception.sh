@@ -27,10 +27,10 @@ start_image_view="false"
 start_Rviz="true"                                 
 
 #parte vision
-launch_vision_node="false"                   
+launch_vision_node="true"                   
 
 #costruzione scena
-launch_scene_builder="false"                  
+launch_scene_builder="true"                  
 auto_loop_build_scene="true"                   
 time_between_scene_builds=1                    
 user_input_to_build_scene="false"              # Se auto_loop è true, meglio tenere questo a false (sono esclusivi nella logica sotto)
@@ -63,16 +63,25 @@ if [ "$use_real_camera" == "true" ]; then
         echo "Avvio driver IntelRealSense..."
         gnome-terminal --tab --title="Intel Realsense Camera" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
-                        ros2 launch realsense2_camera rs_launch.py \
-                              enable_rgbd:=true \
-                              enable_sync:=true \
-                              rgb_camera.color_profile:=1280x720x15 \
-                              depth_module.depth_profile:=1280x720x15 \
-                              align_depth.enable:=true \
-                              pointcloud.enable:=true \
-                              spatial_filter.enable:=true \
-                              temporal_filter.enable:=true; \
-                         exec bash"
+                         ros2 launch realsense2_camera rs_launch.py \
+                            enable_rgbd:=true \
+                            enable_sync:=true \
+                            rgb_camera.color_profile:=1280x720x15 \
+                            depth_module.depth_profile:=1280x720x15 \
+                            align_depth.enable:=true \
+                            pointcloud.enable:=true \
+                            decimation_filter.enable:=true \
+                            decimation_filter.filter_magnitude:=4 \
+                            spatial_filter.enable:=true \
+                            spatial_filter.filter_magnitude:=5 \
+                            spatial_filter.filter_smooth_alpha:=0.25 \
+                            spatial_filter.filter_smooth_delta:=50 \
+                            temporal_filter.enable:=true \
+                            temporal_filter.filter_smooth_alpha:=0.01 \
+                            temporal_filter.filter_smooth_delta:=100 \
+                            temporal_filter.filter_persistency:=8 \
+                            hole_filling_filter.enable:=true; \
+                            exec bash"
         sleep 3
     else
         echo -e "Driver IntelRealSense non avviati da questo script. Assicurati che siano già attivi..."

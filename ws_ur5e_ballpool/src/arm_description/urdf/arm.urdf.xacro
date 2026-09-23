@@ -201,7 +201,7 @@
     <joint name="base_to_rgb_joint" type="fixed">
         <parent link="base" />
         <child link="camera_rgb_calibrated" />
-        <origin xyz="-0.288986 -0.473449 0.048187" rpy="0.020224 -0.791766 -1.588972" />
+        <origin xyz="-0.28898614560797165 -0.4734488805016898 0.04818685648725712" rpy="0.02022358 -0.79176606 -1.58897229" />
     </joint>
 
     <!-- ========================================== -->
@@ -217,7 +217,7 @@
           Traslazione (xyz): Sposta di 1.48 cm lungo l'asse X positivo (0.0148).
           Rotazione (rpy): Ruota di 90 gradi (1.5708 rad) su Z.
         -->
-        <origin xyz="0.0148 0 0" rpy="0 0 1.5708" />
+         <origin xyz="0.0178 -0.0088 0.0266" rpy="0 -1.5708 1.5708" />
     </joint>
 
 

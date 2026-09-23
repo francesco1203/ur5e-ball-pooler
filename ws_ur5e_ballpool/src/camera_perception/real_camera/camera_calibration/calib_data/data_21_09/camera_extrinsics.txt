@@ -1,0 +1,11 @@
+Extrinsics ==================================================
+
+Camera Frame: [X,Y,Z,QX,QY,QZ,QW]
+position:  [-0.2883923439184151, -0.47250775131462097, 0.057541982422905695]
+quaternions:  [-0.26832878 -0.28838568 -0.65071708  0.64915379]
+
+Camera Frame orientation: [Roll Pitch Yaw] deg
+[  2.23711057 -46.35463003 -91.0956917 ]
+
+Camera Frame orientation: [Roll Pitch Yaw] rad
+[ 0.03904495 -0.80904092 -1.58991975]
