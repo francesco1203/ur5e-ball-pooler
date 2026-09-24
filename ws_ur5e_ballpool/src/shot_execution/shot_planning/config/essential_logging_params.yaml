@@ -1,6 +1,6 @@
 # src/shot_planning/config/logging_essential_params.yaml
 #this file should be used only when in the logging_essential_mode
-
+task_node:
   ros__parameters:
 
     #DEBUG PARAMETERS

@@ -65,7 +65,7 @@ def main():
 
     ideal_file_path = sys.argv[1]
     raw_bag_path = sys.argv[2]
-    topic_target = '/logging/cartesian_pose'
+    topic_target = '/tcp_pose_broadcaster/pose'
 
     # --- 1. LETTURA DATI IDEALI (RUCKIG da CSV) ---
     try:

@@ -148,7 +148,7 @@ def plot_position(df, joints):
 def main():
 
     bag_path = sys.argv[1]
-    topic_target = '/arm_controller/controller_state'
+    topic_target = '/scaled_joint_trajectory_controller/controller_state'
 
     print(f"Estrazione dati controller da: {bag_path} sul topic: {topic_target}...")
     df = extract_controller_state(bag_path, topic_target)

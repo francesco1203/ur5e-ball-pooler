@@ -31,7 +31,7 @@ use_real_camera="true"        #se false, uso le terne ideali di fake camera
 start_image_view="true"       #simulatore per la percezione             
 
 #esecuzione tiro
-execute_shot="false"                             
+execute_shot="true"                             
 use_real_game_engine="true"                   
 
 #costruzione scena (biliardino - aggiornamento della grafica delle palline in scena)  
@@ -42,9 +42,9 @@ user_input_to_build_scene="false"               #metti a true per aggiornare la 
 
 
 #logging
-logging_enable="false"                                        
+logging_enable="true"                                        
 
-only_essential_logging="false"                                
+only_essential_logging="true"                                
 only_essential_logging_folder="only_essential_logging"        
 
 only_camera_logging="false"                                   
@@ -365,9 +365,9 @@ if [[ "$execute_shot" == "true" ]]; then
 
             #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
             echo "Avvio Nodo di debug cartesiano..."
-            gnome-terminal --tab --title="CartesianPublisher" -- bash -c \
+            gnome-terminal --tab --title="CartesianPublisher di velocità" -- bash -c \
                            "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_pub_launcher.launch.py; \
+                           ros2 launch logging_nodes cartesian_twist_pub_launcher.launch.py; \
                            exec bash"
             sleep 1
 
@@ -497,15 +497,15 @@ fi
 echo "Tutti i nodi sono stati avviati!"
 
 
-# ================================================
-# CICLO DI AGGIORNAMENTO SCENA 
-# ================================================
-echo "=== Controllo manuale Scene Builder ==="
-echo "Premi [INVIO] per aggiornare la scena (Ctrl+C per uscire)."
-echo "======================================="
+# # ================================================
+# # CICLO DI AGGIORNAMENTO SCENA 
+# # ================================================
+# echo "=== Controllo manuale Scene Builder ==="
+# echo "Premi [INVIO] per aggiornare la scena (Ctrl+C per uscire)."
+# echo "======================================="
 
-while true; do
-    read -p "Premi [INVIO] per lanciare /build_scene... " input
-    echo ""
-    ros2 service call /build_scene std_srvs/srv/Trigger "{}"
-done
+# while true; do
+#     read -p "Premi [INVIO] per lanciare /build_scene... " input
+#     echo ""
+#     ros2 service call /build_scene std_srvs/srv/Trigger "{}"
+# done

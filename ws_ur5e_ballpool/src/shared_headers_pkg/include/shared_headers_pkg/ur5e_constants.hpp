@@ -17,10 +17,15 @@ const std::vector<std::string> UR5e_JOINT_NAMES = {
 };
 
 
-// limiti fisici cartesiani
-constexpr double MAX_TRANS_VEL = 4.0;      // velocity limit for EE translation in m/s
-constexpr double MAX_TRANS_ACC = 2.50;     // acceleration limit for EE translation in m/s^2
-constexpr double MAX_TRANS_DEC = -2.50;    // deceleration limit for EE translation in m/s^2
+// limiti fisici cartesiani (trovati in rete)
+// constexpr double MAX_TRANS_VEL = 4.0;      // velocity limit for EE translation in m/s
+// constexpr double MAX_TRANS_ACC = 2.50;     // acceleration limit for EE translation in m/s^2
+// constexpr double MAX_TRANS_DEC = -2.50;    // deceleration limit for EE translation in m/s^2
+
+// limiti fisici cartesiani (l'ha detto Natale E PKKE)
+constexpr double MAX_TRANS_VEL = 5.0;      // velocity limit for EE translation in m/s
+constexpr double MAX_TRANS_ACC = 10.0;     // acceleration limit for EE translation in m/s^2
+constexpr double MAX_TRANS_DEC = -10.0;    // deceleration limit for EE translation in m/s^2
 
 
 //end effector

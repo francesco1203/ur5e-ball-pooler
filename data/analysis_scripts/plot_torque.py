@@ -67,7 +67,7 @@ def extract_torque_from_bag(bag_path, topic_name):
 def main():
     # Se passi il file/cartella da riga di comando usa quello, altrimenti usa un default
     bag_path = sys.argv[1]
-    topic_target = '/mujoco_actuators_states'
+    topic_target = '/joint_states'
 
     print(f"Estrazione dati effort da: {bag_path} sul topic: {topic_target}...")
     df = extract_torque_from_bag(bag_path, topic_target)

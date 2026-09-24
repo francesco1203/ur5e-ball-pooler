@@ -69,7 +69,7 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
 
     //-----------------------------------------------------------------------
     /*LOGGING AND DEBUG PARAMETERS from task_param.yaml*/ 
-    this->declare_parameter<bool>("log_ruckig_trajectory", false);
+    this->declare_parameter<bool>("log_ruckig_trajectory", true);
     this->declare_parameter<std::string>("csv_ruckig_trajectory_path", "data/csv/ruckig_logging/ruckig_trajectory_log.csv");
 
     log_ruckig_trajectory_ = this->get_parameter("log_ruckig_trajectory").as_bool();

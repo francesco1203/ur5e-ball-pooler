@@ -9,7 +9,7 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 #------------------------------------------------
 
 
-use_real_game_engine="false"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
+use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 
 # ================================================

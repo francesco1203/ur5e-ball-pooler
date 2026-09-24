@@ -174,7 +174,10 @@ int main(int argc, char* argv[])
     }
     //-------------------------------------------
 
+    
 
+    
+     node->print_and_wait("\n\nPremi invio quando vedi le terne in Rviz'..");
 
     ///-------------------------------------------
     /* COSTRUZIONE SCENA DI PIANIFICAZIONE SU MOVEIT/RVIZ*/

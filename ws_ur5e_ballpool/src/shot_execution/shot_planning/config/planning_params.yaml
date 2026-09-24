@@ -3,7 +3,7 @@ task_node:
   ros__parameters:
 
     #generic
-    max_velocity_acceleration_scaling_factor: 0.75  # fattore di scala per velocità e accelerazione (0.0 - 1.0)
+    max_velocity_acceleration_scaling_factor: 1.0  # fattore di scala per velocità e accelerazione (0.0 - 1.0)
     goal_joint_tolerance: 0.001                    # tolleranza di giunto in obiettivi di giunto (radians) -> 1/20 di grado
     goal_position_tolerance: 0.0005                # tolleranza di posizione in obiettivi cartesiani (metri) -> 0.5 mm
     goal_orientation_tolerance: 0.001              # tolleranza di orientamento in obiettivi cartesiani (radians) -> 1/20 di grado

@@ -28,7 +28,7 @@ find_package(moveit_core REQUIRED)
 
 
 
-add_executable(cartesian_pose_publisher src/cartesian_publisher.cpp)
+add_executable(cartesian_pose_publisher src/cartesian_pose_publisher.cpp)
 ament_target_dependencies(
   cartesian_pose_publisher
   "rclcpp"
@@ -40,6 +40,24 @@ ament_target_dependencies(
   "moveit_ros_planning_interface"
   "moveit_core"
 )
+
+
+
+add_executable(cartesian_velocity_publisher src/cartesian_velocity_publisher.cpp)
+ament_target_dependencies(
+  cartesian_velocity_publisher
+  "rclcpp"
+  "geometry_msgs"
+  "shared_headers_pkg"
+  "std_srvs"
+  "tf2_ros"
+  "tf2_geometry_msgs"
+  "moveit_ros_planning_interface"
+  "moveit_core"
+)
+
+
+
 
 add_executable(bag_writer src/bag_writer_node.cpp)
 
@@ -62,6 +80,7 @@ ament_target_dependencies(
 install(TARGETS 
   cartesian_pose_publisher
   bag_writer
+  cartesian_velocity_publisher
 DESTINATION lib/${PROJECT_NAME})
 
 

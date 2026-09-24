@@ -26,6 +26,7 @@ def generate_launch_description():
         ] 
     )
 
+
     return LaunchDescription([
         cartesian_publisher_node
     ])

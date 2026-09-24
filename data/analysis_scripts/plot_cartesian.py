@@ -53,7 +53,7 @@ def extract_pose_from_bag(bag_path, topic_name):
 def main():
     # 1. LETTURA DATI DAL BAGFILE ROS 2
     bag_path = sys.argv[1]
-    topic_target = '/logging/cartesian_pose'
+    topic_target = '/tcp_pose_broadcaster/pose'
 
     print(f"Estrazione dati da: {bag_path} sul topic: {topic_target}...")
     df = extract_pose_from_bag(bag_path, topic_target)
@@ -83,7 +83,7 @@ def main():
     z = df['z'].values
 
     # 2. CALCOLO DI DISTANZA, VELOCITÀ E ACCELERAZIONE CARTESIANE
-    filtering_distance = False
+    filtering_distance = True
     filtering_velocity = True
     filtering_acceleration = True
     
