@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# NOTA: se vuoi provare la scena con il robot vero, soprattutto per provarla con il montaggio
+#       esatto del tip, puoi anche avviare start_real_robot disabilitando il tiro
+
+
 #------------------------------------------------
 # PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
 WS_DIR="ws_ur5e_ballpool"
@@ -29,11 +33,11 @@ start_Rviz="true"
 #parte vision
 launch_vision_node="true"                   
 
-#costruzione scena
-launch_scene_builder="true"                  
-auto_loop_build_scene="true"                   
-time_between_scene_builds=1                    
-user_input_to_build_scene="false"              # Se auto_loop è true, meglio tenere questo a false (sono esclusivi nella logica sotto)
+#costruzione scena                  
+oneshot_build_scene="false"                     #metti a true per costuire una sola volta la scena               
+auto_loop_build_scene="true"                    #metti a true per aggiornare la scena in loop (utile per vedere le palline muoversi)
+time_between_scene_builds=1                     
+user_input_to_build_scene="false"               #metti a true per aggiornare la scena iterativamente, ma solo quando premi [INVIO] (utile per debug e test)
 # ------------------------------------------------
 
 # ------------------------------------------------
@@ -191,41 +195,44 @@ if [ "$launch_scene_builder" == "true" ]; then
     sleep 2
 fi
 
-# Stampa il messaggio di successo PRIMA di entrare nei cicli bloccanti
-echo "Tutti i terminali e i nodi sono stati avviati!"
-
 
 # ================================================
 # CICLI DI AGGIORNAMENTO SCENA (Bloccanti)
 # ================================================
-if [ "$launch_scene_builder" == "true" ]; then
 
-    # Uso elif per renderli mutuamente esclusivi
-    if [ "$auto_loop_build_scene" == "true" ]; then
-        echo "=== Aggiornamento automatico in loop della scena ==="
-        echo "Aggiornamento ogni $time_between_scene_builds secondi (Premi Ctrl+C in questo terminale per fermare)."
-        echo "======================================="
-        while true; do 
-            ros2 service call /build_scene std_srvs/srv/Trigger "{}"
-            sleep $time_between_scene_builds
-        done
+# Uso elif per renderli mutuamente esclusivi
+if [ "$oneshot_build_scene" == "true" ]; then
+    echo "=== Costruzione scena una sola volta ==="
+    ros2 service call /build_scene std_srvs/srv/Trigger "{}"    
 
-    elif [ "$user_input_to_build_scene" == "true" ]; then
-        echo "=== Controllo manuale Scene Builder ==="
-        echo "Premi [INVIO] per aggiornare la scena."
-        echo "Digita 'q' e premi [INVIO] per uscire (oppure usa Ctrl+C)."
-        echo "======================================="
+elif [ "$auto_loop_build_scene" == "true" ]; then
+    echo "=== Aggiornamento automatico in loop della scena ==="
+    echo "Aggiornamento ogni $time_between_scene_builds secondi (Premi Ctrl+C in questo terminale per fermare)."
+    echo "======================================="
+    while true; do 
+        ros2 service call /build_scene std_srvs/srv/Trigger "{}"
+        sleep $time_between_scene_builds
+    done
 
-        while true; do
-            read -p "Premi [INVIO] per lanciare /build_scene... " input
-            if [[ "$input" == "q" || "$input" == "Q" ]]; then
-                echo "Uscita dallo script."
-                break
-            fi
-            echo "Richiamo il servizio /build_scene..."
-            ros2 service call /build_scene std_srvs/srv/Trigger "{}"
-            echo "---------------------------------------"
-        done
-    fi
+elif [ "$user_input_to_build_scene" == "true" ]; then
+    echo "=== Controllo manuale Scene Builder ==="
+    echo "Premi [INVIO] per aggiornare la scena."
+    echo "Digita 'q' e premi [INVIO] per uscire (oppure usa Ctrl+C)."
+    echo "======================================="
+
+    while true; do
+        read -p "Premi [INVIO] per lanciare /build_scene... " input
+        if [[ "$input" == "q" || "$input" == "Q" ]]; then
+            echo "Uscita dallo script."
+            break
+        fi
+        echo "Richiamo il servizio /build_scene..."
+        ros2 service call /build_scene std_srvs/srv/Trigger "{}"
+        echo "---------------------------------------"
+    done
+    
 
 fi
+
+#nota: non verrà stampato il seguente messaggio se si è in uno dei cicli bloccanti sopra (oneshot, auto_loop o user_input)
+echo "Tutti i terminali e i nodi sono stati avviati!"

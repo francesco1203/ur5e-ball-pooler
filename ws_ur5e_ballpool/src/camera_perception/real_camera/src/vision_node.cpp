@@ -40,6 +40,12 @@ class VisionNode : public rclcpp::Node
 public:
     VisionNode() : Node("vision_node")
     {
+
+        // iperparametri
+        this->declare_parameter<int>("required_samples", 200);
+        required_samples_ = this->get_parameter("required_samples").as_int();
+        
+
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -76,7 +82,8 @@ private:
     std::vector<double> x_measurements_;
     std::vector<double> y_measurements_;
     std::vector<double> yaw_measurements_;
-    const size_t REQUIRED_SAMPLES = 200; 
+
+    int required_samples_;       // Variabile configurabile tramite ROS 2 parameters
 
     // Geometria globale bloccata
     double current_table_x_ = 0.0;
@@ -175,14 +182,14 @@ private:
                     yaw_measurements_.push_back(yaw_rad_live);
                     
                     if (z_measurements_.size() % 40 == 0) {
-                        RCLCPP_INFO(this->get_logger(), "Calibrazione TF in corso: %zu/%zu campioni raccolti...", z_measurements_.size(), REQUIRED_SAMPLES);
+                        RCLCPP_INFO(this->get_logger(), "Calibrazione TF in corso: %zu/%d campioni raccolti...", z_measurements_.size(), required_samples_);
                     }
                     
-                    if (z_measurements_.size() >= REQUIRED_SAMPLES) {
+                    if (z_measurements_.size() >= static_cast<size_t>(required_samples_)){
                         double sum_z = 0.0, sum_x = 0.0, sum_y = 0.0;
                         double sum_sin = 0.0, sum_cos = 0.0;
                         
-                        for (size_t i = 0; i < REQUIRED_SAMPLES; i++) {
+                        for (int i = 0; i < required_samples_; i++) {
                             sum_z += z_measurements_[i];
                             sum_x += x_measurements_[i];
                             sum_y += y_measurements_[i];
@@ -190,9 +197,9 @@ private:
                             sum_cos += std::cos(yaw_measurements_[i]);
                         }
                         
-                        current_table_z_ = sum_z / REQUIRED_SAMPLES;
-                        current_table_x_ = sum_x / REQUIRED_SAMPLES;
-                        current_table_y_ = sum_y / REQUIRED_SAMPLES;
+                        current_table_z_ = sum_z / required_samples_;
+                        current_table_x_ = sum_x / required_samples_;
+                        current_table_y_ = sum_y / required_samples_;
                         current_table_yaw_ = std::atan2(sum_sin, sum_cos);
 
                         current_state_ = NodeState::TRACKING;
@@ -408,109 +415,59 @@ private:
             tf_broadcaster_->sendTransform(t_hole);
         }
 
+
+        // 2. PUBBLICA I VERTICI ESTERNI (utili per debug, calibrazione e visualizzazione in RViz)
         {
-            // 2. PUBBLICA IL VERTICE ESTERNO IN BASSO A DESTRA (Bottom-Right Corner)
-            // MISURA: Modifica rail_thickness inserendo i metri reali di spessore della sponda in legno
-            // double rail_thickness = 0.011; 
-            
             geometry_msgs::msg::TransformStamped t_corner;
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
-            t_corner.child_frame_id = "bottom_right_corner_frame";
+            t_corner.child_frame_id = CORNER_BOTTOM_RIGHT_FRAME;
             
-
-
-            
-            // Aggiungiamo lo spessore della sponda alla geometria del panno verde
-            // t_corner.transform.translation.x = half_l + rail_thickness ;
-            // t_corner.transform.translation.y = half_w + rail_thickness ;
-            t_corner.transform.translation.x = 0.503 / 2;
-            t_corner.transform.translation.y = 0.304 / 2 ;
-
-            
-            // Solleviamo la TF esattamente di 1.5 cm rispetto allo 0 del panno verde
-            t_corner.transform.translation.z = 0.015; 
+            t_corner.transform.translation.x = POOL_TABLE_LENGTH / 2;
+            t_corner.transform.translation.y = POOL_TABLE_WIDTH / 2 ;
+            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; //1.5cm
             
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
 
         {
-            // 2. PUBBLICA IL VERTICE ESTERNO IN BASSO A DESTRA (Bottom-Right Corner)
-            // MISURA: Modifica rail_thickness inserendo i metri reali di spessore della sponda in legno
-            // double rail_thickness = 0.011; 
-            
             geometry_msgs::msg::TransformStamped t_corner;
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
-            t_corner.child_frame_id = "top_right_corner_frame";
-            
-
-
-            
-            // Aggiungiamo lo spessore della sponda alla geometria del panno verde
-            // t_corner.transform.translation.x = half_l + rail_thickness ;
-            // t_corner.transform.translation.y = half_w + rail_thickness ;
-            t_corner.transform.translation.x = - 0.503 / 2;
-            t_corner.transform.translation.y = 0.304 / 2 ;
-
-            
-            // Solleviamo la TF esattamente di 1.5 cm rispetto allo 0 del panno verde
-            t_corner.transform.translation.z = 0.015; 
+            t_corner.child_frame_id = CORNER_TOP_RIGHT_FRAME;
+        
+            t_corner.transform.translation.x = - POOL_TABLE_LENGTH / 2;
+            t_corner.transform.translation.y = POOL_TABLE_WIDTH / 2 ;
+            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
             
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
 
         {
-            // 2. PUBBLICA IL VERTICE ESTERNO IN BASSO A DESTRA (Bottom-Right Corner)
-            // MISURA: Modifica rail_thickness inserendo i metri reali di spessore della sponda in legno
-            // double rail_thickness = 0.011; 
-            
             geometry_msgs::msg::TransformStamped t_corner;
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
-            t_corner.child_frame_id = "top_left_corner_frame";
+            t_corner.child_frame_id = CORNER_TOP_LEFT_FRAME;
             
-
-
-            
-            // Aggiungiamo lo spessore della sponda alla geometria del panno verde
-            // t_corner.transform.translation.x = half_l + rail_thickness ;
-            // t_corner.transform.translation.y = half_w + rail_thickness ;
-            t_corner.transform.translation.x = - 0.503 / 2;
-            t_corner.transform.translation.y = - 0.304 / 2 ;
-
-            
-            // Solleviamo la TF esattamente di 1.5 cm rispetto allo 0 del panno verde
-            t_corner.transform.translation.z = 0.015; 
+            t_corner.transform.translation.x = - POOL_TABLE_LENGTH / 2;
+            t_corner.transform.translation.y = - POOL_TABLE_WIDTH / 2 ;
+            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
             
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
 
         {
-            // 2. PUBBLICA IL VERTICE ESTERNO IN BASSO A DESTRA (Bottom-Right Corner)
-            // MISURA: Modifica rail_thickness inserendo i metri reali di spessore della sponda in legno
-            // double rail_thickness = 0.011; 
-            
             geometry_msgs::msg::TransformStamped t_corner;
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
-            t_corner.child_frame_id = "bottom_left_corner_frame";
+            t_corner.child_frame_id = CORNER_BOTTOM_LEFT_FRAME;
             
-
-
-            
-            // Aggiungiamo lo spessore della sponda alla geometria del panno verde
-            // t_corner.transform.translation.x = half_l + rail_thickness ;
-            // t_corner.transform.translation.y = half_w + rail_thickness ;
-            t_corner.transform.translation.x = 0.503 / 2;
-            t_corner.transform.translation.y = - 0.304 / 2 ;
-
-            
-            // Solleviamo la TF esattamente di 1.5 cm rispetto allo 0 del panno verde
-            t_corner.transform.translation.z = 0.015; 
+            t_corner.transform.translation.x = POOL_TABLE_LENGTH / 2;
+            t_corner.transform.translation.y = - POOL_TABLE_WIDTH / 2 ;
+            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
             
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);

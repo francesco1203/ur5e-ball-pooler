@@ -17,7 +17,7 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 
 #scena e detection
-use_vision_node_for_mujoco="false"              #true se vuoi usare il nodo di vision, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
+use_vision_node_for_mujoco="true"              #true se vuoi usare il nodo di vision che fa detection della telecamera di mujoco, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
 start_image_view="false"                       #true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
 build_scene_rviz="true"                        #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
 

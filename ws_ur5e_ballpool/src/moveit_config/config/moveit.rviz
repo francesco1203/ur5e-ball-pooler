@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz_common/Displays
-    Help Height: 70
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -11,7 +11,7 @@ Panels:
         - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.5
-    Tree Height: 296
+    Tree Height: 264
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -85,10 +85,6 @@ Visualization Manager:
             Show Trail: false
             Value: true
           camera_color_optical_frame:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-          camera_depth_optical_frame:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -221,10 +217,6 @@ Visualization Manager:
             Alpha: 1
             Show Axes: false
             Show Trail: false
-          camera_depth_optical_frame:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
           cut_rod_link:
             Alpha: 1
             Show Axes: false
@@ -310,12 +302,10 @@ Visualization Manager:
         base_link_inertia:
           Value: false
         billiard_center_field:
-          Value: false
+          Value: true
         blue_solid_ball:
           Value: true
         camera_color_optical_frame:
-          Value: true
-        camera_depth_optical_frame:
           Value: true
         cut_rod_link:
           Value: false
@@ -373,9 +363,27 @@ Visualization Manager:
           base_link:
             base:
               camera_color_optical_frame:
-                {}
-              camera_depth_optical_frame:
-                {}
+                billiard_center_field:
+                  hole_bottom_left:
+                    {}
+                  hole_bottom_right:
+                    {}
+                  hole_mid_left:
+                    {}
+                  hole_mid_right:
+                    {}
+                  hole_top_left:
+                    {}
+                  hole_top_right:
+                    {}
+                blue_solid_ball:
+                  {}
+                red_solid_ball:
+                  {}
+                white_solid_ball:
+                  {}
+                yellow_solid_ball:
+                  {}
             base_link_inertia:
               shoulder_link:
                 upper_arm_link:
@@ -392,27 +400,6 @@ Visualization Manager:
                                 {}
                           ft_frame:
                             {}
-          billiard_center_field:
-            blue_solid_ball:
-              {}
-            hole_bottom_left:
-              {}
-            hole_bottom_right:
-              {}
-            hole_mid_left:
-              {}
-            hole_mid_right:
-              {}
-            hole_top_left:
-              {}
-            hole_top_right:
-              {}
-            red_solid_ball:
-              {}
-            white_solid_ball:
-              {}
-            yellow_solid_ball:
-              {}
           wall_link:
             {}
       Update Interval: 0
@@ -458,19 +445,19 @@ Visualization Manager:
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: true
+    collapsed: false
   Height: 699
   Help:
     collapsed: false
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: false
   MotionPlanning:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002640000025dfc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073000000003f000001ae000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000111000001960000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a0056006900650077007300000001f3000000a9000000a900ffffff0000028a0000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000002640000025dfc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000004400fffffffb000000100044006900730070006c006100790073010000003f00000148000000cc00fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670000000111000001960000019600fffffffb0000000800480065006c0070000000029a0000006e0000006f00fffffffb0000000a00560069006500770073010000018d0000010f000000a900ffffff000002aa0000025d00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
-    collapsed: true
-  Width: 650
+    collapsed: false
+  Width: 1300
   X: 66
   Y: 32

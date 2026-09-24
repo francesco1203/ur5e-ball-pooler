@@ -31,8 +31,15 @@ use_real_camera="true"        #se false, uso le terne ideali di fake camera
 start_image_view="true"       #simulatore per la percezione             
 
 #esecuzione tiro
-execute_shot="false"                           
+execute_shot="false"                             
 use_real_game_engine="true"                   
+
+#costruzione scena (biliardino - aggiornamento della grafica delle palline in scena)  
+oneshot_build_scene="false"                     #metti a true per costuire una sola volta la scena               
+auto_loop_build_scene="true"                    #metti a true per aggiornare la scena in loop (utile per vedere le palline muoversi)
+time_between_scene_builds=1                     
+user_input_to_build_scene="false"               #metti a true per aggiornare la scena iterativamente, ma solo quando premi [INVIO] (utile per debug e test)
+
 
 #logging
 logging_enable="false"                                        
@@ -488,3 +495,17 @@ fi
 
 
 echo "Tutti i nodi sono stati avviati!"
+
+
+# ================================================
+# CICLO DI AGGIORNAMENTO SCENA 
+# ================================================
+echo "=== Controllo manuale Scene Builder ==="
+echo "Premi [INVIO] per aggiornare la scena (Ctrl+C per uscire)."
+echo "======================================="
+
+while true; do
+    read -p "Premi [INVIO] per lanciare /build_scene... " input
+    echo ""
+    ros2 service call /build_scene std_srvs/srv/Trigger "{}"
+done

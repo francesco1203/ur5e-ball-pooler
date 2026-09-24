@@ -252,12 +252,12 @@
 
 
     <!-- ========================================== -->
-    <!-- Terna della Telecamera (Parametri Estrinseci) -->
+    <!-- Terna della Telecamera -->
     <!-- ========================================== -->
 
-    <!-- ========================================== -->
-    <!-- 1. Posizione esatta della Lente RGB (Calibrazione) -->
-    <!-- ========================================== -->
+
+
+    <!-- Posizione della lente RGB rispetto alla base ricavata dalla calibrazione -->
     <link name="camera_rgb_calibrated" />
 
     <joint name="base_to_rgb_joint" type="fixed">
@@ -266,20 +266,25 @@
         <origin xyz="-0.28898614560797165 -0.4734488805016898 0.04818685648725712" rpy="0.02022358 -0.79176606 -1.58897229" />
     </joint>
 
-    <!-- ========================================== -->
-    <!-- 2. Offset fisico su +X (1.48cm) + Rotazione asse Z -->
-    <!-- ========================================== -->
+    
+
+    <!-- Posizione della telecamera (per definizione nel sensore di Depth) rispetto alla lente RGB -->
+
+
+    <!-- La lente di depth è traslata di 1.48 cm lungo x rispetto all'RGB -->
+    <!-- riferimenti: https://github.com/realsenseai/realsense-ros/tree/ros2-master -->
+    <!-- Tuttavia, sono inseriti qui anche rotazioni e traslazioni di una calibrazione a mano, per correggere l'allineamento -->
+
     <link name="camera_link" />
 
     <joint name="rgb_to_camera_link_joint" type="fixed">
         <parent link="camera_rgb_calibrated" />
         <child link="camera_link" />
         
-        <!-- 
-          Traslazione (xyz): Sposta di 1.48 cm lungo l'asse X positivo (0.0148).
-          Rotazione (rpy): Ruota di 90 gradi (1.5708 rad) su Z.
-        -->
+        <!-- SENZA CALIBRAZIONE (solo traslazione lungo x per depth da costruzione del sensore) -->
         <!-- <origin xyz="0.0148 0.0 0.00" rpy="0 -1.5708 1.5708" /> -->
+
+        <!-- TENTATIVI DI CALIBRAZIONE A MANO -->
         <!-- <origin xyz="0.0178 -0.0088 0.0286" rpy="0 -1.5708 1.5708" /> -->
         <!-- <origin xyz="0.0130 -0.0080 0.0287" rpy="0 -1.5708 1.5708" /> -->
         <!-- <origin xyz="0.0133 -0.0080 0.0287" rpy="0 -1.5708 1.6232" /> -->

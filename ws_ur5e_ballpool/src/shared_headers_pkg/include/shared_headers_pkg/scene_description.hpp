@@ -27,15 +27,27 @@
     const std::string HOLE_BOTTOM_RIGHT_FRAME   = "hole_bottom_right";
     const std::string HOLE_BOTTOM_LEFT_FRAME    = "hole_bottom_left";
 
+    //tf corner
+    const std::string CORNER_TOP_RIGHT_FRAME      = "top_right_corner_frame";
+    const std::string CORNER_TOP_LEFT_FRAME       = "top_left_corner_frame";
+    const std::string CORNER_BOTTOM_RIGHT_FRAME   = "bottom_right_corner_frame";
+    const std::string CORNER_BOTTOM_LEFT_FRAME    = "bottom_left_corner_frame";
+
 
     //camera
     const std::string CAMERA_FRAME = "camera_color_optical_frame";  // nome della terna della camera (frame ottico della camera)
 
-    /* POOL TABLE*/
+
+/* POOL TABLE*/
 
     //id
     const std::string ID_MINI_POOL_TABLE = "mini_pool_table";
 
+    //dimensioni del tavolo (con sponde)
+    constexpr double POOL_TABLE_LENGTH = 0.503;   // lunghezza del tavolo (in metri)
+    constexpr double POOL_TABLE_WIDTH = 0.304;    // larghezza del tavolo (in metri)
+    constexpr double POOL_TABLE_HEIGHT = 0.075;    // altezza del tavolo (in metri)
+  
 
     //dimensioni del campo (senza sponde)
     constexpr double POOL_TABLE_FIELD_LENGTH = 0.45;   // lunghezza del campo (in metri)
@@ -44,7 +56,7 @@
     
 
     // attrito volvente panno con le biglie
-    constexpr double CLOTH_SLIDING_FRICTION = 0.005; // u_s
+    constexpr double CLOTH_SLIDING_FRICTION = 0.005; // u_s     (inventato, ma realistico, per simulare il rallentamento delle palline sul panno da biliardo)
     constexpr double GRAVITY = 9.81;                 // m/s^2
 
 

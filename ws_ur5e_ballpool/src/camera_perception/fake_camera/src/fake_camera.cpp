@@ -108,16 +108,21 @@ class FakeCamera : public rclcpp::Node
       double half_l = POOL_TABLE_FIELD_LENGTH / 2.0;
       double half_w = POOL_TABLE_FIELD_WIDTH / 2.0;
 
+      double corner_inset_x = 0.01; 
+      double corner_inset_y = 0.02; 
+      double mid_inset_y = 0.0125;    
+
+      // 1. PUBBLICA LE 6 BUCHE (Ancorate al panno, Z=0 locale)
       struct HoleDef { std::string name; double x; double y; };
       std::vector<HoleDef> holes = {
-          {"hole_top_left",     -half_l + 0.01, -half_w + 0.02},
-          {"hole_top_right",    -half_l + 0.01,  half_w - 0.02},
-          {"hole_mid_left",      0.0,    -half_w + 0.0125},
-          {"hole_mid_right",     0.0,     half_w - 0.0125},
-          {"hole_bottom_left",   half_l - 0.01, -half_w + 0.02},
-          {"hole_bottom_right",  half_l - 0.01,  half_w - 0.02}
+          {HOLE_TOP_LEFT_FRAME,     -half_l + corner_inset_x, -half_w + corner_inset_y},
+          {HOLE_TOP_RIGHT_FRAME,    -half_l + corner_inset_x,  half_w - corner_inset_y},
+          {HOLE_MID_LEFT_FRAME,      0.0,                     -half_w + mid_inset_y},
+          {HOLE_MID_RIGHT_FRAME,     0.0,                      half_w - mid_inset_y},
+          {HOLE_BOTTOM_LEFT_FRAME,   half_l - corner_inset_x, -half_w + corner_inset_y},
+          {HOLE_BOTTOM_RIGHT_FRAME,  half_l - corner_inset_x,  half_w - corner_inset_y}
       };
-
+      
       for (const auto& hole : holes) {
           TransformStampedMsg t_hole;
           t_hole.header.stamp = now;
