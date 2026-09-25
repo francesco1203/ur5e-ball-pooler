@@ -21,6 +21,7 @@ find_package(visualization_msgs REQUIRED)
 # --- NUOVE DIPENDENZE AGGIUNTE PER I QUATERNIONI ---
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
 # ---------------------------------------------------
 
 # 2. Trova la libreria OpenCV di sistema
@@ -45,6 +46,7 @@ ament_target_dependencies(vision_node
   tf2                  # <-- AGGIUNTO QUI
   tf2_geometry_msgs    # <-- AGGIUNTO QUI
   visualization_msgs
+  std_srvs
 )
 
 # 6. Collega le librerie OpenCV all'eseguibile
