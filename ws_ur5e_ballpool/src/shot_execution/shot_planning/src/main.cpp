@@ -37,7 +37,6 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("success_threshold_approach", 0.99);
     node->declare_parameter<double>("success_threshold_back", 0.20);
 
-
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double distance_deceleration_phase_fraction_radius_ = node->get_parameter("distance_deceleration_phase_fraction_radius").as_double();
@@ -406,8 +405,9 @@ int main(int argc, char* argv[])
         if(phase_4_logging_enabled) node->startLogging("shot", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
      
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
-                          impact_shot_velocity_,
-                          accel_distance, decel_distance);
+                                        impact_shot_velocity_,
+                                        accel_distance, decel_distance,
+                                        control_shot_steps_execution_by_user_input_); //chiedo conferma all'utente prima di eseguire il tiro
 
         
         if(using_mujoco_simulation_){

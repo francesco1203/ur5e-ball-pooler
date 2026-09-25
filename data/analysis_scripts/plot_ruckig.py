@@ -1,3 +1,9 @@
+"""
+plot_ruckig.py
+
+Visualizza il csv generato da Ruckig con i dati ideali di posizione, velocità e accelerazione (riferimento durante il tiro)
+"""
+
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt

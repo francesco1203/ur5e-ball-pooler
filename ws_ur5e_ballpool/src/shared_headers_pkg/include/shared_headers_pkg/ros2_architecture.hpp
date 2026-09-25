@@ -12,7 +12,7 @@
    //for logging
    const std::string JOINT_STATES_TOPIC = "/joint_states";                              // topic per lo stato dei giunti del robot (sensor_msgs/JointState) 
    const std::string CARTESIAN_POSE_TOPIC = "/tcp_pose_broadcaster/pose";              // topic per logging della posa cartesiana del robot (geometry_msgs/PoseStamped)
-   const std::string CARTESIAN_TWIST_TOPIC = "/tcp_velocity";                           // topic per logging della velocità cartesiana del robot (geometry_msgs/TwistStamped)                         
+   const std::string CARTESIAN_TWIST_TOPIC = "/tcp_twist";                           // topic per logging della velocità cartesiana del robot (geometry_msgs/TwistStamped)                         
    const std::string CONTROLLER_STATE_TOPIC = "/scaled_joint_trajectory_controller/controller_state";       // topic per lo stato del controller
 
    //CAMERA TOPCIS

@@ -3,12 +3,14 @@
 plot_torque.py
 
 Visualizza i grafici dell'effort (coppia) dei giunti a partire dal bagfile ROS 2
-per il topic degli attuatori MuJoCo (/mujoco_actuators_states) o simili.
+per il topic degli attuatori (/joint_states).
+Gestisce automaticamente l'assenza di dati di sforzo (es. in simulazione/mock).
 """
 
 import sys
 from pathlib import Path
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from rosbags.highlevel import AnyReader
 
@@ -44,8 +46,13 @@ def extract_torque_from_bag(bag_path, topic_name):
                         
                 times.append(t_sec)
                 
-                # Popola le liste con l'effort (gestendo eventuali campi vuoti)
-                efforts = msg.effort if hasattr(msg, 'effort') and len(msg.effort) == len(joint_names) else [0.0] * len(joint_names)
+                # SE L'EFFORT E' PRESENTE E DELLA LUNGHEZZA CORRETTA, LO USIAMO
+                if hasattr(msg, 'effort') and len(msg.effort) == len(joint_names):
+                    efforts = list(msg.effort)
+                else:
+                    # Se l'array è vuoto (tipico in simulazione mock), usiamo NaN invece di 0.0
+                    # così Matplotlib non disegna finte righe sullo zero.
+                    efforts = [np.nan] * len(joint_names)
                 
                 for i, name in enumerate(joint_names):
                     torque_data[name].append(efforts[i])
@@ -61,42 +68,56 @@ def extract_torque_from_bag(bag_path, topic_name):
     if not df.empty:
         df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
         
-    return df
+    return df, joint_names
 
 
 def main():
-    # Se passi il file/cartella da riga di comando usa quello, altrimenti usa un default
+    if len(sys.argv) < 2:
+        print("Uso: python3 plot_torque.py <percorso_cartella_bag>")
+        sys.exit(1)
+        
     bag_path = sys.argv[1]
     topic_target = '/joint_states'
 
     print(f"Estrazione dati effort da: {bag_path} sul topic: {topic_target}...")
-    df = extract_torque_from_bag(bag_path, topic_target)
+    df, joint_columns = extract_torque_from_bag(bag_path, topic_target)
 
     if df.empty:
-        print("Nessun dato di effort trovato o DataFrame vuoto. Uscita.")
+        print("Nessun dato trovato o DataFrame vuoto. Uscita.")
         return
 
-    if "time_sec" not in df.columns:
-        print("Errore: il DataFrame non contiene la colonna 'time_sec'", file=sys.stderr)
-        sys.exit(1)
+    # --- CONTROLLO DATI MANCANTI O NULLI (SIMULAZIONE) ---
+    is_all_invalid = True
+    for col in joint_columns:
+        # Se c'è almeno un valore che NON è NaN e NON è 0.0, allora abbiamo dati reali
+        if not (df[col].isna() | (df[col] == 0.0)).all():
+            is_all_invalid = False
+            break
+            
+    if is_all_invalid:
+        print("\n" + "="*70)
+        print(" ⚠️  ATTENZIONE: I dati di effort contengono solo ZERI o NaN.")
+        print("     È probabile che questo bag provenga da una simulazione")
+        print("     (es. mock_components) in cui la coppia non viene calcolata.")
+        print("     I grafici verranno aperti, ma appariranno vuoti.")
+        print("="*70 + "\n")
 
-    joint_columns = [col for col in df.columns if col != "time_sec"]
-    if not joint_columns:
-        print("Errore: nessuna colonna di giunto trovata", file=sys.stderr)
-        sys.exit(1)
-
+    # --- PLOTTING ---
     n_joints = len(joint_columns)
     fig, axes = plt.subplots(n_joints, 1, figsize=(10, 2.5 * n_joints), sharex=True)
+    fig.canvas.manager.set_window_title(f'Analisi Coppie Giunti - {bag_path}')
 
     # Se c'è un solo giunto, normalizziamo axes in lista
     if n_joints == 1:
         axes = [axes]
 
     for ax, joint_name in zip(axes, joint_columns):
-        ax.plot(df["time_sec"], df[joint_name], linewidth=1)
+        # Utilizziamo 'dropna()' per non far arrabbiare matplotlib se ci sono NaN
+        # Se tutti i dati sono NaN, matplotlib lascerà il riquadro pulito
+        ax.plot(df["time_sec"], df[joint_name], linewidth=1.5, color='#1f77b4')
         ax.set_ylabel("Effort [Nm]")
         ax.set_title(joint_name)
-        ax.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.4)
 
     axes[-1].set_xlabel("Tempo [s]")
     fig.tight_layout()

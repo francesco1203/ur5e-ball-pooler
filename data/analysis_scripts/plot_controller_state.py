@@ -7,7 +7,6 @@ estraendo i dati dal bagfile usando le librerie native ROS 2 (rosbag2_py).
 """
 
 import sys
-from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 

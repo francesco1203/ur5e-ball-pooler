@@ -24,9 +24,10 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     /*PLANNING PARAMETERS from config files.yaml*/ 
 
     //generic
-    this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor
+    this->declare_parameter<double>("cartesian_limits_enabled", false);  
+    this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor                           // cartesian limits enabled (se attivato, non fa fare movimenti che li superano)
     this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians (1/20 di grado)
-    this->declare_parameter<double>("goal_position_tolerance", 0.0005);                              // default position tolerance in meters (0.5 mm)
+    this->declare_parameter<double>("goal_position_tolerance", 0.0005);                             // default position tolerance in meters (0.5 mm)
     this->declare_parameter<double>("goal_orientation_tolerance", 0.01);                            // default orientation tolerance in radians (1/2 di grado)
 
     //moveToJointConfig e moveToNamedTarget:    
@@ -47,6 +48,7 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     this->declare_parameter<double>("accel_decel_factor_for_jerk_compensation", 1.0);        // default factor to compensate for jerk
 
 
+    cartesian_limits_enabled_ = this->get_parameter("cartesian_limits_enabled").as_bool();
     max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
     goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
     goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
@@ -657,11 +659,13 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
 
 /* METODI PER IL TIRO */
 bool TaskNode::ExecuteShot(const Vector3d& posizione_arresto,        //fine tiro, dove si ferma
-                    const Quaternion& orientamento,
-                    const std::string& frame_id,
-                    double vel_impact,
-                    double distance_acceleration,
-                    double distance_deceleration)
+                            const Quaternion& orientamento,
+                            const std::string& frame_id,
+                            double vel_impact,
+                            double distance_acceleration,
+                            double distance_deceleration,
+                            bool ask_for_user_confirmation
+                          )
 {
     // 0. controllo preliminare dei parametri
     if (distance_deceleration <= 0.0 || distance_acceleration <= 0.0 || vel_impact <= 0.0) {
@@ -675,58 +679,85 @@ bool TaskNode::ExecuteShot(const Vector3d& posizione_arresto,        //fine tiro
     double decel = vel_impact * vel_impact / (2.0 * distance_deceleration); // a = v^2 / (2 * d)
 
 
-    // 2. faccio un controllo di fattibilità in base ai limiti fisici del robot
-    double vel_limite = MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_;
-    double accel_limite = MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_;
-    double decel_limite = abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_;
-
-
     RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DEL TIRO--------------------");
 
-    if (vel_impact < vel_limite) {
-        RCLCPP_INFO(this->get_logger(), 
-            "Velocità di tiro: %.3f m/s (< limite = %.3f m/s con scaling = %.2f usato)", 
-            vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+    if (cartesian_limits_enabled_) {
+
+        // faccio un controllo di fattibilità in base ai limiti fisici cartesiani del robot e allo scaling inserito
+        double vel_limite = MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_;
+        double accel_limite = MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_;
+        double decel_limite = abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_;
+
+
+        
+        if (vel_impact < vel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Velocità di tiro: %.3f m/s (< limite = %.3f m/s con scaling = %.2f usato)", 
+                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di velocità superato: %.3f m/s > limite = %.3f m/s (con scaling = %.2f usato)", 
+                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+
+                return false;
+        }
+
+        if (accel < accel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Accelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else{
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di accelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
+            
+            return false;
+        }
+
+        if (decel < decel_limite) {
+            RCLCPP_INFO(this->get_logger(), 
+                "Decelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
+        }
+        else{
+            RCLCPP_ERROR(this->get_logger(), 
+                "Limite di decelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
+                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
+
+            return false;
+        }
     }
     else
     {
-        RCLCPP_ERROR(this->get_logger(), 
-            "Limite di velocità superato: %.3f m/s > limite = %.3f m/s (con scaling = %.2f usato)", 
-            vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+        RCLCPP_INFO(this->get_logger(), "ATTENZIONE: Limiti cartesiani disabilitati, non viene effettuato il controllo di fattibilità.");
+        RCLCPP_INFO(this->get_logger(), "Continuare con cautela.\n");
 
-            return false;
+        RCLCPP_INFO(this->get_logger(), "Velocità di tiro: %.3f m/",  vel_impact);
+        RCLCPP_INFO(this->get_logger(), "Accelerazione di tiro: %.3f m/s^2", accel);
+        RCLCPP_INFO(this->get_logger(), "Decelerazione di tiro: %.3f m/s^2", decel);
     }
-
-    if (accel < accel_limite) {
-        RCLCPP_INFO(this->get_logger(), 
-            "Accelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-            accel, accel_limite, max_velocity_acceleration_scaling_factor_);
-    }
-    else{
-        RCLCPP_ERROR(this->get_logger(), 
-            "Limite di accelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-            accel, accel_limite, max_velocity_acceleration_scaling_factor_);
-        
-        return false;
-    }
-
-    if (decel < decel_limite) {
-        RCLCPP_INFO(this->get_logger(), 
-            "Decelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-            decel, decel_limite, max_velocity_acceleration_scaling_factor_);
-    }
-    else{
-        RCLCPP_ERROR(this->get_logger(), 
-            "Limite di decelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-            decel, decel_limite, max_velocity_acceleration_scaling_factor_);
-
-        return false;
-    }
+    
 
     RCLCPP_INFO(this->get_logger(), "\n--------------------PARAMETRI DEL TIRO--------------------\n");
 
 
-    // 3. eseguo il tiro con profilo asimmetrico
+    //chiedo conferma all'utente che prende nota dei parametri del tiro
+    if(ask_for_user_confirmation)
+    {
+        print_and_wait("Vuoi effettuare il tiro con i parametri sopra indicati?"); //user inserisce c_in
+        
+        if (c_in != 's')
+        {
+            RCLCPP_WARN(this->get_logger(), "Utente ha annullato il tiro");
+            return false;
+        }
+    }
+
+
+    // eseguo il tiro con profilo asimmetrico
     return moveCartesianPathAsymmTriangle(posizione_arresto, orientamento, frame_id, 
                                             vel_impact * vel_factor_for_jerk_compensation_, 
                                             accel * accel_decel_factor_for_jerk_compensation_, 

@@ -1,18 +1,25 @@
-#!/usr/bin/env python3
+"""
+cartesian_vs_ruckig.py
+
+Visualizza i dati di posizione, velocità e accelerazione cartesiana in linea retta, 
+estraendo i dati da un bagfile, confrontando con i dati ideali generati da Ruckig.
+"""
+
 import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
+from scipy.signal import savgol_filter  # IMPORTANTE: Aggiunto per il filtro SG
 
 # Librerie native ROS 2 per leggere i bag file
 import rosbag2_py
 from rclpy.serialization import deserialize_message
 from rosidl_runtime_py.utilities import get_message
 
-def extract_pose_from_bag(bag_path, topic_name):
-    """Estrae i dati di posizione cartesiana e i timestamp da un bag ROS 2 in modo nativo."""
-    times, xs, ys, zs = [], [], [], []
+def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
+    """Estrae i dati di posizione e twist cartesiano da un bag ROS 2 in modo nativo e li allinea."""
+    pose_times, xs, ys, zs = [], [], [], []
+    twist_times, vxs, vys, vzs = [], [], [], []
     
     storage_options = rosbag2_py.StorageOptions(uri=bag_path, storage_id='')
     converter_options = rosbag2_py.ConverterOptions(
@@ -30,27 +37,45 @@ def extract_pose_from_bag(bag_path, topic_name):
     topic_types = reader.get_all_topics_and_types()
     type_map = {topic.name: topic.type for topic in topic_types}
     
-    if topic_name not in type_map:
-        print(f"Errore: Il topic '{topic_name}' non è presente nel bagfile.")
+    if pose_topic not in type_map or twist_topic not in type_map:
+        print(f"Errore: Assicurati che i topic '{pose_topic}' e '{twist_topic}' siano nel bagfile.")
         return pd.DataFrame()
         
-    msg_type_str = type_map[topic_name]
-    msg_type = get_message(msg_type_str)
+    # Salva le classi dei messaggi per deserializzare correttamente i vari topic
+    msg_types = {
+        pose_topic: get_message(type_map[pose_topic]),
+        twist_topic: get_message(type_map[twist_topic])
+    }
 
-    storage_filter = rosbag2_py.StorageFilter(topics=[topic_name])
+    # Filtra entrambi i topic
+    storage_filter = rosbag2_py.StorageFilter(topics=[pose_topic, twist_topic])
     reader.set_filter(storage_filter)
 
     while reader.has_next():
         topic, rawdata, timestamp = reader.read_next()
-        msg = deserialize_message(rawdata, msg_type)
+        msg = deserialize_message(rawdata, msg_types[topic])
         t_sec = timestamp / 1e9 
         
-        xs.append(msg.pose.position.x)
-        ys.append(msg.pose.position.y)
-        zs.append(msg.pose.position.z)
-        times.append(t_sec)
+        if topic == pose_topic:
+            xs.append(msg.pose.position.x)
+            ys.append(msg.pose.position.y)
+            zs.append(msg.pose.position.z)
+            pose_times.append(t_sec)
+        elif topic == twist_topic:
+            vxs.append(msg.twist.linear.x)
+            vys.append(msg.twist.linear.y)
+            vzs.append(msg.twist.linear.z)
+            twist_times.append(t_sec)
 
-    df = pd.DataFrame({'time_sec': times, 'x': xs, 'y': ys, 'z': zs})
+    # Crea due dataframe e ordinali per tempo
+    df_pose = pd.DataFrame({'time_sec': pose_times, 'x': xs, 'y': ys, 'z': zs}).sort_values('time_sec')
+    df_twist = pd.DataFrame({'time_sec': twist_times, 'vx': vxs, 'vy': vys, 'vz': vzs}).sort_values('time_sec')
+    
+    if df_pose.empty or df_twist.empty:
+        return pd.DataFrame()
+
+    # Unisci i dati allineando il twist al timestamp della pose più vicina
+    df = pd.merge_asof(df_pose, df_twist, on='time_sec', direction='nearest')
     
     if not df.empty:
         df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
@@ -65,7 +90,8 @@ def main():
 
     ideal_file_path = sys.argv[1]
     raw_bag_path = sys.argv[2]
-    topic_target = '/tcp_pose_broadcaster/pose'
+    topic_pose = '/tcp_pose_broadcaster/pose'
+    topic_twist = '/tcp_twist_broadcaster/twist'  # Assicurati che il nome sia corretto!
 
     # --- 1. LETTURA DATI IDEALI (RUCKIG da CSV) ---
     try:
@@ -82,7 +108,7 @@ def main():
 
     # --- 2. LETTURA DATI ESECUZIONE (RAW da BAGFILE) ---
     print(f"Estrazione dati reali da: {raw_bag_path}...")
-    df_raw = extract_pose_from_bag(raw_bag_path, topic_target)
+    df_raw = extract_kinematics_from_bag(raw_bag_path, topic_pose, topic_twist)
 
     if df_raw.empty:
         print("Nessun dato estratto dal bag. Uscita.")
@@ -95,19 +121,36 @@ def main():
 
     t_raw = df_raw['time_sec'].values
     x, y, z = df_raw['x'].values, df_raw['y'].values, df_raw['z'].values
+    vx, vy, vz = df_raw['vx'].values, df_raw['vy'].values, df_raw['vz'].values
 
-    # Calcoli reali
+    # Calcoli grezzi
     dist_raw = np.sqrt((x - x[0])**2 + (y - y[0])**2 + (z - z[0])**2)
+    vel_raw = np.sqrt(vx**2 + vy**2 + vz**2)
 
-    # Velocità pura (Delta Spazio / Delta Tempo)
-    dt = np.diff(t_raw)
-    vel_raw = np.diff(dist_raw) / dt
-    t_vel_raw = t_raw[:-1]
+    # --- FILTRAGGIO SAVITZKY-GOLAY (Opzionale) ---
+    filtering_distance = False
+    filtering_velocity = False
+    filtering_acceleration = False
+    
+    wl = 9  # Window length (deve essere dispari)
+    po = 3  # Polynomial order
 
-    # Accelerazione pura
-    dt_vel = np.diff(t_vel_raw)
-    acc_raw = np.diff(vel_raw) / dt_vel
-    t_acc_raw = t_vel_raw[:-1]
+    # Filtra (o mantieni grezza) la distanza
+    plot_dist = savgol_filter(dist_raw, window_length=wl, polyorder=po) if filtering_distance else dist_raw
+    label_dist = 'Campioni Reali (Filtrati SG)' if filtering_distance else 'Campioni Reali (Raw)'
+
+    # Filtra (o mantieni grezza) la velocità
+    plot_vel = savgol_filter(vel_raw, window_length=wl, polyorder=po) if filtering_velocity else vel_raw
+    label_vel = 'Velocità Calcolata (Filtrata SG)' if filtering_velocity else 'Velocità Calcolata (Raw)'
+
+    # Calcolo dell'accelerazione basato sulla velocità (filtrata o meno)
+    dt_vel = np.diff(t_raw)
+    acc_raw = np.diff(plot_vel) / dt_vel
+    t_acc_raw = t_raw[:-1]
+
+    # Filtra (o mantieni grezza) l'accelerazione
+    plot_acc = savgol_filter(acc_raw, window_length=wl, polyorder=po) if filtering_acceleration else acc_raw
+    label_acc = 'Accelerazione Calcolata (Filtrata SG)' if filtering_acceleration else 'Accelerazione Calcolata (Raw)'
 
     # --- 3. PLOTTING SOVRAPPOSTO ---
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
@@ -115,21 +158,21 @@ def main():
 
     # Subplot 1: Posizione
     axs[0].plot(t_ideal, pos_ideal, 'g-', label='Traiettoria Ideale (Ruckig)', linewidth=2)
-    axs[0].plot(t_raw, dist_raw, 'ko', label='Campioni Reali (Bag Logger)', markersize=4, alpha=0.6)
+    axs[0].plot(t_raw, plot_dist, 'ko', label=label_dist, markersize=4, alpha=0.6)
     axs[0].set_ylabel('Distanza [m]')
     axs[0].set_title('Confronto Posizione')
     axs[0].grid(True); axs[0].legend()
 
     # Subplot 2: Velocità
     axs[1].plot(t_ideal, vel_ideal, color='orange', label='Velocità Ideale', linewidth=2)
-    axs[1].plot(t_vel_raw, vel_raw, 'ko', label='Velocità Calcolata', markersize=4, alpha=0.6)
+    axs[1].plot(t_raw, plot_vel, 'ko', label=label_vel, markersize=4, alpha=0.6)
     axs[1].set_ylabel('Velocità [m/s]')
     axs[1].set_title('Confronto Velocità')
     axs[1].grid(True); axs[1].legend()
 
     # Subplot 3: Accelerazione
     axs[2].plot(t_ideal, acc_ideal, 'r-', label='Accelerazione Ideale', linewidth=2)
-    axs[2].plot(t_acc_raw, acc_raw, 'ko', label='Accelerazione Calcolata', markersize=4, alpha=0.6)
+    axs[2].plot(t_acc_raw, plot_acc, 'ko', label=label_acc, markersize=4, alpha=0.6)
     axs[2].set_ylabel('Accelerazione [m/s²]')
     axs[2].set_xlabel('Tempo [s]')
     axs[2].set_title('Confronto Accelerazione')

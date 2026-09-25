@@ -99,7 +99,8 @@ public:
 
     bool ExecuteShot(const Vector3d& posizione_arresto, const Quaternion& orientamento,
                      const std::string& frame_id = WORLD_FRAME,
-                     double vel_impact = -1.0, double distance_acceleration = -1.0, double distance_deceleration = -1.0);
+                     double vel_impact = -1.0, double distance_acceleration = -1.0, double distance_deceleration = -1.0,
+                     bool ask_for_user_confirmation = false);
 
     bool build_scene();
     bool disable_white_ball_collision();
@@ -142,6 +143,7 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     // Parametri...
+    bool cartesian_limits_enabled_;
     double max_velocity_acceleration_scaling_factor_;   
     double goal_joint_tolerance_;                       
     double goal_position_tolerance_;                    
@@ -162,6 +164,7 @@ private:
     double impact_angle_deg_;
     double vel_factor_for_jerk_compensation_;
     double accel_decel_factor_for_jerk_compensation_;
+
     char c_in; 
 };
 

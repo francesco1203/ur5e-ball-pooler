@@ -1,3 +1,10 @@
+"""
+plot_joints.py
+
+Visualizza i dati di posizione, velocità e accelerazione dei giunti, 
+estraendo i dati da un bagfile
+"""
+
 import sys
 from pathlib import Path
 import pandas as pd

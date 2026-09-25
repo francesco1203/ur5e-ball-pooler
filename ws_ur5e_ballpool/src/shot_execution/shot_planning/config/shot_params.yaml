@@ -9,3 +9,4 @@ task_node:
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
     success_threshold_approach: 0.99                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_back: 0.20                          # soglia di successo moveCartesianPath per l'arretramento del tiro
+    
