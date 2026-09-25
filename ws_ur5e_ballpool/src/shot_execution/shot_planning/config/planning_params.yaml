@@ -20,7 +20,7 @@ task_node:
     resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
     success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
     Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
-    max_jerk: 10.0                                      # jerk massimo in m/s^3 
+    max_jerk: 1000.0                                      # jerk massimo in m/s^3 
 
     #shot method 
     vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo

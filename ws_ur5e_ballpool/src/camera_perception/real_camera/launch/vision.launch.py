@@ -23,7 +23,15 @@ def generate_launch_description():
         }]
     )
 
+    tf_freezer_node = Node(
+            package="real_camera",
+            executable="tf_freezer_node",
+            output="screen",
+            
+        )
+
     return LaunchDescription([
         required_samples_arg,
-        vision_node
+        vision_node,
+        tf_freezer_node
     ])

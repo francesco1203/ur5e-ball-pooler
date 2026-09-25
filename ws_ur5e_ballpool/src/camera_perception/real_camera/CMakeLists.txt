@@ -35,6 +35,18 @@ target_include_directories(vision_node PUBLIC
   ${OpenCV_INCLUDE_DIRS}
 )
 
+
+add_executable(tf_freezer_node src/tf_freezer_node.cpp)
+ament_target_dependencies(tf_freezer_node 
+rclcpp 
+std_srvs 
+shared_headers_pkg
+geometry_msgs
+ tf2 
+  tf2_geometry_msgs    # <-- AGGIUNTO QUI
+tf2_ros)
+install(TARGETS tf_freezer_node DESTINATION lib/${PROJECT_NAME})
+
 # 5. Collega le dipendenze ROS 2 all'eseguibile
 ament_target_dependencies(vision_node
   rclcpp
@@ -57,6 +69,7 @@ target_link_libraries(vision_node
 # 7. Regola di installazione per ros2 run
 install(TARGETS
   vision_node
+  tf_freezer_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

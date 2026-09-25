@@ -7,7 +7,7 @@ game_engine:
     rail_proximity_threshold: 0.04                    # distanza minima tra asta e binario per considerare il tiro vicino la sponda e alzare l'asta
     normal_impact_angle_deg: 10.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
     steep_impact_angle_deg: 10.0                      # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda (cons:15-20 gradi)
-    cloth_sliding_friction: 0.1                      # attrito del panno con la pallina 
+    cloth_sliding_friction: 0.05                      # attrito del panno con la pallina 
 
 fake_game_engine:
   ros__parameters:

@@ -7,13 +7,13 @@
 
 # analisi bag-files
 joints_analysis="true"             #true se vuoi aprire anche la finestra di analisi giunti
-cartesian_analysis="false"           #true se vuoi aprire anche la finestra di analisi cartesiana
-controller_analysis="false"          #true se vuoi aprire anche la finestra di plot dei dati del controller
-torque_analysis="false"              #true se vuoi aprire anche la finestra di plot dei dati di coppia
+cartesian_analysis="true"           #true se vuoi aprire anche la finestra di analisi cartesiana
+controller_analysis="true"          #true se vuoi aprire anche la finestra di plot dei dati del controller
+torque_analysis="true"              #true se vuoi aprire anche la finestra di plot dei dati di coppia
 
 # analisi ruckig csv
-ruckig_plot="false"                   #true se vuoi aprire anche la finestra di plot dei dati Ruckig
-cartesian_vs_ruckig_plot="false"     #true se vuoi aprire anche la finestra di plot dei dati cartesiani vs Ruckig
+ruckig_plot="true"                   #true se vuoi aprire anche la finestra di plot dei dati Ruckig
+cartesian_vs_ruckig_plot="true"     #true se vuoi aprire anche la finestra di plot dei dati cartesiani vs Ruckig
 
 
 

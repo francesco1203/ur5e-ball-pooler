@@ -26,6 +26,7 @@ launch_robot_driver="true"
 
 #avvio camera IntelRealsense
 start_image_view="false"       #visualizzatore per la percezione             
+numero_campioni_biliardo=100
 
 #esecuzione tiro
 execute_shot="true"                             
@@ -218,7 +219,8 @@ fi
 echo "Avvio nodo di visione..."
 gnome-terminal --tab --title="VisionNode" -- bash -c \
                 "source ${INSTALL_SETUP_BASH} && \
-                ros2 launch real_camera vision.launch.py; \
+                ros2 launch real_camera vision.launch.py \
+                    required_samples:=${numero_campioni_biliardo}; \
                 exec bash"
 
 

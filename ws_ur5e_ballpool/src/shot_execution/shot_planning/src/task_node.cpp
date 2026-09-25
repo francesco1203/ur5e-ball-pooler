@@ -24,7 +24,7 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     /*PLANNING PARAMETERS from config files.yaml*/ 
 
     //generic
-    this->declare_parameter<double>("cartesian_limits_enabled", false);  
+    this->declare_parameter<bool>("cartesian_limits_enabled", false);  
     this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor                           // cartesian limits enabled (se attivato, non fa fare movimenti che li superano)
     this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians (1/20 di grado)
     this->declare_parameter<double>("goal_position_tolerance", 0.0005);                             // default position tolerance in meters (0.5 mm)
@@ -39,9 +39,9 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     
     //moveCartesianPathAsymmTriangle
     this->declare_parameter<double>("resolution_step_Ruckig", 0.005);                        // default resolution step in meters
-    this->declare_parameter<double>("success_threshold_Ruckig", 0.95);                       // default success threshold
+    this->declare_parameter<double>("success_threshold_Ruckig", 0.99);                       // default success threshold
     this->declare_parameter<double>("Ruckig_dt", 0.01);                                      // default Ruckig working step in seconds
-    this->declare_parameter<double>("max_jerk", 10.0);                                       // default max jerk in m/s^3
+    this->declare_parameter<double>("max_jerk", 50.0);                                       // default max jerk in m/s^3
 
     //shot method
     this->declare_parameter<double>("vel_factor_for_jerk_compensation", 1.0);                 // default factor to compensate for jerk
