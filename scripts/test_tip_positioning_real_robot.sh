@@ -140,7 +140,6 @@ if [ "$start_image_view" == "true" ]; then
                         ros2 run image_view image_view --ros-args -r \
                             image:=/camera/camera/color/image_raw; \
                         exec bash"
-    sleep 1
 fi
 
 #avvio nodo di visione che effettua la detection e la perception
@@ -149,7 +148,6 @@ gnome-terminal --tab --title="VisionNode" -- bash -c \
                 "source ${INSTALL_SETUP_BASH} && \
                 ros2 launch real_camera vision.launch.py; \
                 exec bash"
-sleep 1
 
 
 # ================================================
@@ -160,7 +158,6 @@ gnome-terminal --tab --title="Scene Builder" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 run scene_description scene_builder; \
                     exec bash"
-sleep 2
 
 
 
@@ -186,7 +183,6 @@ if [[ "$execute_test" == "true" ]]; then
         source ${INSTALL_SETUP_BASH} && \
         ros2 run shot_planning test_tip_positioning_node ${NODE_ARGS} ; \
         exec bash"
-    sleep 5
     
 fi
 

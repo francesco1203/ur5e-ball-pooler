@@ -13,10 +13,10 @@
     //*es red --> red_solid_ball, red_stripes_ball ecc..
 
     /*NOTA: in questo progetto usiamo solo le seguenti palline piene*/
-    const std::string WHITE_SOLID_BALL_FRAME = "white_solid_ball";
-    const std::string RED_SOLID_BALL_FRAME = "red_solid_ball";
-    const std::string BLUE_SOLID_BALL_FRAME = "blue_solid_ball";
-    const std::string YELLOW_SOLID_BALL_FRAME = "yellow_solid_ball";
+    const std::string WHITE_SOLID_BALL_FRAME    = "white_solid_ball";
+    const std::string RED_SOLID_BALL_FRAME      = "red_solid_ball";
+    const std::string BLUE_SOLID_BALL_FRAME     = "blue_solid_ball";
+    const std::string YELLOW_SOLID_BALL_FRAME   = "yellow_solid_ball";
 
 
     //tf buche
@@ -35,7 +35,7 @@
 
 
     //camera
-    const std::string CAMERA_FRAME = "camera_color_optical_frame";  // nome della terna della camera (frame ottico della camera)
+    const std::string CAMERA_FRAME = "camera_color_optical_frame";  // nome della terna ottica RGB della camera
 
 
 /* POOL TABLE*/

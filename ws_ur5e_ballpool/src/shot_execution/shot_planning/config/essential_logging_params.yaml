@@ -16,7 +16,6 @@ task_node:
     #type logging for only essential
     joints_logging_enabled: true
     cartesian_logging_enabled: true
-    torque_logging_enabled: true          #verrà a prescindere attivato solo se si usa mujoco
     controller_logging_enabled: true
 
     #phase logging for only essential

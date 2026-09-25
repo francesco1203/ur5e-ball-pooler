@@ -1,13 +1,13 @@
 #!/bin/bash
 
-
 #------------------------------------------------
-# PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
-WS_DIR="ws_ur5e_ballpool"
-INSTALL_DIR="${WS_DIR}/install"
-INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
-#------------------------------------------------
+# DESCRIZIONE SCRIPT
 
+# Questo script serve per avviare tutti i nodi necessari per la simulazione del robot
+# e per l'esecuzione del tiro, sia in modalità MuJoCo che in modalità Fake Hardware.
+# Lo script permette di scegliere se usare MuJoCo o Fake Hardware, se usare la telecamera simulata 
+# o la scena ideale, se aprire RViz o meno, se fare logging e quale tipo di logging fare.
+#------------------------------------------------
 
 
 # ------------------------------------------------
@@ -17,9 +17,10 @@ INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
 open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 
 #scena e detection
-use_vision_node_for_mujoco="true"              #true se vuoi usare il nodo di vision che fa detection della telecamera di mujoco, false se vuoi usare la scena fake con le palline già posizionate (fake camera) (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
-start_image_view="false"                       #true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
-build_scene_rviz="true"                        #true se vuoi costruire la scena in RViz, indicando gli ostacoli in moveit
+use_vision_node_for_mujoco="true"              #(*) true se vuoi usare il nodo di vision che fa detection della telecamera di mujoco, false se vuoi usare la scena fake con le palline già posizionate (fake camera)
+start_image_view="false"                       #(*) true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo 
+start_image_view="false"                       #(*) true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
+# (*) = solo in modalità MuJoCo
 
 #esecuzione tiro
 execute_shot="true"                            #false se vuoi solo fare visualizzazione della scena e non eseguire il tiro (utile in fase di debug e setup)
@@ -31,7 +32,7 @@ logging_enable="false"                                        #true se vuoi fare
 only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
-only_camera_logging="true"                                   #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
+only_camera_logging="false"                                    #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
 only_camera_logging_folder="only_camera_logging"              #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
 brutal_logging="false"                                        #true se vuoi fare logging di tutti i dati, false se vuoi fare logging solo dei dati essenziali
@@ -39,6 +40,13 @@ brutal_logging_folder="brutal_logging"                        #nome della cartel
 
 # ------------------------------------------------
 
+
+#------------------------------------------------
+# PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
+WS_DIR="ws_ur5e_ballpool"
+INSTALL_DIR="${WS_DIR}/install"
+INSTALL_SETUP_BASH="${WS_DIR}/install/setup.bash"
+#------------------------------------------------
 
 # ------------------------------------------------
 # Verifica preliminare della cartella di lavoro
@@ -81,7 +89,7 @@ if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
     #avvio del simulatore vero e proprio con MuJoCo e MoveIt
     echo "Avvio MuJoCo con MoveIt..."
-    sleep 2
+    sleep 1
 
     if [[ "$open_rviz_when_using_mujoco" == "true" ]]; then
         gnome-terminal --tab --title="Moveit+MuJoCo+Rviz" -- bash -c \
@@ -110,7 +118,6 @@ else
     python3 ${MOVEIT_CONFIG_DIR}/ros2_control_hardware_auto_switch.py mock
 
     echo "Avvio MoveIt con RViz..."
-    sleep 2
 
     gnome-terminal --tab --title="MoveIt+Rviz" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
@@ -126,7 +133,7 @@ fi
 # ================================================
 # modalità:
 #   - uso la camera simulata in MuJoCo (use_vision_node=true e scelta_mujoco=s)
-#   - uso la scena ideale con le terne messe da fake_camera (use_vision_node=false)
+#   - uso la scena ideale con le terne messe da fake_camera (else)
 
 if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
@@ -141,7 +148,6 @@ if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$
                             ros2 run image_view image_view --ros-args -r \
                                 image:=/camera/camera/color/image_raw; \
                             exec bash"
-        sleep 1
     fi
    
     #avvio nodo di visione che effettua la detection e la perception
@@ -149,9 +155,8 @@ if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$
     gnome-terminal --tab --title="VisionNode" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 launch real_camera vision.launch.py \
-                    use_sim_time:=true; \
+                        use_sim_time:=true; \
                     exec bash"
-    sleep 1
 else
     # NOTA: se uso la scena ideale con le terne messe da fake_camera, lancio il nodo che pubblica idealmente già la posizione da file yaml
 
@@ -163,23 +168,17 @@ else
                         ros2 launch fake_camera fake_camera.launch.py \
                             yaml_path:=${FAKE_CAMERA_CONFIG_DIR}/fake_camera_config.yaml; \
                         exec bash"
-    sleep 2
-    
 fi
 
 
 # ================================================
 # BUILDER DELLA SCENA
 # ================================================
-if [[ "$build_scene_rviz" == "true" ]]; then
-    echo "Avvio Scene Builder..."
-    gnome-terminal --tab --title="Scene Builder" -- bash -c \
-                        "source ${INSTALL_SETUP_BASH} && \
-                        ros2 run scene_description scene_builder; \
-                        exec bash"
-
-    sleep 2
-fi
+echo "Avvio Scene Builder..."
+gnome-terminal --tab --title="Scene Builder" -- bash -c \
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 run scene_description scene_builder; \
+                    exec bash"
 
 
 # ================================================
@@ -187,39 +186,13 @@ fi
 # ================================================
 if [[ "$execute_shot" == "true" ]]; then
 
+   
     # ================================================
     # GESTIONE DEL LOGGING
     # ================================================
     if [[ "$logging_enable" == "true" ]]; then
 
         BAGDATA_DIR="data/bagdata"
-
-        if [[ "$only_essential_logging" == "true" ]]; then
-
-            # ------------------------------------------------
-            # solo logging essenziale, topic principali durante il tiro
-
-
-            #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
-            echo "Avvio Nodo di debug cartesiano..."
-            gnome-terminal --tab --title="CartesianPublisher" -- bash -c \
-                           "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_pub_launcher.launch.py; \
-                           exec bash"
-            sleep 1
-
-
-            # solo logging essenziale, topic principali durante il tiro
-            echo "Avvio Bag Writer essenziale su richiesta..."
-            gnome-terminal --tab --title="Logging nodes" -- bash -c \
-                           "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes bag_writer.launch.py \
-                                test_title:='${only_essential_logging_folder}'; \
-                            exec bash"
-            sleep 1
-            # ------------------------------------------------
-        fi
-
 
         if [[ "$only_camera_logging" == "true" ]]; then
 
@@ -242,7 +215,38 @@ if [[ "$execute_shot" == "true" ]]; then
                     /camera/camera/aligned_depth_to_color/image_raw; \
                 exec bash"
 
-            sleep 2
+            # ------------------------------------------------
+        else
+
+            #se non voglio fare logging solo della camera, allora avvio anche i nodi che danno informazioni cartesiane (pose e twist)
+
+            echo "Avvio Nodo di pubblicazione cartesiana..."
+            gnome-terminal --tab --title="Cartesian Pose Publisher TCP" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes cartesian_pose_pub.launch.py; \
+                           exec bash"
+
+
+            echo "Avvio Nodo di pubblicazione twist..."
+            gnome-terminal --tab --title="Cartesian Twist Publisher TCP" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes cartesian_twist_pub.launch.py; \
+                           exec bash"
+        fi
+
+
+        if [[ "$only_essential_logging" == "true" ]]; then
+
+            # ------------------------------------------------
+            # solo logging essenziale, topic principali durante il tiro
+
+            echo "Avvio Bag Writer essenziale su richiesta..."
+            gnome-terminal --tab --title="Logging nodes" -- bash -c \
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 launch logging_nodes bag_writer.launch.py \
+                                test_title:='${only_essential_logging_folder}' ; \
+                            exec bash"
+
             # ------------------------------------------------
         fi
 
@@ -251,16 +255,6 @@ if [[ "$execute_shot" == "true" ]]; then
     
             # ------------------------------------------------
             # logging di tutti i topic, durante l'esecuzione di tutto il programma
-
-
-            #avvio il nodo di debug cartesiano che pubblica la posa del TCP del robot
-            echo "Avvio Nodo di debug cartesiano..."
-            gnome-terminal --tab --title="CartesianPublisher" -- bash -c \
-                           "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_pub_launcher.launch.py; \
-                           exec bash"
-            sleep 1
-
 
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
 
@@ -272,8 +266,6 @@ if [[ "$execute_shot" == "true" ]]; then
                             "source ${INSTALL_SETUP_BASH} && \
                             ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; \
                             exec bash"
-
-            sleep 2
 
         fi
     fi
@@ -309,7 +301,6 @@ if [[ "$execute_shot" == "true" ]]; then
         source ${INSTALL_SETUP_BASH} && \
         ros2 run shot_planning task_node ${NODE_ARGS}; \
         exec bash"
-    sleep 5
     
 
     # ================================================

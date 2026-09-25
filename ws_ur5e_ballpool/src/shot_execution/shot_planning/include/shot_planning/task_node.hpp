@@ -105,7 +105,7 @@ public:
     bool disable_white_ball_collision();
     bool checkSceneIdentification(const std::string& reference_frame = WORLD_FRAME);
     
-    bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled);
+    bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled);
     bool stopLogging();
 
     bool start_game_engine();
@@ -123,7 +123,7 @@ public:
 private:
     /* Metodi Privati */
     void paramsCallback(const ShotParamsMsg::SharedPtr msg);
-    bool send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled);
+    bool send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled);
     bool send_trigger_request(const TriggerClient& client, const std::string& service_name);
     bool set_game_engine_state(bool state); 
 

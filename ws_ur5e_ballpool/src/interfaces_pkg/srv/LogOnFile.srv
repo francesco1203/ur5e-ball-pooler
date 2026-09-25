@@ -2,7 +2,6 @@
 string filename                     #vuoto se voglio disattivare il logging, altrimenti nome del file in cui salvare i dati
 bool enable_joint_logging
 bool enable_cartesian_logging
-bool enable_torque_logging
 bool enable_controller_logging
 ---
 bool logging_state_on

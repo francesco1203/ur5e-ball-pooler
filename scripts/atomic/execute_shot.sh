@@ -45,5 +45,4 @@ gnome-terminal --tab --title="Shot Planning" -- bash -c " \
     source ${INSTALL_SETUP_BASH} && \
     ros2 run shot_planning task_node ${NODE_ARGS}; \
     exec bash"
-sleep 5
 

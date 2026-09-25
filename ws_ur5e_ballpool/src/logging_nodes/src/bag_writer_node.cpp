@@ -30,7 +30,7 @@ class BagWriterNode : public rclcpp::Node {
     public: 
         /*ALIAS*/ 
         using PoseStampedMsg = geometry_msgs::msg::PoseStamped; 
-        using TwistStampedMsg = geometry_msgs::msg::TwistStamped; // <-- AGGIUNTO
+        using TwistStampedMsg = geometry_msgs::msg::TwistStamped; 
         using JointStateMsg = sensor_msgs::msg::JointState; 
         using ControllerStateMsg = control_msgs::msg::JointTrajectoryControllerState; 
 
@@ -44,30 +44,35 @@ class BagWriterNode : public rclcpp::Node {
             this->declare_parameter<std::string>("bag_base_path", "/home/francesco/log/ros2_bagdata_recovery");       
             this->declare_parameter<std::string>("bag_format", "mcap"); 
             this->declare_parameter<std::string>("test_title", "titolo_default"); 
-
-            // 2. Inizializzazione Sottoscrizioni 
+            
+            // Inizializzazione Sottoscrizioni 
             cartesian_pose_sub_ = this->create_subscription<PoseStampedMsg>( 
                 CARTESIAN_POSE_TOPIC, 10, std::bind(&BagWriterNode::cartesian_pose_cb, this, std::placeholders::_1)); // Rinominata callback
-             
-            // <-- AGGIUNTO: Subscriber del Twist
+            
             cartesian_twist_sub_ = this->create_subscription<TwistStampedMsg>( 
                 CARTESIAN_TWIST_TOPIC, 10, std::bind(&BagWriterNode::cartesian_twist_cb, this, std::placeholders::_1)); 
 
-            joint_sub_ = this->create_subscription<JointStateMsg>( 
+            joint_state_sub_ = this->create_subscription<JointStateMsg>( 
                 JOINT_STATES_TOPIC, 10, std::bind(&BagWriterNode::joint_cb, this, std::placeholders::_1)); 
                  
-            mujoco_sub_ = this->create_subscription<JointStateMsg>( 
-                ACTUATORS_STATES_MUJOCO_TOPIC, 10, std::bind(&BagWriterNode::mujoco_cb, this, std::placeholders::_1)); 
-                 
+            //NOTA: in joint_state ci sono anche le informazioni di torque, ma solo se sto usando il robot reale
+        
             controller_sub_ = this->create_subscription<ControllerStateMsg>( 
                 CONTROLLER_STATE_TOPIC, 10, std::bind(&BagWriterNode::controller_cb, this, std::placeholders::_1)); 
 
-            // 3. Inizializzazione Servizio 
+
+            //TODO: aggiungere sottoscrizione, topic per sensore di forza/coppia in flangia
+            
+
+            
+
+            //Inizializzazione Servizio 
             log_service_ = this->create_service<LogOnFileSrv>( 
                 LOG_ON_OFF_SERVICE, 
                 std::bind(&BagWriterNode::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2)); 
 
-            // 4. Inizializzazione Writer 
+
+            // Inizializzazione Writer 
             writer_ = std::make_unique<rosbag2_cpp::Writer>(); 
             RCLCPP_INFO(this->get_logger(), "Bag Writer Node avviato e in attesa di richieste."); 
         } 
@@ -80,15 +85,13 @@ class BagWriterNode : public rclcpp::Node {
         bool is_recording_; 
 
         bool log_cartesian_ = false; 
-        bool log_joints_ = false; 
-        bool log_torque_ = false; 
+        bool log_joint_states_ = false;
         bool log_controller_ = false; 
 
         rclcpp::Service<LogOnFileSrv>::SharedPtr log_service_; 
         rclcpp::Subscription<PoseStampedMsg>::SharedPtr cartesian_pose_sub_; 
-        rclcpp::Subscription<TwistStampedMsg>::SharedPtr cartesian_twist_sub_; // <-- AGGIUNTO
-        rclcpp::Subscription<JointStateMsg>::SharedPtr joint_sub_; 
-        rclcpp::Subscription<JointStateMsg>::SharedPtr mujoco_sub_; 
+        rclcpp::Subscription<TwistStampedMsg>::SharedPtr cartesian_twist_sub_;
+        rclcpp::Subscription<JointStateMsg>::SharedPtr joint_state_sub_; 
         rclcpp::Subscription<ControllerStateMsg>::SharedPtr controller_sub_; 
 
         /** CALLBACK DEL SERVIZIO --- */ 
@@ -100,7 +103,6 @@ class BagWriterNode : public rclcpp::Node {
 
             bool is_enabling = req->enable_cartesian_logging || 
                                req->enable_joint_logging || 
-                               req->enable_torque_logging || 
                                req->enable_controller_logging; 
 
             if (!is_enabling) {
@@ -164,17 +166,13 @@ class BagWriterNode : public rclcpp::Node {
                 if (req->enable_joint_logging) { 
                     register_topic(JOINT_STATES_TOPIC, "sensor_msgs/msg/JointState"); 
                 } 
-                if (req->enable_torque_logging) { 
-                    register_topic(ACTUATORS_STATES_MUJOCO_TOPIC, "sensor_msgs/msg/JointState");  
-                } 
                 if (req->enable_controller_logging) { 
                     register_topic(CONTROLLER_STATE_TOPIC, "control_msgs/msg/JointTrajectoryControllerState"); 
                 } 
 
                 // Salvo i flag in locale 
                 log_cartesian_ = req->enable_cartesian_logging; 
-                log_joints_ = req->enable_joint_logging; 
-                log_torque_ = req->enable_torque_logging; 
+                log_joint_states_ = req->enable_joint_logging; 
                 log_controller_ = req->enable_controller_logging; 
                  
                 is_recording_ = true; 
@@ -193,14 +191,13 @@ class BagWriterNode : public rclcpp::Node {
 
         /*CALLBACK DEI TOPIC */ 
          
-        void cartesian_pose_cb(const PoseStampedMsg::SharedPtr msg) { // <-- Rinominata leggermente per chiarezza
+        void cartesian_pose_cb(const PoseStampedMsg::SharedPtr msg) {
             std::lock_guard<std::mutex> lock(writer_mutex_); 
             if (is_recording_ && log_cartesian_) { 
                 writer_->write(*msg, CARTESIAN_POSE_TOPIC, this->now()); 
             } 
         } 
 
-        // <-- AGGIUNTA: Callback Twist
         void cartesian_twist_cb(const TwistStampedMsg::SharedPtr msg) { 
             std::lock_guard<std::mutex> lock(writer_mutex_); 
             if (is_recording_ && log_cartesian_) { 
@@ -210,15 +207,8 @@ class BagWriterNode : public rclcpp::Node {
 
         void joint_cb(const JointStateMsg::SharedPtr msg) { 
             std::lock_guard<std::mutex> lock(writer_mutex_); 
-            if (is_recording_ && log_joints_) { 
+            if (is_recording_ && log_joint_states_) { 
                 writer_->write(*msg, JOINT_STATES_TOPIC, this->now()); 
-            } 
-        } 
-
-        void mujoco_cb(const JointStateMsg::SharedPtr msg) { 
-            std::lock_guard<std::mutex> lock(writer_mutex_); 
-            if (is_recording_ && log_torque_) { 
-                writer_->write(*msg, ACTUATORS_STATES_MUJOCO_TOPIC, this->now()); 
             } 
         } 
 

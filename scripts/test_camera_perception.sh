@@ -86,7 +86,7 @@ if [ "$use_real_camera" == "true" ]; then
                             temporal_filter.filter_persistency:=8 \
                             hole_filling_filter.enable:=true; \
                             exec bash"
-        sleep 3
+        sleep 2
     else
         echo -e "Driver IntelRealSense non avviati da questo script. Assicurati che siano già attivi..."
     fi
@@ -118,7 +118,6 @@ else
                        ros2 launch fake_camera mujoco_with_stream.launch.py; \
                        exec bash"
         sleep 2
-
     fi
 
     if [ "$use_fake_camera_node" == "true" ]; then
@@ -136,7 +135,6 @@ else
                            ros2 launch fake_camera fake_camera.launch.py; \
                            exec bash"
         fi
-        sleep 1
     fi
 fi
 
@@ -151,7 +149,6 @@ if [ "$launch_vision_node" == "true" ]; then
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 launch real_camera vision.launch.py; \
                     exec bash"
-    sleep 1
 fi
 
 
@@ -162,11 +159,10 @@ fi
 if [ "$start_image_view" == "true" ]; then
     echo "Avvio image_view..."
     gnome-terminal --tab --title="image_view" -- bash -c \
-                           "source ${INSTALL_SETUP_BASH} && \
-                           ros2 run image_view image_view --ros-args -r \
-                           image:=/camera/camera/color/image_raw; \
-                           exec bash"
-    sleep 1
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 run image_view image_view --ros-args -r \
+                        image:=/camera/camera/color/image_raw; \
+                    exec bash"
 fi
 
 if [ "$start_Rviz" == "true" ]; then

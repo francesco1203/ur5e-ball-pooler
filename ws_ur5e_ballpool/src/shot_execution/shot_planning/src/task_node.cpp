@@ -852,10 +852,10 @@ bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
 }
 
 /*SERVIZI DI MONITORING DEI TIRI*/
-bool TaskNode::startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled)
+bool TaskNode::startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled)
 {
     RCLCPP_INFO(this->get_logger(), "Avvio logging...");
-    bool ok = send_logging_request(filename, joint_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+    bool ok = send_logging_request(filename, joint_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
     
     return ok;
 }
@@ -865,7 +865,7 @@ bool TaskNode::stopLogging()
     RCLCPP_INFO(this->get_logger(), "Arresto logging...");
     
     // Basta una stringa vuota per far arrestare il logging, senza dover specificare i parametri
-    bool ok = send_logging_request("", false, false, false, false);
+    bool ok = send_logging_request("", false, false, false);
     
     return ok;
 }
@@ -1011,11 +1011,10 @@ void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
 // input: filename → nome del file di log (senza path), vuoto se sto disattivando il logging
 //        joint_logging_enabled → true per abilitare il logging delle giunture
 //        cartesian_logging_enabled → true per abilitare il logging della traiettoria cartesiana
-//        torque_logging_enabled → true per abilitare il logging dei momenti
 //        controller_logging_enabled → true per abilitare il logging del controller
 
 // output: true se la richiesta è stata completata con successo, false altrimenti
-bool TaskNode::send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool torque_logging_enabled, bool controller_logging_enabled)
+bool TaskNode::send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled)
 {
     // Aspettiamo che il servizio sia disponibile (max 1 secondo)
     if (!log_client_->wait_for_service(std::chrono::seconds(1))) {
@@ -1028,12 +1027,11 @@ bool TaskNode::send_logging_request(const std::string& filename, bool joint_logg
     request->filename = filename;
     request->enable_joint_logging = joint_logging_enabled;
     request->enable_cartesian_logging = cartesian_logging_enabled;
-    request->enable_torque_logging = torque_logging_enabled;
     request->enable_controller_logging = controller_logging_enabled;
 
 
     // Deduciamo se stiamo chiedendo di accendere o spegnere il logging
-    bool is_enabling = joint_logging_enabled || cartesian_logging_enabled || torque_logging_enabled || controller_logging_enabled;
+    bool is_enabling = joint_logging_enabled || cartesian_logging_enabled || controller_logging_enabled;
 
     // Inviamo la richiesta in modo asincrono
     auto future = log_client_->async_send_request(request);

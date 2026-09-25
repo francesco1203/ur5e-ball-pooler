@@ -80,12 +80,10 @@ int main(int argc, char* argv[])
 
     node->declare_parameter<bool>("joints_logging_enabled", false);
     node->declare_parameter<bool>("cartesian_logging_enabled", false);
-    node->declare_parameter<bool>("torque_logging_enabled", false);
     node->declare_parameter<bool>("controller_logging_enabled", false);
 
     bool joints_logging_enabled = node->get_parameter("joints_logging_enabled").as_bool();
     bool cartesian_logging_enabled = node->get_parameter("cartesian_logging_enabled").as_bool();
-    bool torque_logging_enabled = node->get_parameter("torque_logging_enabled").as_bool() && using_mujoco_simulation_; //solo se sto usando mujoco, altrimenti non funziona
     bool controller_logging_enabled = node->get_parameter("controller_logging_enabled").as_bool();
 
     node->declare_parameter<bool>("phase_0_logging_enabled", false);    // posizionamento away_from_table
@@ -136,7 +134,7 @@ int main(int argc, char* argv[])
         }
 
         //logging
-        if(phase_0_logging_enabled) node->startLogging("away_from_table", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        if(phase_0_logging_enabled) node->startLogging("away_from_table", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
         
 
         node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
@@ -246,7 +244,7 @@ int main(int argc, char* argv[])
         }
 
         //logging
-        if(phase_1_logging_enabled) node->startLogging("preapproach", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        if(phase_1_logging_enabled) node->startLogging("preapproach", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
         
 
         node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
@@ -286,7 +284,7 @@ int main(int argc, char* argv[])
 
 
         //logging
-        if(phase_2_logging_enabled) node->startLogging("approach", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        if(phase_2_logging_enabled) node->startLogging("approach", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
         
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
@@ -339,7 +337,7 @@ int main(int argc, char* argv[])
                                           );
 
         //logging
-        if(phase_3_logging_enabled) node->startLogging("back_shot", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        if(phase_3_logging_enabled) node->startLogging("back_shot", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
     
 
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
@@ -405,7 +403,7 @@ int main(int argc, char* argv[])
 
         
         //logging
-        if(phase_4_logging_enabled) node->startLogging("shot", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+        if(phase_4_logging_enabled) node->startLogging("shot", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
      
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                           impact_shot_velocity_,
@@ -447,7 +445,7 @@ int main(int argc, char* argv[])
             Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);
 
             //logging
-            if(phase_5_logging_enabled) node->startLogging("get_high", joints_logging_enabled, cartesian_logging_enabled, torque_logging_enabled, controller_logging_enabled);
+            if(phase_5_logging_enabled) node->startLogging("get_high", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
 
