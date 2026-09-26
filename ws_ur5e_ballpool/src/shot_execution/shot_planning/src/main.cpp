@@ -29,9 +29,6 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("approach_distance_from_ball_surface", 0.02);
     node->declare_parameter<double>("shooting_distance_from_ball_surface", 0.05);
     node->declare_parameter<double>("distance_deceleration_phase_fraction_radius", 2.0);
-    // node->declare_parameter<double>("impact_angle_deg", 10.0);           //da motore di gioco
-    // node->declare_parameter<double>("direction_angle_deg", 0.0);         //da motore di gioco
-    // node->declare_parameter<double>("impact_shot_velocity", 0.1);        //da motore di gioco
     node->declare_parameter<double>("offset_correction_center_z", 0.000);
     node->declare_parameter<double>("elevation_escape", 0.05);
     node->declare_parameter<double>("success_threshold_approach", 0.99);
@@ -40,9 +37,6 @@ int main(int argc, char* argv[])
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
     double distance_deceleration_phase_fraction_radius_ = node->get_parameter("distance_deceleration_phase_fraction_radius").as_double();
-    // double impact_angle_deg_ = node->get_parameter("impact_angle_deg").as_double();                  //da motore di gioco
-    // double direction_angle_deg_ = node->get_parameter("direction_angle_deg").as_double();            //da motore di gioco
-    // double impact_shot_velocity_ = node->get_parameter("impact_shot_velocity").as_double();          //da motore di gioco
     double offset_correction_center_z_ = node->get_parameter("offset_correction_center_z").as_double();
     double elevation_escape_ = node->get_parameter("elevation_escape").as_double();
     double success_threshold_approach_ = node->get_parameter("success_threshold_approach").as_double();
@@ -52,23 +46,40 @@ int main(int argc, char* argv[])
 
     //------------------------------------------------------
     /*CONTROL EXECUTION PARAMETERS*/
-    node->declare_parameter<bool>("control_shot_start_execution_by_user_input", true);
-    node->declare_parameter<bool>("control_shot_steps_execution_by_user_input", false);
-    node->declare_parameter<bool>("user_confirm_for_right_identification", true);
+    node->declare_parameter<bool>("user_confirm_for_right_detection", true);
+    node->declare_parameter<bool>("user_confirm_for_each_step", true);
+    node->declare_parameter<bool>("user_confirm_for_first_move", true);
+    node->declare_parameter<bool>("user_confirm_for_shot_execution", true);
+    node->declare_parameter<int>("pause_among_steps_milliseconds", 800);
+  
+    bool user_confirm_for_right_detection_ = node->get_parameter("user_confirm_for_right_detection").as_bool();
+    bool user_confirm_for_each_step_ = node->get_parameter("user_confirm_for_each_step").as_bool();
+    bool user_confirm_for_first_move_ = node->get_parameter("user_confirm_for_first_move").as_bool();
+    bool user_confirm_for_shot_execution_ = node->get_parameter("user_confirm_for_shot_execution").as_bool();
     
-    bool control_shot_start_execution_by_user_input_ = node->get_parameter("control_shot_start_execution_by_user_input").as_bool();
-    bool control_shot_steps_execution_by_user_input_ = node->get_parameter("control_shot_steps_execution_by_user_input").as_bool();
-    bool user_confirm_for_right_identification_ = node->get_parameter("user_confirm_for_right_identification").as_bool();
+    node->declare_parameter<int>("pause_among_step_1_2_milliseconds", 800);
+    node->declare_parameter<int>("pause_among_step_2_3_milliseconds", 800);
+    node->declare_parameter<int>("pause_among_step_3_4_milliseconds", 800);
+    node->declare_parameter<int>("pause_among_step_4_5_milliseconds", 800);
+    node->declare_parameter<int>("pause_among_step_5_6_milliseconds", 2000);
+    node->declare_parameter<int>("pause_after_step_6_milliseconds", 1000);   
+
+    int pause_among_step_1_2_milliseconds_ = node->get_parameter("pause_among_step_1_2_milliseconds").as_int();
+    int pause_among_step_2_3_milliseconds_ = node->get_parameter("pause_among_step_2_3_milliseconds").as_int();
+    int pause_among_step_3_4_milliseconds_ = node->get_parameter("pause_among_step_3_4_milliseconds").as_int();
+    int pause_among_step_4_5_milliseconds_ = node->get_parameter("pause_among_step_4_5_milliseconds").as_int();
+    int pause_among_step_5_6_milliseconds_ = node->get_parameter("pause_among_step_5_6_milliseconds").as_int();
+    int pause_after_step_6_milliseconds_ = node->get_parameter("pause_after_step_6_milliseconds").as_int();
     //------------------------------------------------------
 
 
     //------------------------------------------------------
-    /*USING MUJOCO*/
-    node->declare_parameter<bool>("using_mujoco_simulation", false);
-    node->declare_parameter<int>("mujoco_sync_pause_time_milliseconds", 800);
+    /*USING FAKE CAMERA*/
+    node->declare_parameter<bool>("using_fake_camera", false);
+    bool using_fake_camera_ = node->get_parameter("using_fake_camera").as_bool();
+    //------------------------------------------------------
 
-    bool using_mujoco_simulation_ = node->get_parameter("using_mujoco_simulation").as_bool();
-    int mujoco_sync_pause_time_milliseconds_ = node->get_parameter("mujoco_sync_pause_time_milliseconds").as_int();
+
     //------------------------------------------------------
     /*MONITORING PARAMETERS debug + logging on file*/
 
@@ -85,19 +96,19 @@ int main(int argc, char* argv[])
     bool cartesian_logging_enabled = node->get_parameter("cartesian_logging_enabled").as_bool();
     bool controller_logging_enabled = node->get_parameter("controller_logging_enabled").as_bool();
 
-    node->declare_parameter<bool>("phase_0_logging_enabled", false);    // posizionamento away_from_table
     node->declare_parameter<bool>("phase_1_logging_enabled", false);    // andare in posa pre-approach
     node->declare_parameter<bool>("phase_2_logging_enabled", false);    // approach alla pallina
     node->declare_parameter<bool>("phase_3_logging_enabled", false);    // allontanamento all'indietro per prendere velocità
     node->declare_parameter<bool>("phase_4_logging_enabled", false);    // esecuzione tiro
     node->declare_parameter<bool>("phase_5_logging_enabled", false);    // alzata per liberare il campo
+    node->declare_parameter<bool>("phase_6_logging_enabled", false);    // ritorno in posa di partenza
 
-    bool phase_0_logging_enabled = node->get_parameter("phase_0_logging_enabled").as_bool();
     bool phase_1_logging_enabled = node->get_parameter("phase_1_logging_enabled").as_bool();
     bool phase_2_logging_enabled = node->get_parameter("phase_2_logging_enabled").as_bool();
     bool phase_3_logging_enabled = node->get_parameter("phase_3_logging_enabled").as_bool();
     bool phase_4_logging_enabled = node->get_parameter("phase_4_logging_enabled").as_bool();
     bool phase_5_logging_enabled = node->get_parameter("phase_5_logging_enabled").as_bool();
+    bool phase_6_logging_enabled = node->get_parameter("phase_6_logging_enabled").as_bool();
     //------------------------------------------------------
 
 
@@ -108,75 +119,52 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
 
 
+    //-------------------------------------------
+    /* IDENTIFICAZIONE BILIARDO DA TELECAMERA */
 
-    
-    //------------------------------------------------------
-    /* SEQUENZA DI TASK */
-
-    
-    //inizio
-    if(control_shot_start_execution_by_user_input_){
-        node->print_and_wait("\n\nPremi un tasto e INVIO per iniziare la sequenza di tiro.. (primo step: away_from_table)");
-    }
-    else{
-        RCLCPP_INFO(node->get_logger(), "\n\nInizio sequenza di tiro..");
-    }
-
-
-    // FASE 0 - mi scosto dal campo, per far fare l'identificazione della scena alla camera senza ostacoli
+    if(!using_fake_camera_) //se sto usando la fake_camera devo saltare la parte di vision, ho già tutte le terne
     {
-        if(control_shot_steps_execution_by_user_input_){
-            node->print_and_wait("\n\nPosizionamento in 'away_from_table'..");
+        node->waitForBilliardIdentification(); 
+    }
+    else
+    {
+        RCLCPP_INFO(node->get_logger(), "Terne ideali arrivate da fake_camera");
+    }
+    //-------------------------------------------
+
+
+    //-------------------------------------------
+    /* IDENTIFICAZIONE PALLINE E FREEZE DELLA SCENA*/
+
+    if(!using_fake_camera_) //se sto usando la fake_camera devo saltare la parte di vision, ho già tutte le terne
+    {
+        RCLCPP_INFO(node->get_logger(), "In attesa dell'identificazione della scena...");
+        rclcpp::sleep_for(std::chrono::seconds(1));
+
+        if(node->checkRealtimeSceneIdentification()){
+            
+            if(user_confirm_for_right_detection_){
+                node->print_and_wait("\n\nPremi un tasto e INVIO per confermare l'identificazione della scena..");
+            }
+            
+            // CONGELIAMO LE TF delle palline
+            if (!node->freeze_balls()) {
+                RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Fallito il congelamento delle palline! Impossibile procedere.");
+                return 1;
+            }
+
+            RCLCPP_INFO(node->get_logger(), "\n\nScena identificata e TF congelate. Procedo con la costruzione della scena..");
         }
         else{
-            RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'away_from_table'..");
-        }
-
-        //logging
-        if(phase_0_logging_enabled) node->startLogging("away_from_table", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
-        
-
-        node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
-
-        if(using_mujoco_simulation_){
-            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+            RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Identificazione scena fallita! Impossibile procedere.");
+            return 1;
         }
         
-        if(phase_0_logging_enabled) node->stopLogging();
-       
-    }
-
-
-
-    //-------------------------------------------
-    /* IDENTIFICAZIONE SCENA DA TELECAMERA */
-
-    //qui la camera deve fare l'identificazione della scena, le do il tempo di farlo prima di procedere con la pianificazione del tiro
-    RCLCPP_INFO(node->get_logger(), "\n\nIdentificazione scena in corso..");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-    if(node->checkSceneIdentification(WORLD_FRAME)){
-        if(user_confirm_for_right_identification_){
-            node->print_and_wait("\n\nPremi un tasto e INVIO per confermare l'identificazione della scena..");
-        }
-        
-        RCLCPP_INFO(node->get_logger(), "\n\nScena identificata. Procedo con la pianificazione del tiro..");
-    }
-    else{
-        RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Identificazione scena fallita! Impossibile procedere.");
-        return 1;
     }
     //-------------------------------------------
 
     
-
-    
-     node->print_and_wait("\n\nPremi invio quando vedi le terne in Rviz'..");
-
-    ///-------------------------------------------
+    //-------------------------------------------
     /* COSTRUZIONE SCENA DI PIANIFICAZIONE SU MOVEIT/RVIZ*/
 
     node->build_scene();  // costruisco la scena di pianificazione (tavolo, pallina, ecc..)
@@ -187,13 +175,15 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
     /* LETTURA MOSSA DI GIOCO*/
 
-    node->start_game_engine(); //avvio game engine
+    node->start_game_engine();
 
-    RCLCPP_INFO(node->get_logger(), "In attesa che arrivino i parametri di tiro...");
-    node->waitForParams();  // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
+    RCLCPP_INFO(node->get_logger(), "In attesa che arrivi la mossa di gioco da Game Engine...");
+    node->waitForGameEngineParams();  // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
 
     node->stop_game_engine();
 
+
+    node->print_received_game_engine_params();
 
     // Adesso posso usarli
     double direction_angle_deg_ = node->getDirectionAngle(); 
@@ -201,6 +191,13 @@ int main(int argc, char* argv[])
     double impact_angle_deg_ = node->getImpactAngle();
     //------------------------------------------------------
 
+
+    //------------------------------------------------------
+    /* STAMPA DEI PARAMETRI DEL TIRO */
+    node->printShotParams(impact_shot_velocity_, 
+                approach_distance_from_ball_surface_, 
+                shooting_distance_from_ball_surface_);
+    //------------------------------------------------------
 
 
     //------------------------------------------------------
@@ -232,10 +229,9 @@ int main(int argc, char* argv[])
     //------------------------------------------------------
 
 
-
     // FASE 1 - vado in pre-approach per approcciare la pallina
     {
-        if(control_shot_steps_execution_by_user_input_){
+        if(user_confirm_for_each_step_ || user_confirm_for_first_move_){
             node->print_and_wait("\n\nPosizionamento in 'pre_approach..");
         }
         else{
@@ -246,15 +242,16 @@ int main(int argc, char* argv[])
         if(phase_1_logging_enabled) node->startLogging("preapproach", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
         
 
-        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);
-
-        if(using_mujoco_simulation_){
-            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
-        }
+        node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);    
         
+        //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+        if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ )));
+        }
+        else{
+            rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ ));
+        }
+
         if(phase_1_logging_enabled) node->stopLogging();
        
     }
@@ -263,7 +260,7 @@ int main(int argc, char* argv[])
 
     // FASE 2 - approach alla pallina
     {
-        if(control_shot_steps_execution_by_user_input_){
+        if(user_confirm_for_each_step_){
             node->print_and_wait("\n\nApproach alla pallina..");
         }
         else{
@@ -288,16 +285,16 @@ int main(int argc, char* argv[])
         perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
 
-        if(using_mujoco_simulation_){
-            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+        if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_2_3_milliseconds_ )));
         }
-
+        else{
+            rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_2_3_milliseconds_ ));
+        }
+        
         if(phase_2_logging_enabled) node->stopLogging();
-
-
+    
 
         if(print_EEF_distance_and_position_) {
             //prima di procedere, stampo la distanza e la posizione relativa tra tip dell'asta e pallina bianca, utile per debug
@@ -318,7 +315,7 @@ int main(int argc, char* argv[])
     // FASE 3 - si allontana all'indietro per prendere velocità
     {
   
-        if(control_shot_steps_execution_by_user_input_){
+        if(user_confirm_for_each_step_){
             node->print_and_wait("\n\nAllontanamento all'indietro per prendere velocità..");
         }
         else{
@@ -342,17 +339,16 @@ int main(int argc, char* argv[])
         perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                       success_threshold_back_);            
 
-        
-        if(using_mujoco_simulation_){
-            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+        if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_3_4_milliseconds_ )));
+        }
+        else{
+            rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_3_4_milliseconds_ ));
         }
 
 
         if(phase_3_logging_enabled) node->stopLogging();
-        
 
 
         if(print_EEF_distance_and_position_) {
@@ -376,7 +372,7 @@ int main(int argc, char* argv[])
     // FASE 4 - eseguo tiro
     {
        
-        if(control_shot_steps_execution_by_user_input_){
+        if(user_confirm_for_each_step_ || user_confirm_for_shot_execution_){
             node->print_and_wait("\n\nEsecuzione tiro..");
         }
         else{
@@ -406,17 +402,16 @@ int main(int argc, char* argv[])
      
         shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                         impact_shot_velocity_,
-                                        accel_distance, decel_distance,
-                                        control_shot_steps_execution_by_user_input_); //chiedo conferma all'utente prima di eseguire il tiro
+                                        accel_distance, decel_distance
+                                        ); 
 
-        
-        if(using_mujoco_simulation_){
-            //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-            //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+        //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+        if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_4_5_milliseconds_ )));
         }
-
+        else{
+            rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_4_5_milliseconds_ ));
+        }
 
         if(phase_4_logging_enabled) node->stopLogging();
     
@@ -433,7 +428,7 @@ int main(int argc, char* argv[])
     
         if(shot_success) {
 
-            if(control_shot_steps_execution_by_user_input_){
+            if(user_confirm_for_each_step_){
                 node->print_and_wait("\n\nMi alzo..");
             }
             else{
@@ -449,16 +444,17 @@ int main(int argc, char* argv[])
 
             node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
 
-            if(using_mujoco_simulation_){
-                //questo ritardo indispensabile serve a far sincronizzare mujoco (più lento) con moveit
-                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(mujoco_sync_pause_time_milliseconds_)));
-
-                //ATTENZIONE: se non sto usando MuJoCo, questo sleep per qualche motivo non fa più pianificare e blocca il programma
+            //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+            if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_5_6_milliseconds_ )));
+            }
+            else{
+                rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_5_6_milliseconds_ ));
             }
 
             if(phase_5_logging_enabled) node->stopLogging();
 
-
+            // Stampo le informazioni di debug
             if(print_EEF_distance_and_position_) {
                 //prima di procedere, stampo la distanza tra tip dell'asta e pallina bianca, utile per debug
                 node->printEEFDebugInfo();
@@ -468,6 +464,33 @@ int main(int argc, char* argv[])
             RCLCPP_WARN(node->get_logger(), "\n\nTiro non eseguito, salto la fase di alzata.");
         }
 
+    }
+
+
+    // FASE 6 - mi scosto dal campo, per far fare l'identificazione della scena alla camera senza ostacoli al prossimo tiro
+    {
+        if(user_confirm_for_each_step_){
+            node->print_and_wait("\n\nPosizionamento in 'away_from_table'..");
+        }
+        else{
+            RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'away_from_table'..");
+        }
+
+        //logging
+        if(phase_6_logging_enabled) node->startLogging("away_from_table", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+        
+        node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
+
+        //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
+        if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
+            node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_after_step_6_milliseconds_ ))); // pausa più lunga perché dopo questa fase il robot non fa più nulla, quindi posso aspettare un po' di più
+        }
+        else{
+            rclcpp::sleep_for(std::chrono::milliseconds(pause_after_step_6_milliseconds_ ));
+        }
+
+        if(phase_6_logging_enabled) node->stopLogging();
+       
     }
     
 

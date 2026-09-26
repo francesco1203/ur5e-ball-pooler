@@ -25,8 +25,8 @@ robot_ip="${LAB_ROBOT_IP}"
 launch_robot_driver="true"                         
 
 #avvio camera IntelRealsense
-start_image_view="false"       #visualizzatore per la percezione             
-numero_campioni_biliardo=100
+start_image_view="false"                    #visualizzatore di cosa vede la camera           
+numero_campioni_detection_biliardo=50       #numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera
 
 #esecuzione tiro
 execute_shot="true"                             
@@ -110,6 +110,20 @@ python3 ${MOVEIT_CONFIG_DIR}/ros2_control_hardware_auto_switch.py driver --robot
 #------------------------------------------------
 
 
+
+# ================================================
+# RICORDA ALL'UTENTE DI SPOSTARE IL ROBOT DAL CAMPO DI VISIONE
+# ================================================
+echo -e "\n================================================================="
+echo -e "ATTENZIONE: SPOSTA IL ROBOT DAL CAMPO DI VISIONE DELLA CAMERA"
+echo -e "================================================================="
+echo -e "Verifica che la visuale della camera sia libera dal robot. Spostalo a mano prima di connetterti ad esso, se non è già fatto.\n"
+echo -e "Premi un tasto per confermare che il robot è in posizione corretta..."
+
+# Mettiamo in pausa in attesa del segnale
+read -n 1 -s -r
+
+
 # ================================================
 # AVVIO DRIVER UR5e 
 # ================================================
@@ -124,9 +138,6 @@ if [[ "$launch_robot_driver" == "true" ]]; then
 
     # Mettiamo in pausa in attesa del segnale
     read -n 1 -s -r
-
-    echo -e "\nProcedo con l'avvio del driver UR5e..."
-
 
     # Calcolo il path base del pacchetto arm_description una volta sola
     # (Funziona perché hai già fatto 'source "${INSTALL_SETUP_BASH}"' in cima allo script)
@@ -216,11 +227,11 @@ if [ "$start_image_view" == "true" ]; then
 fi
 
 #avvio nodo di visione che effettua la detection e la perception
-echo "Avvio nodo di visione..."
+echo "Avvio nodo di visione + freezer node..."
 gnome-terminal --tab --title="VisionNode" -- bash -c \
                 "source ${INSTALL_SETUP_BASH} && \
                 ros2 launch real_camera vision.launch.py \
-                    required_samples:=${numero_campioni_biliardo}; \
+                    required_samples:=${numero_campioni_detection_biliardo}; \
                 exec bash"
 
 

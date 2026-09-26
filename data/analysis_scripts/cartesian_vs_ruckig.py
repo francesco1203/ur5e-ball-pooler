@@ -83,6 +83,10 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
     return df
 
 def main():
+
+    print("Cartesian vs Ruckig: Confronto tra traiettoria ideale e reale")
+
+
     # Se passi i percorsi da terminale: python script.py <file_csv_ideale> <cartella_bag_raw>
     if len(sys.argv) < 3:
         print("Uso: python3 compare_ruckig.py <file_ideale.csv> <cartella_bag_reale>")
@@ -91,7 +95,7 @@ def main():
     ideal_file_path = sys.argv[1]
     raw_bag_path = sys.argv[2]
     topic_pose = '/tcp_pose_broadcaster/pose'
-    topic_twist = '/tcp_twist_broadcaster/twist'  # Assicurati che il nome sia corretto!
+    topic_twist = '/tcp_twist'
 
     # --- 1. LETTURA DATI IDEALI (RUCKIG da CSV) ---
     try:
@@ -114,9 +118,52 @@ def main():
         print("Nessun dato estratto dal bag. Uscita.")
         return
 
+    # --- INIZIO NUOVO BLOCCO CONTROLLO VELOCITÀ CARTESIANE ---
+    is_all_invalid = True
+    for col in ['vx', 'vy', 'vz']:
+        if not (df_raw[col].isna() | (df_raw[col] == 0.0)).all():
+            is_all_invalid = False
+            break
+            
+    if is_all_invalid:
+        print("\n" + "="*75)
+        print(" ⚠️  ATTENZIONE: Le velocità reali (Twist) contengono solo ZERI o NaN.")
+        print("     È probabile che questo bag provenga da una simulazione (es. mock_components)")
+        print("     dove il Cartesian Velocity Publisher non riceve le velocità dei giunti.")
+        print("     I plot di confronto mostreranno i dati reali di velocità/accelerazione piatti.")
+        print("="*75 + "\n")
+    # --- FINE NUOVO BLOCCO ---
+
+    
     # Pulizia timestamp per evitare divisioni per zero o picchi irreali (burst initiali)
     df_raw['dt'] = df_raw['time_sec'].diff()
     df_raw = df_raw[(df_raw['dt'].isna()) | (df_raw['dt'] > 1e-3)].copy()
+    df_raw['time_sec'] = df_raw['time_sec'] - df_raw['time_sec'].iloc[0]
+
+    # --- NUOVO BLOCCO: RIMOZIONE CODA STATICA (Sui dati reali) ---
+    temp_x = df_raw['x'].values
+    temp_y = df_raw['y'].values
+    temp_z = df_raw['z'].values
+    
+    # Calcolo della distanza radiale dal punto di partenza
+    temp_dist = np.sqrt((temp_x - temp_x[0])**2 + (temp_y - temp_y[0])**2 + (temp_z - temp_z[0])**2)
+    dist_diff = np.abs(np.diff(temp_dist, prepend=0.0))
+    
+    # Cerchiamo gli indici dove l'End-Effector si sta muovendo (soglia ~0.1 mm)
+    active_indices = np.where(dist_diff > 1e-4)[0]
+    
+    if len(active_indices) > 0:
+        last_active_idx = active_indices[-1]
+        buffer_samples = 10  # Mantiene ~0.3 secondi dopo l'arresto
+        
+        cut_idx = min(last_active_idx + buffer_samples, len(df_raw))
+        df_raw = df_raw.iloc[:cut_idx].copy()
+        print(f"Coda statica rimossa (dati reali): mantenuti {cut_idx} campioni su {len(dist_diff)} originali.")
+    else:
+        print("Nessun movimento cartesiano rilevato nell'intero log reale.")
+    # --- FINE RIMOZIONE CODA STATICA ---
+
+    # Ricalcolo il tempo partendo da 0 sul DataFrame pulito e tagliato
     df_raw['time_sec'] = df_raw['time_sec'] - df_raw['time_sec'].iloc[0]
 
     t_raw = df_raw['time_sec'].values

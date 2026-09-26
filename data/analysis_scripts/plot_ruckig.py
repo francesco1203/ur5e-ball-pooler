@@ -9,6 +9,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 def main():
+
+    print("Plot Ruckig - Visualizza la parametrizzazione ideale di posizione, velocità e accelerazione del tiro, generati da Ruckig in un file CSV.")
+
+        
     # Se passi il file da riga di comando usa quello
     file_path = sys.argv[1]
 

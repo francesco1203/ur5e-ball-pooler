@@ -1,6 +1,6 @@
 // ============================================================
 //  tf_freezer_node.cpp
-//  Congela le TF temporanee (TEMP_*) delle palline in TF Statiche
+//  Congela le TF realtime delle palline in TF Statiche
 // ============================================================
 #include <memory>
 #include <string>
@@ -49,7 +49,7 @@ public:
 
         // Creazione del servizio Trigger
         freeze_service_ = this->create_service<std_srvs::srv::Trigger>(
-            "freeze_balls_tf",
+            FREEZE_TF_SERVICE,
             std::bind(&TfFreezerNode::freeze_callback, this, std::placeholders::_1, std::placeholders::_2)
         );
 
@@ -77,16 +77,16 @@ private:
 
         for (const auto& ball_name : ball_frames_)
         {
-            std::string temp_frame = "TEMP_" + ball_name;
+            std::string realtime_frame = REALTIME_PREFIX + ball_name;
             geometry_msgs::msg::TransformStamped transform_stamped;
 
             try {
-                // Cerchiamo la trasformazione dalla TEMP_* al reference_frame (es. "world")
+                // Cerchiamo la trasformazione dalla REALTIME_* al reference_frame (es. "world")
                 // tf2::TimePointZero prende l'ultima TF disponibile
                 // CORRETTO (tutto rclcpp)
                 transform_stamped = tf_buffer_->lookupTransform(
                     reference_frame_, 
-                    temp_frame, 
+                    realtime_frame, 
                     rclcpp::Time(0), // 0 significa "ultima TF disponibile"
                     rclcpp::Duration::from_seconds(0.5) 
                 );
@@ -96,7 +96,7 @@ private:
                 transform_stamped.header.frame_id = reference_frame_;
                 transform_stamped.header.stamp = this->get_clock()->now();
                 
-                // Il frame figlio diventa il nome pulito della pallina (rimuoviamo "TEMP_")
+                // Il frame figlio diventa il nome pulito della pallina (rimuoviamo "REALTIME_PREFIX")
                 transform_stamped.child_frame_id = ball_name;
 
                 static_transforms.push_back(transform_stamped);
@@ -107,7 +107,7 @@ private:
 
             } catch (const tf2::TransformException & ex) {
                 // E' normale che alcune palline non ci siano (magari sono state imbucate)
-                RCLCPP_WARN(this->get_logger(), "Impossibile congelare %s: %s", temp_frame.c_str(), ex.what());
+                RCLCPP_WARN(this->get_logger(), "Impossibile congelare %s: %s", realtime_frame.c_str(), ex.what());
             }
         }
 
@@ -119,7 +119,7 @@ private:
             response->message = "Trovate e congelate " + std::to_string(success_count) + " palline: " + frozen_balls_list;
         } else {
             response->success = false;
-            response->message = "Nessuna pallina 'TEMP_*' trovata nell'albero TF.";
+            response->message = "Nessuna pallina 'realtime_*' trovata nell'albero TF.";
             RCLCPP_ERROR(this->get_logger(), "Nessuna pallina trovata per il freeze.");
         }
     }

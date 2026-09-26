@@ -89,7 +89,7 @@ class FakeCamera : public rclcpp::Node
                       color.c_str(), ball_x, ball_y);
 
           // Aggiungiamo il prefisso anche alla pallina
-          t_ball.child_frame_id = prefix + color + "_" + SOLID_BALL_FRAME;
+          t_ball.child_frame_id = prefix + color + "_" + "solid_ball";
 
           t_ball.transform.translation.x = ball_x;
           t_ball.transform.translation.y = ball_y;

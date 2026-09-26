@@ -1,0 +1,6 @@
+# src/shot_planning/config/using_fake_camera.yaml
+#passo questo parametro al nodo task_node per farlo funzionare con la telecamera fake (che pubblica le terne delle palline e del tavolo, senza usare la telecamera reale)
+
+task_node:
+  ros__parameters:
+    using_fake_camera: true

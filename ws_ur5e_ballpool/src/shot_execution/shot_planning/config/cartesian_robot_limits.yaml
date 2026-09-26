@@ -1,0 +1,17 @@
+# src/shot_planning/config/planning_params.yaml
+task_node:
+  ros__parameters:
+
+    #generic
+    cartesian_limits_enabled: false                     # limiti cartesiani attivati (non tira se li supero)
+    cartesian_limits_scaling_factor: 1.0                # fattore di scala per limiti cartesiani (0.0 - 1.0)
+
+    max_cartesian_velocity: 1.7                         # velocità massima in m/s
+    max_cartesian_acceleration: 13.0                    # accelerazione massima in m/s^2
+    max_cartesian_deceleration: -13.0                   # decelerazione massima in m/s^2
+    max_cartesian_jerk: 6500.0                          # jerk massimo in m/s^3 
+
+# NOTA: siccome non conosciamo i limiti fisici del robot Ur5e, questi valori sono presi
+#       da un modello simile, il robot PANDA di Franka Emika. 
+# Reference: https://docs.rs/crate/franka_rust/latest/source/src/utils/rate_limiting.rs
+

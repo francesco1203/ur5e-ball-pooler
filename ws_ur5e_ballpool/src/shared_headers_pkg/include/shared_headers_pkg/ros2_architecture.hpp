@@ -15,8 +15,7 @@
    const std::string CARTESIAN_TWIST_TOPIC = "/tcp_twist";                           // topic per logging della velocità cartesiana del robot (geometry_msgs/TwistStamped)                         
    const std::string CONTROLLER_STATE_TOPIC = "/scaled_joint_trajectory_controller/controller_state";       // topic per lo stato del controller
 
-   //CAMERA TOPCIS
-   //da realsense
+   //camera topics (da real_sense_camera)
    const std::string RGB_IMAGE_TOPIC = "/camera/camera/color/image_raw";                                // topic per l'immagine RGB della camera
    //const std::string DEPTH_IMAGE_TOPIC = "/camera/camera/depth/image_rect_raw";                       // topic per l'immagine di profondità della camera non allineata
    const std::string DEPTH_IMAGE_TOPIC = "/camera/camera/aligned_depth_to_color/image_raw";             // topic per l'immagine di profondità della camera allineata a color
@@ -24,10 +23,9 @@
    
 
 /* SERVIZI */
-   const std::string BUILD_SCENE_SERVICE = "/build_scene";  // servizio per costruire la scena (biliardo + palline)
+   const std::string BUILD_SCENE_SERVICE = "/build_scene";              // servizio per costruire la scena (biliardo + palline)
    const std::string REMOVE_WHITE_BALL_SERVICE = "/remove_white_ball";  // servizio per rimuovere la pallina bianca
-
-   const std::string LOG_ON_OFF_SERVICE = "/log_on_off";  // servizio per abilitare/disabilitare il logging su file (cartesian, joint, torque, controller)
-
+   const std::string FREEZE_TF_SERVICE = "/freeze_balls_tf";      // servizio per congelare le TF delle palline
+   const std::string LOG_ON_OFF_SERVICE = "/log_on_off";          // servizio per abilitare/disabilitare il logging su file (cartesian, joint, controller)
    const std::string TOGGLE_GAME_ENGINE_SERVICE = "/toggle_game_engine";  // servizio per attivare/disattivare il calcolo dei parametri di tiro (motore di gioco)
 

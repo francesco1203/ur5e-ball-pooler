@@ -66,6 +66,9 @@ def extract_joints_from_bag(bag_path, topic_name):
     return df, joint_names
 
 def main():
+
+    print("Joint State Plotter - Visualizza i dati di posizione, velocità ed accelerazione per ogni giunto")
+
     if len(sys.argv) < 2:
         print("Uso: python3 plot_joints.py <percorso_al_bag>")
         sys.exit(1)
@@ -80,6 +83,23 @@ def main():
         print("Nessun dato giunto trovato. Uscita.")
         return
 
+    # --- CONTROLLO VELOCITÀ NULLE O MANCANTI (SIMULAZIONE MOCK) ---
+    is_all_invalid = True
+    for col in joint_cols:
+        vel_col = f'{col}_vel'
+        # Se c'è almeno un valore di velocità che NON è NaN e NON è 0.0, allora abbiamo dati reali
+        if not (df[vel_col].isna() | (df[vel_col] == 0.0)).all():
+            is_all_invalid = False
+            break
+            
+    if is_all_invalid:
+        print("\n" + "="*75)
+        print(" ⚠️  ATTENZIONE: Le velocità dei giunti contengono solo ZERI o NaN (anche l'accelerazione, che è derivata).")
+        print("     È probabile che questo bag provenga da una simulazione")
+        print("     (es. mock_components) in cui la velocità non viene pubblicata.")
+        print("     I grafici di velocità e accelerazione appariranno piatti.")
+        print("="*75 + "\n")
+
     # --- 1. PULIZIA DEI TIMESTAMP ---
     df['dt'] = df['time_sec'].diff()
     df = df[(df['dt'].isna()) | (df['dt'] > 1e-3)].copy()
@@ -90,10 +110,38 @@ def main():
     if len(df) > 10:
         df = df.iloc[5:].copy()
 
+
+    # --- 2b. RIMOZIONE CODA STATICA (CROP FINALE) ---
+    # Selezioniamo solo le colonne relative alle posizioni
+    pos_columns = [f'{joint}_pos' for joint in joint_cols]
+    
+    # Calcoliamo la variazione assoluta per ogni step e prendiamo il massimo tra tutti i giunti
+    max_pos_diff = df[pos_columns].diff().abs().max(axis=1).values
+    
+    # Troviamo gli indici in cui c'è movimento (variazione > 1e-4 rad, circa 0.005 gradi)
+    active_indices = np.where(max_pos_diff > 1e-4)[0]
+    
+    if len(active_indices) > 0:
+        last_active_idx = active_indices[-1] # L'ultimo frame in cui si muove qualcosa
+        buffer_samples = 30                  # Quanti campioni (es. 30 = ~0.3 secondi a 100Hz) tenere dopo l'arresto
+        
+        # Tagliamo il DataFrame
+        cut_idx = min(last_active_idx + buffer_samples, len(df))
+        df = df.iloc[:cut_idx].copy()
+        print(f"Coda statica rimossa: mantenuti {cut_idx} campioni su {len(max_pos_diff)} originali.")
+    else:
+        print("Nessun movimento rilevato nell'intero log.")
+
+    # Ricalcoliamo il tempo partendo da 0 rispetto al nuovo primo campione
+    df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
+    t = df['time_sec'].values
+
+
     # Ricalcoliamo il tempo partendo da 0 rispetto al nuovo primo campione
     df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
 
     t = df['time_sec'].values
+
     
     # --- 3. CONFIGURAZIONE PLOT E FILTRI ---
     fig, axs = plt.subplots(3, 1, figsize=(12, 10), sharex=True)

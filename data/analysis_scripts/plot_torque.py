@@ -1,22 +1,12 @@
-#!/usr/bin/env python3
-"""
-plot_torque.py
-
-Visualizza i grafici dell'effort (coppia) dei giunti a partire dal bagfile ROS 2
-per il topic degli attuatori (/joint_states).
-Gestisce automaticamente l'assenza di dati di sforzo (es. in simulazione/mock).
-"""
-
 import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # <--- ASSICURATI DI AVERE QUESTA RIGA IN CIMA AL FILE
 from rosbags.highlevel import AnyReader
 
-
 def extract_torque_from_bag(bag_path, topic_name):
-    """Estrae i dati di effort/coppia e i timestamp da un bag ROS 2."""
+    """Estrae i dati di effort/coppia (e posizione per il crop) e i timestamp da un bag ROS 2."""
     times = []
     torque_data = {}
     joint_names = []
@@ -43,6 +33,7 @@ def extract_torque_from_bag(bag_path, topic_name):
                         
                     for name in joint_names:
                         torque_data[name] = []
+                        torque_data[f"{name}_pos"] = [] # <--- Aggiunto per tracciare il crop
                         
                 times.append(t_sec)
                 
@@ -50,12 +41,17 @@ def extract_torque_from_bag(bag_path, topic_name):
                 if hasattr(msg, 'effort') and len(msg.effort) == len(joint_names):
                     efforts = list(msg.effort)
                 else:
-                    # Se l'array è vuoto (tipico in simulazione mock), usiamo NaN invece di 0.0
-                    # così Matplotlib non disegna finte righe sullo zero.
                     efforts = [np.nan] * len(joint_names)
+                    
+                # ESTRAIAMO ANCHE LE POSIZIONI (servono a capire quando il braccio è fermo)
+                if hasattr(msg, 'position') and len(msg.position) == len(joint_names):
+                    positions = list(msg.position)
+                else:
+                    positions = [0.0] * len(joint_names)
                 
                 for i, name in enumerate(joint_names):
                     torque_data[name].append(efforts[i])
+                    torque_data[f"{name}_pos"].append(positions[i])
                     
     except Exception as e:
         print(f"Errore nella lettura del bagfile {bag_path}: {e}")
@@ -72,6 +68,9 @@ def extract_torque_from_bag(bag_path, topic_name):
 
 
 def main():
+
+    print("Plot Torque - Visualizza i dati di coppia per ogni giunto.")
+    
     if len(sys.argv) < 2:
         print("Uso: python3 plot_torque.py <percorso_cartella_bag>")
         sys.exit(1)
@@ -89,7 +88,6 @@ def main():
     # --- CONTROLLO DATI MANCANTI O NULLI (SIMULAZIONE) ---
     is_all_invalid = True
     for col in joint_columns:
-        # Se c'è almeno un valore che NON è NaN e NON è 0.0, allora abbiamo dati reali
         if not (df[col].isna() | (df[col] == 0.0)).all():
             is_all_invalid = False
             break
@@ -102,18 +100,40 @@ def main():
         print("     I grafici verranno aperti, ma appariranno vuoti.")
         print("="*70 + "\n")
 
+    # --- 1. PULIZIA DEI TIMESTAMP ---
+    df['dt'] = df['time_sec'].diff()
+    df = df[(df['dt'].isna()) | (df['dt'] > 1e-3)].copy()
+
+    # --- 2. RIMOZIONE CODA STATICA ---
+    # Invece del rumore della coppia, analizziamo la variazione della posizione per il taglio
+    pos_columns = [f"{col}_pos" for col in joint_columns]
+    
+    max_pos_diff = df[pos_columns].diff().abs().max(axis=1).values
+    active_indices = np.where(max_pos_diff > 1e-4)[0]
+    
+    if len(active_indices) > 0:
+        last_active_idx = active_indices[-1]
+        buffer_samples = 30  # Mantiene ~0.3s dopo l'arresto
+        
+        cut_idx = min(last_active_idx + buffer_samples, len(df))
+        df = df.iloc[:cut_idx].copy()
+        print(f"Coda statica rimossa: mantenuti {cut_idx} campioni su {len(max_pos_diff)} originali.")
+    else:
+        print("Nessun movimento rilevato nell'intero log (posizioni costanti o assenti).")
+
+    # Ricalcolo il tempo partendo da 0
+    df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
+
     # --- PLOTTING ---
     n_joints = len(joint_columns)
     fig, axes = plt.subplots(n_joints, 1, figsize=(10, 2.5 * n_joints), sharex=True)
     fig.canvas.manager.set_window_title(f'Analisi Coppie Giunti - {bag_path}')
 
-    # Se c'è un solo giunto, normalizziamo axes in lista
     if n_joints == 1:
         axes = [axes]
 
     for ax, joint_name in zip(axes, joint_columns):
-        # Utilizziamo 'dropna()' per non far arrabbiare matplotlib se ci sono NaN
-        # Se tutti i dati sono NaN, matplotlib lascerà il riquadro pulito
+        # Utilizziamo la colonna dell'effort per il plot (non la posizione!)
         ax.plot(df["time_sec"], df[joint_name], linewidth=1.5, color='#1f77b4')
         ax.set_ylabel("Effort [Nm]")
         ax.set_title(joint_name)
@@ -123,7 +143,3 @@ def main():
     fig.tight_layout()
 
     plt.show()
-
-
-if __name__ == '__main__':
-    main()

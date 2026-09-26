@@ -24,8 +24,8 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     /*PLANNING PARAMETERS from config files.yaml*/ 
 
     //generic
-    this->declare_parameter<bool>("cartesian_limits_enabled", false);  
-    this->declare_parameter<double>("max_velocity_acceleration_scaling_factor", 0.3);               // default scaling factor                           // cartesian limits enabled (se attivato, non fa fare movimenti che li superano)
+    this->declare_parameter<double>("max_velocity_scaling_factor", 0.3);               // default scaling factor                         
+    this->declare_parameter<double>("max_acceleration_scaling_factor", 0.3);           // default scaling factor                         
     this->declare_parameter<double>("goal_joint_tolerance", 0.001);                                 // default joint tolerance in radians (1/20 di grado)
     this->declare_parameter<double>("goal_position_tolerance", 0.0005);                             // default position tolerance in meters (0.5 mm)
     this->declare_parameter<double>("goal_orientation_tolerance", 0.01);                            // default orientation tolerance in radians (1/2 di grado)
@@ -41,15 +41,10 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     this->declare_parameter<double>("resolution_step_Ruckig", 0.005);                        // default resolution step in meters
     this->declare_parameter<double>("success_threshold_Ruckig", 0.99);                       // default success threshold
     this->declare_parameter<double>("Ruckig_dt", 0.01);                                      // default Ruckig working step in seconds
-    this->declare_parameter<double>("max_jerk", 50.0);                                       // default max jerk in m/s^3
+    
 
-    //shot method
-    this->declare_parameter<double>("vel_factor_for_jerk_compensation", 1.0);                 // default factor to compensate for jerk
-    this->declare_parameter<double>("accel_decel_factor_for_jerk_compensation", 1.0);        // default factor to compensate for jerk
-
-
-    cartesian_limits_enabled_ = this->get_parameter("cartesian_limits_enabled").as_bool();
-    max_velocity_acceleration_scaling_factor_ = this->get_parameter("max_velocity_acceleration_scaling_factor").as_double();
+    max_velocity_scaling_factor_ = this->get_parameter("max_velocity_scaling_factor").as_double();
+    max_acceleration_scaling_factor_ = this->get_parameter("max_acceleration_scaling_factor").as_double();
     goal_joint_tolerance_ = this->get_parameter("goal_joint_tolerance").as_double();
     goal_position_tolerance_ = this->get_parameter("goal_position_tolerance").as_double();
     goal_orientation_tolerance_ = this->get_parameter("goal_orientation_tolerance").as_double();
@@ -62,11 +57,27 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     resolution_step_Ruckig_ = this->get_parameter("resolution_step_Ruckig").as_double();
     success_threshold_Ruckig_ = this->get_parameter("success_threshold_Ruckig").as_double();
     Ruckig_dt_ = this->get_parameter("Ruckig_dt").as_double();
-    max_jerk_ = this->get_parameter("max_jerk").as_double();
-
-    vel_factor_for_jerk_compensation_ = this->get_parameter("vel_factor_for_jerk_compensation").as_double();
-    accel_decel_factor_for_jerk_compensation_ = this->get_parameter("accel_decel_factor_for_jerk_compensation").as_double();
     //-----------------------------------------------------------------------
+
+
+    //-----------------------------------------------------------------------
+    /*CARTESIAN ROBOT LIMITS*/
+    //nota: i parametri di default sono quelli del robot PANDA di Franka Emika, perché non conosciamo i limiti fisici del robot UR5e
+    
+    this->declare_parameter<bool>("cartesian_limits_enabled", false);               // cartesian limits enabled (se attivato, non fa fare movimenti che li superano)
+    this->declare_parameter<double>("cartesian_limits_scaling_factor", 1.0);       // scaling factor for cartesian limits (0.0 - 1.0)
+    this->declare_parameter<double>("max_cartesian_velocity", 1.7);                // max cartesian velocity in m/s
+    this->declare_parameter<double>("max_cartesian_acceleration", 13.0);             // max cartesian acceleration in m/s^2
+    this->declare_parameter<double>("max_cartesian_deceleration", -13.0);            // max cartesian deceleration in m/s^2
+    this->declare_parameter<double>("max_cartesian_jerk", 6500.0);                            // default max jerk in m/s^3
+
+    cartesian_limits_enabled_ = this->get_parameter("cartesian_limits_enabled").as_bool();
+    cartesian_limits_scaling_factor_ = this->get_parameter("cartesian_limits_scaling_factor").as_double();
+    max_cartesian_velocity_ = this->get_parameter("max_cartesian_velocity").as_double();
+    max_cartesian_acceleration_ = this->get_parameter("max_cartesian_acceleration").as_double();
+    max_cartesian_deceleration_ = this->get_parameter("max_cartesian_deceleration").as_double();
+    max_cartesian_jerk_ = this->get_parameter("max_cartesian_jerk").as_double();
+    //----------------------------------------------------------------------
 
 
     //-----------------------------------------------------------------------
@@ -89,6 +100,8 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     build_scene_client_ = this->create_client<TriggerSrv>(BUILD_SCENE_SERVICE);
     remove_white_ball_client_ = this->create_client<TriggerSrv>(REMOVE_WHITE_BALL_SERVICE);
 
+    /* CLIENT PER IL SERVIZIO DI FROZEN TF */
+    freeze_balls_client_ = this->create_client<TriggerSrv>(FREEZE_TF_SERVICE);
 
     /* CLIENT PER LOGGING*/
     logging_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);      //serve a far funzionare il client di logging in un callback group separato, altrimenti non funziona (perché il nodo è già in uso da MoveGroupInterface)
@@ -140,8 +153,8 @@ void TaskNode::start()
 
 
     // Velocità e accelerazione — scaling rispetto ai limiti massimi definiti in URDF e joint_limits.yaml
-    move_group_->setMaxVelocityScalingFactor(max_velocity_acceleration_scaling_factor_);
-    move_group_->setMaxAccelerationScalingFactor(max_velocity_acceleration_scaling_factor_);
+    move_group_->setMaxVelocityScalingFactor(max_velocity_scaling_factor_);
+    move_group_->setMaxAccelerationScalingFactor(max_acceleration_scaling_factor_);
 
 
     //Scelta planner da usare
@@ -166,10 +179,50 @@ void TaskNode::waitInit() {
     //      per assicurarsi che start() abbia completato l'inizializzazione di move_group_ 
     //      e altri componenti necessari, senza i quali i metodi di movimento non funzionerebbero correttamente.
 
+
+void TaskNode::waitForBilliardIdentification(const std::string& reference_frame)
+{
+    RCLCPP_INFO(this->get_logger(), "In attesa dell'identificazione del tavolo da biliardo (terna: '%s')...", BILLIARD_TABLE_FRAME.c_str());
+
+    rclcpp::Rate rate(2.0); // Controlla a 2 Hz (ogni 0.5 secondi)
+    
+    while (rclcpp::ok()) {
+        try {
+            // Cerchiamo la trasformazione. Se non c'è, lancia un'eccezione
+            tf_buffer_->lookupTransform(reference_frame, BILLIARD_TABLE_FRAME, tf2::TimePointZero);
+            
+            // Se arriviamo qui senza eccezioni, la terna è stata trovata!
+            RCLCPP_INFO(this->get_logger(), "Tavolo da biliardo identificato! Terna '%s' trovata.", BILLIARD_TABLE_FRAME.c_str());
+            break; 
+            
+        } catch (const tf2::TransformException & /*ex*/) {
+            // La terna non c'è ancora. Stampiamo un messaggio "Throttled" 
+            // per farlo comparire solo una volta ogni 2000 ms (2 secondi)
+            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
+                "In attesa della terna '%s' dalla camera...", BILLIARD_TABLE_FRAME.c_str());
+        }
+        
+        // Aspettiamo prima del prossimo ciclo
+        rate.sleep();
+    }
+}
+
 // Attesa nel main che arrivi una mossa valida
-void TaskNode::waitForParams() {
+void TaskNode::waitForGameEngineParams() {
     params_promise_.get_future().wait();
 }
+
+
+//dice se sto usando o no sim_time (utile per simulatori che usano sim_time, come MuJoCo)
+bool TaskNode::using_sim_time() const 
+{
+    bool is_sim_time = false;
+    // Chiede a ROS 2 di leggere il parametro di sistema "use_sim_time".
+    // Se non è stato impostato, la variabile is_sim_time rimarrà false.
+    this->get_parameter("use_sim_time", is_sim_time);
+    return is_sim_time;
+}
+
 
 /* METODI DI PLANNING */
 
@@ -404,12 +457,16 @@ double TaskNode::moveCartesianPath(const Vector3d& posizione,
         rt.setRobotTrajectoryMsg(*move_group_->getCurrentState(), raw_trajectory);
 
         // Applichiamo la parametrizzazione del tempo (TimeOptimalTrajectoryGeneration o Ruckig)
-        // Scaliamo la velocità e l'accelerazione massima 
         trajectory_processing::TimeOptimalTrajectoryGeneration totg;
         bool success = totg.computeTimeStamps(rt, 
-                                                max_velocity_acceleration_scaling_factor_, 
-                                                max_velocity_acceleration_scaling_factor_); 
-
+                                              max_velocity_scaling_factor_, 
+                                              max_acceleration_scaling_factor_
+                                             ); 
+        //NOTA DI FUNZIONAMENTO: 
+        // computeTimeStamps() calcola i tempi di arrivo per ogni punto della traiettoria, in base ai limiti di giunto velocità e accelerazione del robot
+        // È un algortimo time optical e cerca di arrivare al target il più velocemente possibile senza superare i limiti di giunto, ma spingendoli al massimo
+        // Impostando max_velocity_scaling_factor_ e max_acceleration_scaling_factor_ a valori bassi (es. 0.1), si ottiene un movimento più lento, fluido e soprattutto sicuro                              
+                                            
         if (!success) {
             RCLCPP_ERROR(this->get_logger(), "Fallita la parametrizzazione temporale della traiettoria!");
             return -1.0;
@@ -554,7 +611,7 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
     input.max_velocity = {vel_max};             // (m/s) Velocità massima raggiunta all'impatto
     input.max_acceleration = {acceleration};    // (m/s^2) Accelerazione di carica: lenta e progressiva
     input.min_acceleration = {-deceleration};   // (m/s^2) Decelerazione: frenata brusca e immediata dopo l'impatto
-    input.max_jerk = {max_jerk_};               // (m/s^3) Limite dello strattone
+    input.max_jerk = {max_cartesian_jerk_};     // (m/s^3) Limite dello strattone
 
     // Prepariamo il messaggio finale
     moveit_msgs::msg::RobotTrajectory timed_traj;
@@ -658,110 +715,112 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
 
 
 /* METODI PER IL TIRO */
+
+void TaskNode::printShotParams(double vel_impact, 
+                               double distance_acceleration, 
+                               double distance_deceleration
+                               ) 
+{
+    // Controllo preliminare dei parametri
+    if (distance_deceleration <= 0.0 || distance_acceleration <= 0.0 || vel_impact <= 0.0) {
+        RCLCPP_ERROR(this->get_logger(), "Parametri di velocità d'impatto e distanza di accelerazione/decelerazione non inseriti o non validi (inserire valori POSITIVI!)");
+    }
+
+    // Calcolo, accelerazione e decelerazione in base alle distanze fornite per il profilo triangolare
+    double accel = vel_impact * vel_impact / (2.0 * distance_acceleration); // a = v^2 / (2 * d)
+    double decel = vel_impact * vel_impact / (2.0 * distance_deceleration); // a = v^2 / (2 * d)
+
+
+    //stampa
+    RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DEL TIRO--------------------");
+
+    RCLCPP_INFO(this->get_logger(), "Velocità d'impatto: %.3f m/s", vel_impact);
+    RCLCPP_INFO(this->get_logger(), "Accelerazione di tiro: %.3f m/s^2", accel);
+    RCLCPP_INFO(this->get_logger(), "Decelerazione di tiro: %.3f m/s^2", decel);
+    RCLCPP_INFO(this->get_logger(), "Distanza percorsa in accelerazione: %.3f m", distance_acceleration);
+    RCLCPP_INFO(this->get_logger(), "Distanza percorsa in decelerazione: %.3f m \n--------------------PARAMETRI DEL TIRO--------------------\n\n", distance_deceleration);
+    
+
+    if(cartesian_limits_enabled_)
+    {
+        RCLCPP_WARN(this->get_logger(), "ATTENZIONE: Limiti cartesiani attivati. Verrà effettuato il controllo di fattibilità nel codice.");
+
+        double vel_limite =  max_cartesian_velocity_ * cartesian_limits_scaling_factor_;
+        double accel_limite =  max_cartesian_acceleration_ * cartesian_limits_scaling_factor_;
+        double decel_limite = abs(max_cartesian_deceleration_) * cartesian_limits_scaling_factor_;
+
+        RCLCPP_WARN(this->get_logger(), "Limite di velocità cartesiana: %.3f m/s (scaling factor: %.3f)", vel_limite, cartesian_limits_scaling_factor_);
+        RCLCPP_WARN(this->get_logger(), "Limite di accelerazione cartesiana: %.3f m/s^2 (scaling factor: %.3f)", accel_limite, cartesian_limits_scaling_factor_);
+        RCLCPP_WARN(this->get_logger(), "Limite di decelerazione cartesiana: %.3f m/s^2 (scaling factor: %.3f)\n", decel_limite, cartesian_limits_scaling_factor_);
+    } 
+    else 
+    {
+        RCLCPP_WARN(this->get_logger(), "ATTENZIONE: Limiti cartesiani disabilitati. Non verrà effettuato il controllo di fattibilità nel codice, ma viene lasciato il compito al driver del robot.\n");
+    }
+
+}
+
 bool TaskNode::ExecuteShot(const Vector3d& posizione_arresto,        //fine tiro, dove si ferma
                             const Quaternion& orientamento,
                             const std::string& frame_id,
                             double vel_impact,
                             double distance_acceleration,
-                            double distance_deceleration,
-                            bool ask_for_user_confirmation
+                            double distance_deceleration
                           )
 {
-    // 0. controllo preliminare dei parametri
+    // Controllo preliminare dei parametri
     if (distance_deceleration <= 0.0 || distance_acceleration <= 0.0 || vel_impact <= 0.0) {
         RCLCPP_ERROR(this->get_logger(), "Parametri di velocità d'impatto e distanza di accelerazione/decelerazione non inseriti o non validi (inserire valori POSITIVI!)");
         return false;
     }
 
 
-    // 1. calcolo, accelerazione e decelerazione in base alle distanze fornite per il profilo triangolare
+
+
+    // Calcolo, accelerazione e decelerazione da imprimere in base alle distanze fornite per il profilo triangolare
     double accel = vel_impact * vel_impact / (2.0 * distance_acceleration); // a = v^2 / (2 * d)
     double decel = vel_impact * vel_impact / (2.0 * distance_deceleration); // a = v^2 / (2 * d)
 
 
-    RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DEL TIRO--------------------");
-
     if (cartesian_limits_enabled_) {
 
-        // faccio un controllo di fattibilità in base ai limiti fisici cartesiani del robot e allo scaling inserito
-        double vel_limite = MAX_TRANS_VEL * max_velocity_acceleration_scaling_factor_;
-        double accel_limite = MAX_TRANS_ACC * max_velocity_acceleration_scaling_factor_;
-        double decel_limite = abs(MAX_TRANS_DEC) * max_velocity_acceleration_scaling_factor_;
-
-
+        // i limiti cartesiani sono salvati in shared_headers/include/ur5e_constants.hpp
         
-        if (vel_impact < vel_limite) {
-            RCLCPP_INFO(this->get_logger(), 
-                "Velocità di tiro: %.3f m/s (< limite = %.3f m/s con scaling = %.2f usato)", 
-                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
-        }
-        else
-        {
+        // faccio un controllo di fattibilità in base ai limiti fisici cartesiani del robot e allo scaling inserito
+        double vel_limite =  max_cartesian_velocity_ * cartesian_limits_scaling_factor_;
+        double accel_limite =  max_cartesian_acceleration_ * cartesian_limits_scaling_factor_;
+        double decel_limite = abs(max_cartesian_deceleration_) * cartesian_limits_scaling_factor_;
+
+
+        // Se la velocità d'impatto è maggiore o uguale al limite, il tiro non è fattibile
+        if (vel_impact >= vel_limite) {
             RCLCPP_ERROR(this->get_logger(), 
                 "Limite di velocità superato: %.3f m/s > limite = %.3f m/s (con scaling = %.2f usato)", 
-                vel_impact, vel_limite, max_velocity_acceleration_scaling_factor_);
+                vel_impact, vel_limite, cartesian_limits_scaling_factor_);
 
                 return false;
         }
 
-        if (accel < accel_limite) {
-            RCLCPP_INFO(this->get_logger(), 
-                "Accelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
-        }
-        else{
+        if (accel >= accel_limite) {
             RCLCPP_ERROR(this->get_logger(), 
                 "Limite di accelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-                accel, accel_limite, max_velocity_acceleration_scaling_factor_);
+                accel, accel_limite, cartesian_limits_scaling_factor_);
             
             return false;
         }
 
-        if (decel < decel_limite) {
-            RCLCPP_INFO(this->get_logger(), 
-                "Decelerazione di tiro: %.3f m/s^2 < limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
-        }
-        else{
+        if (decel >= decel_limite) {
             RCLCPP_ERROR(this->get_logger(), 
                 "Limite di decelerazione superato: %.3f m/s^2 > limite = %.3f m/s^2 (con scaling = %.2f usato)", 
-                decel, decel_limite, max_velocity_acceleration_scaling_factor_);
+                decel, decel_limite, cartesian_limits_scaling_factor_);
 
             return false;
         }
     }
-    else
-    {
-        RCLCPP_INFO(this->get_logger(), "ATTENZIONE: Limiti cartesiani disabilitati, non viene effettuato il controllo di fattibilità.");
-        RCLCPP_INFO(this->get_logger(), "Continuare con cautela.\n");
-
-        RCLCPP_INFO(this->get_logger(), "Velocità di tiro: %.3f m/",  vel_impact);
-        RCLCPP_INFO(this->get_logger(), "Accelerazione di tiro: %.3f m/s^2", accel);
-        RCLCPP_INFO(this->get_logger(), "Decelerazione di tiro: %.3f m/s^2", decel);
-    }
-    
-
-    RCLCPP_INFO(this->get_logger(), "\n--------------------PARAMETRI DEL TIRO--------------------\n");
-
-
-    //chiedo conferma all'utente che prende nota dei parametri del tiro
-    if(ask_for_user_confirmation)
-    {
-        print_and_wait("Vuoi effettuare il tiro con i parametri sopra indicati?"); //user inserisce c_in
-        
-        if (c_in != 's')
-        {
-            RCLCPP_WARN(this->get_logger(), "Utente ha annullato il tiro");
-            return false;
-        }
-    }
-
 
     // eseguo il tiro con profilo asimmetrico
     return moveCartesianPathAsymmTriangle(posizione_arresto, orientamento, frame_id, 
-                                            vel_impact * vel_factor_for_jerk_compensation_, 
-                                            accel * accel_decel_factor_for_jerk_compensation_, 
-                                            decel * accel_decel_factor_for_jerk_compensation_); 
+                                            vel_impact, accel, decel); 
                                             
 }
 
@@ -781,8 +840,16 @@ bool TaskNode::disable_white_ball_collision()
     return send_trigger_request(remove_white_ball_client_, "remove_white_ball");
 }
 
+bool TaskNode::freeze_balls() 
+{ 
+    RCLCPP_INFO(this->get_logger(), "Richiesta congelamento (freeze) delle TF delle palline...");
+    
+    // Passiamo il client e un nome descrittivo per i log interni della funzione helper
+    return send_trigger_request(freeze_balls_client_, "freeze_balls_tf");
+}
+
 //true se tutte le terne richieste sono presenti, false se almeno una terna obbligatoria è mancante
-bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
+bool TaskNode::checkRealtimeSceneIdentification(const std::string& reference_frame)
 {
     // Funzione lambda locale per controllare e stampare una singola terna
     auto check_and_print_frame = [&](const std::string& target_frame) -> bool {
@@ -813,7 +880,7 @@ bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
 
     RCLCPP_INFO(this->get_logger(), "\n\n--------------------DETECTION--------------------");
 
-    // 1. Controllo Biliardo
+    // Controllo Biliardo (obbligatorio)
     if (!check_and_print_frame(BILLIARD_TABLE_FRAME)) {
         RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna biliardo mancante (%s)!", BILLIARD_TABLE_FRAME.c_str());
         all_mandatory_found = false;
@@ -822,26 +889,8 @@ bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
         RCLCPP_INFO(this->get_logger(), "→ Terna biliardo trovata correttamente.");
     }
 
-    // 2. Controllo delle 6 buche
-    std::vector<std::string> holes = {
-        HOLE_TOP_RIGHT_FRAME, HOLE_TOP_LEFT_FRAME,
-        HOLE_MID_RIGHT_FRAME, HOLE_MID_LEFT_FRAME,
-        HOLE_BOTTOM_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME
-    };
-    bool holes_found = true;
-    for (const auto& hole : holes) {
-        if (!check_and_print_frame(hole)) {
-            RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna buca mancante (%s)!", hole.c_str());
-            all_mandatory_found = false;
-            holes_found = false;
-        }
-    }
-    if(holes_found) {
-        RCLCPP_INFO(this->get_logger(), "→ Tutte le 6 buche trovate correttamente.");
-    }
-
-    // 3. Controllo Pallina Bianca
-    if (!check_and_print_frame(WHITE_SOLID_BALL_FRAME)) {
+    // Controllo Pallina Bianca (obbligatoria)
+    if (!check_and_print_frame(REALTIME_PREFIX + WHITE_SOLID_BALL_FRAME)) {
         RCLCPP_ERROR(this->get_logger(), "ERRORE: Terna pallina bianca mancante (%s)!", WHITE_SOLID_BALL_FRAME.c_str());
         all_mandatory_found = false;
     }
@@ -850,12 +899,12 @@ bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
         RCLCPP_INFO(this->get_logger(), "→ Terna pallina bianca trovata correttamente.");
     }
 
-    // 4. Controllo Palline Colorate (ne basta ALMENO una)
+    // Controllo Palline Colorate (ne basta ALMENO una)
     bool colored_ball_found = false;
     std::vector<std::string> colored_balls = {
-        RED_SOLID_BALL_FRAME, 
-        BLUE_SOLID_BALL_FRAME, 
-        YELLOW_SOLID_BALL_FRAME
+        REALTIME_PREFIX + RED_SOLID_BALL_FRAME, 
+        REALTIME_PREFIX + BLUE_SOLID_BALL_FRAME, 
+        REALTIME_PREFIX + YELLOW_SOLID_BALL_FRAME
     };
     
     for (const auto& ball : colored_balls) {
@@ -882,7 +931,8 @@ bool TaskNode::checkSceneIdentification(const std::string& reference_frame)
     return all_mandatory_found;
 }
 
-/*SERVIZI DI MONITORING DEI TIRI*/
+
+/*SERVIZI DI LOGGING DEI MOVIMENTI*/
 bool TaskNode::startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled)
 {
     RCLCPP_INFO(this->get_logger(), "Avvio logging...");
@@ -901,6 +951,8 @@ bool TaskNode::stopLogging()
     return ok;
 }
 
+
+/* GAME ENGINE */
 bool TaskNode::start_game_engine()
 {
     return set_game_engine_state(true);
@@ -911,7 +963,13 @@ bool TaskNode::stop_game_engine()
     return set_game_engine_state(false);
 }
 
-/*ALTRI METODI DI UTILITIES*/
+void TaskNode::print_received_game_engine_params()
+{
+    RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DA GAME ENGINE--------------------");
+    RCLCPP_INFO(this->get_logger(), "Parametri ricevuti dal Game Engine: Angle=%.2f, Velocity=%.2f, Pitch=%.2f \n--------------------PARAMETRI DA GAME ENGINE--------------------\n\n", 
+                direction_angle_deg_, impact_shot_velocity_, impact_angle_deg_);
+}
+
 
 /*metodi getter*/
 double TaskNode::getDirectionAngle() const { return direction_angle_deg_; }
@@ -1026,8 +1084,6 @@ void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
         impact_angle_deg_ = msg->impact_angle_deg;
         params_received_ = true;
         
-        RCLCPP_INFO(this->get_logger(), "Parametri ricevuti: Angle=%.2f, Velocity=%.2f, Pitch=%.2f", 
-                    direction_angle_deg_, impact_shot_velocity_, impact_angle_deg_);
         // Sblocca il main se stavamo aspettando
         params_promise_.set_value();
     }

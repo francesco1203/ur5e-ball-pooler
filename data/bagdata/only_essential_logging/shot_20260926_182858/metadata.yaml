@@ -1,0 +1,54 @@
+rosbag2_bagfile_information:
+  version: 9
+  storage_identifier: mcap
+  duration:
+    nanoseconds: 286112978
+  starting_time:
+    nanoseconds_since_epoch: 1790440138244692421
+  message_count: 126
+  topics_with_message_count:
+    - topic_metadata:
+        name: /scaled_joint_trajectory_controller/controller_state
+        type: control_msgs/msg/JointTrajectoryControllerState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 31
+    - topic_metadata:
+        name: /joint_states
+        type: sensor_msgs/msg/JointState
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 31
+    - topic_metadata:
+        name: /tcp_twist
+        type: geometry_msgs/msg/TwistStamped
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 32
+    - topic_metadata:
+        name: /tcp_pose_broadcaster/pose
+        type: geometry_msgs/msg/PoseStamped
+        serialization_format: cdr
+        offered_qos_profiles:
+          []
+        type_description_hash: ""
+      message_count: 32
+  compression_format: ""
+  compression_mode: ""
+  relative_file_paths:
+    - shot_20260926_182858_0.mcap
+  files:
+    - path: shot_20260926_182858_0.mcap
+      starting_time:
+        nanoseconds_since_epoch: 1790440138244692421
+      duration:
+        nanoseconds: 286112978
+      message_count: 252
+  custom_data: ~
+  ros_distro: jazzy

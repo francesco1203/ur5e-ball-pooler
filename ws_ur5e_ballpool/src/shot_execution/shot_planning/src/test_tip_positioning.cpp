@@ -134,7 +134,7 @@ int main(int argc, char* argv[])
 
     // Verifico quali terne sono disponibili (solo a scopo informativo/log,
     // non blocca l'esecuzione se manca qualche pallina colorata)
-    node->checkSceneIdentification(WORLD_FRAME);
+    // node->checkSceneIdentification(WORLD_FRAME);
 
     //------------------------------------------------------
     /* POSIZIONAMENTO INIZIALE IN CONFIGURAZIONE NOTA

@@ -84,11 +84,7 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          camera_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-          camera_rgb_calibrated:
+          camera_color_optical_frame:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -217,11 +213,7 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          camera_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-          camera_rgb_calibrated:
+          camera_color_optical_frame:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -313,21 +305,7 @@ Visualization Manager:
           Value: true
         blue_solid_ball:
           Value: false
-        bottom_left_corner_frame:
-          Value: false
-        bottom_right_corner_frame:
-          Value: false
-        camera_color_frame:
-          Value: true
         camera_color_optical_frame:
-          Value: true
-        camera_depth_frame:
-          Value: true
-        camera_depth_optical_frame:
-          Value: true
-        camera_link:
-          Value: true
-        camera_rgb_calibrated:
           Value: true
         cut_rod_link:
           Value: false
@@ -359,12 +337,6 @@ Visualization Manager:
           Value: false
         tool0:
           Value: false
-        tool0_controller:
-          Value: true
-        top_left_corner_frame:
-          Value: false
-        top_right_corner_frame:
-          Value: false
         upper_arm_link:
           Value: false
         wall_link:
@@ -390,43 +362,7 @@ Visualization Manager:
         world:
           base_link:
             base:
-              camera_rgb_calibrated:
-                camera_link:
-                  camera_color_frame:
-                    camera_color_optical_frame:
-                      billiard_center_field:
-                        bottom_left_corner_frame:
-                          {}
-                        bottom_right_corner_frame:
-                          {}
-                        hole_bottom_left:
-                          {}
-                        hole_bottom_right:
-                          {}
-                        hole_mid_left:
-                          {}
-                        hole_mid_right:
-                          {}
-                        hole_top_left:
-                          {}
-                        hole_top_right:
-                          {}
-                        top_left_corner_frame:
-                          {}
-                        top_right_corner_frame:
-                          {}
-                      blue_solid_ball:
-                        {}
-                      red_solid_ball:
-                        {}
-                      white_solid_ball:
-                        {}
-                      yellow_solid_ball:
-                        {}
-                  camera_depth_frame:
-                    camera_depth_optical_frame:
-                      {}
-              tool0_controller:
+              camera_color_optical_frame:
                 {}
             base_link_inertia:
               shoulder_link:
@@ -444,6 +380,27 @@ Visualization Manager:
                                 {}
                           ft_frame:
                             {}
+          billiard_center_field:
+            blue_solid_ball:
+              {}
+            hole_bottom_left:
+              {}
+            hole_bottom_right:
+              {}
+            hole_mid_left:
+              {}
+            hole_mid_right:
+              {}
+            hole_top_left:
+              {}
+            hole_top_right:
+              {}
+            red_solid_ball:
+              {}
+            white_solid_ball:
+              {}
+            yellow_solid_ball:
+              {}
           wall_link:
             {}
       Update Interval: 0
@@ -485,7 +442,7 @@ Visualization Manager:
       Pitch: 0.763122022151947
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.285086154937744
+      Yaw: 3.280086040496826
     Saved: ~
 Window Geometry:
   Displays:

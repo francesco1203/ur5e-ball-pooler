@@ -239,7 +239,7 @@ private:
             red_mask = mask1 | mask2;
             cv::dilate(red_mask, red_mask, dilate_kernel);
             cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(red_mask, "TEMP_"+RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(red_mask, REALTIME_PREFIX+RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
             cv::Mat orange_mask, red_inv;
             cv::inRange(blurred_hsv, cv::Scalar(10, 80, 20), cv::Scalar(35, 255, 255), orange_mask);
@@ -247,13 +247,13 @@ private:
             cv::bitwise_and(orange_mask, red_inv, orange_mask);
             cv::dilate(orange_mask, orange_mask, dilate_kernel);
             cv::morphologyEx(orange_mask, orange_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(orange_mask, "TEMP_"+YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(orange_mask, REALTIME_PREFIX+YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
             cv::Mat blue_mask;
             cv::inRange(blurred_hsv, cv::Scalar(100, 80, 20), cv::Scalar(130, 255, 255), blue_mask);
             cv::dilate(blue_mask, blue_mask, dilate_kernel);
             cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(blue_mask, "TEMP_"+BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(blue_mask, REALTIME_PREFIX+BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
             cv::Mat white_mask, all_colors_inv;
             cv::inRange(blurred_hsv, cv::Scalar(0, 0, 130), cv::Scalar(180, 50, 255), white_mask);
@@ -262,7 +262,7 @@ private:
             cv::bitwise_and(white_mask, all_colors_inv, white_mask);
             cv::dilate(white_mask, white_mask, dilate_kernel);
             cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(white_mask, "TEMP_"+WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(white_mask, REALTIME_PREFIX+WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
 
             publish_rviz_markers(img_stamp);
         }
@@ -350,7 +350,7 @@ private:
             // 1. Chiediamo all'albero TF l'orientamento LIVE di "world" rispetto a "CAMERA_FRAME"
             // (La sintassi lookupTransform è: target_frame, source_frame)
             geometry_msgs::msg::TransformStamped t_world_in_cam = 
-                tf_buffer_->lookupTransform(CAMERA_FRAME, "world", tf2::TimePointZero);
+                tf_buffer_->lookupTransform(CAMERA_FRAME, WORLD_FRAME, tf2::TimePointZero);
 
             // Estraiamo il quaternione che descrive l'orientamento di World rispetto a Camera
             tf2::Quaternion q_world_in_cam;
@@ -499,10 +499,10 @@ private:
         };
 
         // Palline
-        marker_array.markers.push_back(create_ball_marker("TEMP_"+WHITE_SOLID_BALL_FRAME, 0, 1.0, 1.0, 1.0));
-        marker_array.markers.push_back(create_ball_marker("TEMP_"+RED_SOLID_BALL_FRAME, 1, 1.0, 0.0, 0.0));
-        marker_array.markers.push_back(create_ball_marker("TEMP_"+BLUE_SOLID_BALL_FRAME, 2, 0.0, 0.0, 1.0));
-        marker_array.markers.push_back(create_ball_marker("TEMP_"+YELLOW_SOLID_BALL_FRAME, 3, 1.0, 0.6, 0.0));
+        marker_array.markers.push_back(create_ball_marker(REALTIME_PREFIX+WHITE_SOLID_BALL_FRAME, 0, 1.0, 1.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker(REALTIME_PREFIX+RED_SOLID_BALL_FRAME, 1, 1.0, 0.0, 0.0));
+        marker_array.markers.push_back(create_ball_marker(REALTIME_PREFIX+BLUE_SOLID_BALL_FRAME, 2, 0.0, 0.0, 1.0));
+        marker_array.markers.push_back(create_ball_marker(REALTIME_PREFIX+YELLOW_SOLID_BALL_FRAME, 3, 1.0, 0.6, 0.0));
 
         // Buche
         std::vector<std::string> holes = {

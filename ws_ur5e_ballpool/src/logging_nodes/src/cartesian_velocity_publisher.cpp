@@ -37,7 +37,7 @@ class CartesianVelocityPublisher : public rclcpp::Node
         CartesianVelocityPublisher(const rclcpp::NodeOptions & options = rclcpp::NodeOptions()) 
             : Node("cartesian_velocity_publisher", options), 
               is_logging_(true),
-              target_link_("tool0") 
+              target_link_(EE_LINK) 
         {
             /* Sottoscrizioni e Publishers */
             joint_sub_ = this->create_subscription<JointStateMsg>(
@@ -61,7 +61,7 @@ class CartesianVelocityPublisher : public rclcpp::Node
                 robot_state_->setToDefaultValues();
                 
                 // Gruppo cinematico standard UR
-                joint_model_group_ = robot_model_->getJointModelGroup("manipulator");
+                joint_model_group_ = robot_model_->getJointModelGroup(PLANNING_GROUP);
                 
                 if(!joint_model_group_) {
                     RCLCPP_ERROR(this->get_logger(), "JointModelGroup 'manipulator' non trovato!");

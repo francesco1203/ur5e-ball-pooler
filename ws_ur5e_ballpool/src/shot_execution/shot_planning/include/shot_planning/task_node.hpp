@@ -84,8 +84,11 @@ public:
     /* Metodi Pubblici */
     void start();
     void waitInit();
-    void waitForParams();
+    void waitForBilliardIdentification(const std::string& reference_frame = WORLD_FRAME);
+    void waitForGameEngineParams();
 
+    bool using_sim_time() const;
+    
     bool moveToJointConfig(const joint_config& joint_values, double planning_time = -1.0);
     bool moveToNamedTarget(const std::string& target_name, double planning_time = -1.0);
     
@@ -95,30 +98,50 @@ public:
                              
     bool moveCartesianPathAsymmTriangle(const Vector3d& posizione, const Quaternion& orientamento,
                                         const std::string& frame_id = WORLD_FRAME,
-                                        double vel_max = -1.0, double acceleration = -1.0, double deceleration = -1.0);
+                                        double vel_max = -1.0, 
+                                        double acceleration = -1.0, 
+                                        double deceleration = -1.0
+                                        );
+
+
+    void printShotParams(double vel_impact = -1.0, 
+                         double distance_acceleration = -1.0, 
+                         double distance_deceleration = -1.0
+                        );
 
     bool ExecuteShot(const Vector3d& posizione_arresto, const Quaternion& orientamento,
                      const std::string& frame_id = WORLD_FRAME,
-                     double vel_impact = -1.0, double distance_acceleration = -1.0, double distance_deceleration = -1.0,
-                     bool ask_for_user_confirmation = false);
+                     double vel_impact = -1.0,
+                     double distance_acceleration = -1.0,
+                     double distance_deceleration = -1.0
+                    );
+
+
+    bool freeze_balls();
+    bool checkRealtimeSceneIdentification(const std::string& reference_frame = WORLD_FRAME);
+    
 
     bool build_scene();
     bool disable_white_ball_collision();
-    bool checkSceneIdentification(const std::string& reference_frame = WORLD_FRAME);
-    
+
+
     bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled);
     bool stopLogging();
 
+
     bool start_game_engine();
     bool stop_game_engine();
+    void print_received_game_engine_params();
     double getDirectionAngle() const;
     double getImpactShotVelocity() const;
     double getImpactAngle() const;
     
+
     double getEEFDistance();
     Vector3d getEEFRelativePosition();
-    
     void printEEFDebugInfo();
+
+
     void print_and_wait(const std::string & message);
 
 private:
@@ -128,7 +151,7 @@ private:
     bool send_trigger_request(const TriggerClient& client, const std::string& service_name);
     bool set_game_engine_state(bool state); 
 
-    /* Variabili Privati (Copia qui tutte le tue variabili private) */
+    /* Variabili Privati */
     MoveGroupInterfacePtr move_group_; 
     TimerPtr start_timer_;             
     std::promise<void> init_done_;     
@@ -136,6 +159,7 @@ private:
     ShotParamsSubscription param_sub_;
     TriggerClient build_scene_client_;
     TriggerClient remove_white_ball_client_;
+    TriggerClient freeze_balls_client_;
     LogOnFileClient log_client_;
     SetBoolClient toggle_game_engine_client_;
     rclcpp::CallbackGroup::SharedPtr logging_cb_group_;
@@ -143,28 +167,34 @@ private:
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     // Parametri...
-    bool cartesian_limits_enabled_;
-    double max_velocity_acceleration_scaling_factor_;   
+    double max_velocity_scaling_factor_; 
+    double max_acceleration_scaling_factor_;  
     double goal_joint_tolerance_;                       
     double goal_position_tolerance_;                    
     double goal_orientation_tolerance_;                 
     double def_joint_planning_time_;                    
-    std::string joint_planning_algorithm_;              
+    std::string joint_planning_algorithm_;  
     double resolution_step_;                             
     double resolution_step_Ruckig_;                      
     double success_threshold_Ruckig_;                    
-    double Ruckig_dt_;                                   
-    double max_jerk_;                                    
+    double Ruckig_dt_;        
+
+    bool cartesian_limits_enabled_;
+    double cartesian_limits_scaling_factor_;
+    double max_cartesian_velocity_;
+    double max_cartesian_acceleration_;
+    double max_cartesian_deceleration_;
+    double max_cartesian_jerk_;
+                                                             
     bool log_ruckig_trajectory_;                         
-    std::string csv_ruckig_trajectory_path_;             
+    std::string csv_ruckig_trajectory_path_;  
+
     std::promise<void> params_promise_;
     bool params_received_ = false;
     double direction_angle_deg_;
     double impact_shot_velocity_;
     double impact_angle_deg_;
-    double vel_factor_for_jerk_compensation_;
-    double accel_decel_factor_for_jerk_compensation_;
-
+    
     char c_in; 
 };
 

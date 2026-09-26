@@ -1,6 +1,19 @@
 # src/shot_planning/config/execution_params.yaml
+#questo file serve per settare i parametri di esecuzione del task_node, in particolare per la conferma da tastiera parte dell'utente
+
 task_node:
-  ros__parameters:
-    control_shot_start_execution_by_user_input: true
-    control_shot_steps_execution_by_user_input: true
-    user_confirm_for_right_identification: true
+  ros__parameters:   
+    user_confirm_for_right_detection: true        #user conferma le terne delle palline e le freeza
+    user_confirm_for_each_step: false             #user conferma ogni singolo passo dell'esecuzione
+    user_confirm_for_first_move: true             #(*) user conferma il primo movimento del robot
+    user_confirm_for_shot_execution: true         #(*) user conferma l'inizio dello shot
+
+    pause_among_step_1_2_milliseconds: 800        #(**) pausa tra il passo 1 e il passo 2 dell'esecuzione, in millisecondi
+    pause_among_step_2_3_milliseconds: 800        #(**) pausa tra il passo 2 e il passo 3 dell'esecuzione, in millisecondi
+    pause_among_step_3_4_milliseconds: 800        #(**) pausa tra il passo 3 e il passo 4 dell'esecuzione, in millisecondi
+    pause_among_step_4_5_milliseconds: 800        #(**) pausa tra il passo 4 e il passo 5 dell'esecuzione, in millisecondi
+    pause_among_step_5_6_milliseconds: 2000       #(**) pausa tra il passo 5 e il passo 6 dell'esecuzione, in millisecondi
+    pause_after_step_6_milliseconds: 1000         #(**) pausa tra i passi dell'esecuzione, in millisecondi
+  
+#(*) questi parametri sono inutili se già è true il parametro user_confirm_for_each_step, in quanto quest'ultimo implica che l'utente confermi ogni passo, incluso il primo e l'inizio dello shot
+#(**) se usi MuJoCo, è consigliabile non scendere sotto i 600/700 millisecondi, siccome c'è un ritardo di sincronizzazione

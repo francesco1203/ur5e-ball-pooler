@@ -5,21 +5,10 @@
 /*NOMI TERNE AMBIENTE*/
     const std::string WORLD_FRAME = "world";                            // nome della terna di riferimento globale (world frame)
 
+
+    //TF BILIARDO, BUCHE E SPIGOLI ALTI
     const std::string BILLIARD_TABLE_FRAME = "billiard_center_field";   // nome della terna del tavolo da biliardo
 
-    //tf balls
-    const std::string SOLID_BALL_FRAME = "solid_ball";          //nome terna palline piene, da completare con prefisso*              
-    //const std::string STRIPES_BALL_FRAME = "stripes_ball";    //nome terna palline a strisce, da completare con prefisso*      
-    //*es red --> red_solid_ball, red_stripes_ball ecc..
-
-    /*NOTA: in questo progetto usiamo solo le seguenti palline piene*/
-    const std::string WHITE_SOLID_BALL_FRAME    = "white_solid_ball";
-    const std::string RED_SOLID_BALL_FRAME      = "red_solid_ball";
-    const std::string BLUE_SOLID_BALL_FRAME     = "blue_solid_ball";
-    const std::string YELLOW_SOLID_BALL_FRAME   = "yellow_solid_ball";
-
-
-    //tf buche
     const std::string HOLE_TOP_RIGHT_FRAME      = "hole_top_right";
     const std::string HOLE_TOP_LEFT_FRAME       = "hole_top_left";
     const std::string HOLE_MID_RIGHT_FRAME      = "hole_mid_right";
@@ -27,12 +16,27 @@
     const std::string HOLE_BOTTOM_RIGHT_FRAME   = "hole_bottom_right";
     const std::string HOLE_BOTTOM_LEFT_FRAME    = "hole_bottom_left";
 
-    //tf corner
     const std::string CORNER_TOP_RIGHT_FRAME      = "top_right_corner_frame";
     const std::string CORNER_TOP_LEFT_FRAME       = "top_left_corner_frame";
     const std::string CORNER_BOTTOM_RIGHT_FRAME   = "bottom_right_corner_frame";
     const std::string CORNER_BOTTOM_LEFT_FRAME    = "bottom_left_corner_frame";
 
+
+    //TF PALLINE DA BILIARDO 
+
+    /*
+    convenzione: prefix + colore + tipo (solid/striped) + "_ball_frame"
+    
+    dove prefix = "realtime" se viene dall'identificazione della camera
+                =  ""(vuoto) se congelata (da freeze_balls_tf oppure da fake_camera)
+    */
+    
+    const std::string WHITE_SOLID_BALL_FRAME    = "white_solid_ball";
+    const std::string RED_SOLID_BALL_FRAME      = "red_solid_ball";
+    const std::string BLUE_SOLID_BALL_FRAME     = "blue_solid_ball";
+    const std::string YELLOW_SOLID_BALL_FRAME   = "yellow_solid_ball";
+
+    const std::string REALTIME_PREFIX = "realtime_";  // prefisso per le terne generate in tempo reale dalla camera (per distinguerle da quelle congelate)
 
     //camera
     const std::string CAMERA_FRAME = "camera_color_optical_frame";  // nome della terna ottica RGB della camera

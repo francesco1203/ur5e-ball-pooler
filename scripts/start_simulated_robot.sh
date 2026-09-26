@@ -14,10 +14,11 @@
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
 #simulazione
-open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+open_rviz_when_using_mujoco="false"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 
 #scena e detection
 use_vision_node_for_mujoco="true"              #(*) true se vuoi usare il nodo di vision che fa detection della telecamera di mujoco, false se vuoi usare la scena fake con le palline già posizionate (fake camera)
+numero_campioni_detection_biliardo=10         #(*) numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera di mujoco (utile solo se true camera di mujoco)
 start_image_view="false"                       #(*) true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo 
 start_image_view="false"                       #(*) true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo (solo con MuJoCo, altrimenti non esiste la telecamera simulata)
 # (*) = solo in modalità MuJoCo
@@ -27,9 +28,9 @@ execute_shot="true"                            #false se vuoi solo fare visualiz
 use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging
-logging_enable="false"                                        #true se vuoi fare logging
+logging_enable="true"                                        #true se vuoi fare logging
 
-only_essential_logging="false"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
+only_essential_logging="true"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"        #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
 only_camera_logging="false"                                    #true se vuoi fare logging solo dei dati della camera, false se vuoi fare logging di tutti i dati                                        
@@ -151,10 +152,11 @@ if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$
     fi
    
     #avvio nodo di visione che effettua la detection e la perception
-    echo "Avvio nodo di visione..."
+    echo "Avvio nodo di visione + freezer node..."
     gnome-terminal --tab --title="VisionNode" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
                     ros2 launch real_camera vision.launch.py \
+                        required_samples:=${numero_campioni_detection_biliardo}; \
                         use_sim_time:=true; \
                     exec bash"
 else
@@ -168,6 +170,10 @@ else
                         ros2 launch fake_camera fake_camera.launch.py \
                             yaml_path:=${FAKE_CAMERA_CONFIG_DIR}/fake_camera_config.yaml; \
                         exec bash"
+
+
+    fake_camera_usage="true"
+    only_camera_logging="false"  #se uso la fake camera, non ha senso fare logging solo della camera, perché non c'è una camera reale
 fi
 
 
@@ -289,9 +295,14 @@ if [[ "$execute_shot" == "true" ]]; then
         NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/essential_logging_params.yaml"
     fi
 
-    # Aggiungo il file di MuJoCo se richiesto
+    # Aggiungo il file di Fake Camera se richiesto
+    if [[ "$fake_camera_usage" == "true" ]]; then
+        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/using_fake_camera.yaml"
+    fi
+
+    # Aggiungo il parametro use_sim_time se sto usando MuJoCo
     if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
-        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/using_mujoco.yaml"
+        NODE_ARGS="${NODE_ARGS} -p use_sim_time:=true"
     fi
 
  

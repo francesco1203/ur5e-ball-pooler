@@ -9,6 +9,7 @@ estraendo i dati dal bagfile usando le librerie native ROS 2 (rosbag2_py).
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np              
 
 # --- Import nativi di ROS 2 ---
 import rosbag2_py
@@ -146,6 +147,9 @@ def plot_position(df, joints):
 
 def main():
 
+    print("Controller State Plotter - Visualizza gli errori di posizione per ogni giunto, durante il controllo.")
+
+    
     bag_path = sys.argv[1]
     topic_target = '/scaled_joint_trajectory_controller/controller_state'
 
@@ -160,6 +164,28 @@ def main():
     if not joints:
         print("Errore: nessuna colonna elaborata. Controlla la logica dei nomi.")
         sys.exit(1)
+
+    # --- NUOVO BLOCCO: RIMOZIONE CODA STATICA ---
+    # Raggruppiamo tutte le colonne che contengono la posizione reale per i 6 giunti
+    actual_pos_cols = [col for col in df.columns if col.endswith("_actual_pos")]
+    
+    # Calcoliamo la variazione assoluta per ogni step e prendiamo il massimo (il giunto che si muove di più)
+    max_pos_diff = df[actual_pos_cols].diff().abs().max(axis=1).values
+    
+    # Troviamo gli indici in cui c'è movimento (variazione > 1e-4 rad)
+    active_indices = np.where(max_pos_diff > 1e-4)[0]
+    
+    if len(active_indices) > 0:
+        last_active_idx = active_indices[-1] # Ultimo frame in cui almeno un giunto si muoveva
+        buffer_samples = 10  # Mantiene ~0.3 secondi dopo l'arresto per l'estetica del grafico
+        
+        cut_idx = min(last_active_idx + buffer_samples, len(df))
+        df = df.iloc[:cut_idx].copy()
+        print(f"Coda statica rimossa: mantenuti {cut_idx} campioni su {len(max_pos_diff)} originali.")
+    else:
+        print("Nessun movimento rilevato nell'intero log del controller.")
+    # --- FINE RIMOZIONE CODA STATICA ---
+
 
     print(f"Trovati {len(joints)} giunti: {joints}")
     print(f"Numero di campioni: {len(df)}")

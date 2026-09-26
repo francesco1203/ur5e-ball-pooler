@@ -67,12 +67,16 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
     return df
 
 def main():
-    # 1. LETTURA DATI DAL BAGFILE ROS 2
+
+    print("Cartesian Kinematics Plotter - Estrae e visualizza i dati di posizione, velocità e accelerazione cartesiana in linea retta.")
+
+    
     if len(sys.argv) < 2:
         print("Uso: python script.py <percorso_al_bag>")
         return
 
     bag_path = sys.argv[1]
+    print(f"Estrazione dati da: {bag_path}...")
     
     # --- ASSICURATI CHE QUESTI NOMI SIANO CORRETTI PER IL TUO SISTEMA ---
     topic_pose = '/tcp_pose_broadcaster/pose'
@@ -84,13 +88,58 @@ def main():
     if df.empty:
         print("Nessun dato estratto. Verifica i nomi dei topic. Uscita.")
         return
-        
+
+    # --- INIZIO NUOVO BLOCCO CONTROLLO VELOCITÀ CARTESIANE ---
+    is_all_invalid = True
+    for col in ['vx', 'vy', 'vz']:
+        if not (df[col].isna() | (df[col] == 0.0)).all():
+            is_all_invalid = False
+            break
+            
+    if is_all_invalid:
+        print("\n" + "="*75)
+        print(" ⚠️  ATTENZIONE: Le velocità cartesiane (Twist) contengono solo ZERI o NaN.")
+        print("     È probabile che questo bag provenga da una simulazione (es. mock_components)")
+        print("     dove il Cartesian Velocity Publisher non riceve le velocità dei giunti.")
+        print("     I grafici di velocità e accelerazione appariranno piatti.")
+        print("="*75 + "\n")
+    # --- FINE NUOVO BLOCCO ---
+
+    
     print(f"Estratti {len(df)} messaggi combinati. Pulizia timestamp...")
 
     # Pulizia dei timestamp
     df['dt'] = df['time_sec'].diff()
     df = df[(df['dt'].isna()) | (df['dt'] > 1e-3)].copy()
     df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
+
+
+    # --- NUOVO BLOCCO: RIMOZIONE CODA STATICA ---
+    # Calcoliamo prima la distanza percorsa in ogni punto per capire quando si ferma
+    temp_x = df['x'].values
+    temp_y = df['y'].values
+    temp_z = df['z'].values
+    
+    # Calcolo della distanza radiale dal punto di partenza
+    temp_dist = np.sqrt((temp_x - temp_x[0])**2 + (temp_y - temp_y[0])**2 + (temp_z - temp_z[0])**2)
+    
+    # Calcoliamo la differenza assoluta tra un campione e l'altro
+    dist_diff = np.abs(np.diff(temp_dist, prepend=0.0))
+    
+    # Cerchiamo gli indici dove l'End-Effector si sta muovendo (soglia ~0.1 millimetri)
+    active_indices = np.where(dist_diff > 1e-4)[0]
+    
+    if len(active_indices) > 0:
+        last_active_idx = active_indices[-1]
+        buffer_samples = 10  # Mantieni circa 30 campioni (~0.3 secondi a 100Hz) dopo lo stop
+        
+        cut_idx = min(last_active_idx + buffer_samples, len(df))
+        df = df.iloc[:cut_idx].copy()
+        print(f"Coda statica rimossa: mantenuti {cut_idx} campioni su {len(dist_diff)} originali.")
+    else:
+        print("Nessun movimento cartesiano rilevato nell'intero log.")
+    # --- FINE RIMOZIONE CODA STATICA ---
+
 
     # Estrazione array numpy
     t = df['time_sec'].values

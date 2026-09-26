@@ -2,12 +2,15 @@
 task_node:
   ros__parameters:
 
-    #generic
-    max_velocity_acceleration_scaling_factor: 1.0  # fattore di scala per velocità e accelerazione (0.0 - 1.0)
-    cartesian_limits_enabled: false                        # limiti cartesiani attivati (non tira se li supero)
+    #generic for MoveIt! planning
+    max_velocity_scaling_factor: 0.3               # (*) fattore di scala per limite di giunti in velocità e accelerazione (0.0 - 1.0)
+    max_acceleration_scaling_factor: 0.3           # (*)fattore di scala per accelerazione di giunto limite (0.0 - 1.0)
     goal_joint_tolerance: 0.001                    # tolleranza di giunto in obiettivi di giunto (radians) -> 1/20 di grado
     goal_position_tolerance: 0.0005                # tolleranza di posizione in obiettivi cartesiani (metri) -> 0.5 mm
     goal_orientation_tolerance: 0.001              # tolleranza di orientamento in obiettivi cartesiani (radians) -> 1/20 di grado
+    
+    # (*) Questo parametro influenza di fatto tutti i movimenti tranne il tiro 
+    #     (anche move_cartesian_path, siccome anche computeTimeStamps() utilizza i limiti di giunto per tempificare)
     
     #moveToJointConfig e moveToNamedTarget:
     def_joint_planning_time: 5.0
@@ -20,13 +23,7 @@ task_node:
     resolution_step_Ruckig: 0.01                        # passo di interpolazione in metri 1cm
     success_threshold_Ruckig: 0.99                      # soglia di successo (percentuale di punti interpolati che devono essere raggiunti)
     Ruckig_dt: 0.01                                     # passo di lavoro di Ruckig in secondi 
-    max_jerk: 1000.0                                      # jerk massimo in m/s^3 
-
-    #shot method 
-    vel_factor_for_jerk_compensation: 1.0               # fattore di moltiplicazione per la velocità per compensare il jerk massimo
-    accel_decel_factor_for_jerk_compensation: 1.0       # fattore di moltiplicazione per accelerazione e decelerazione per compensare il jerk massimo 
-
-
+  
 
     # SCELTE TRA ALGORITMI DI PLANNING (da ompl_planning.yaml):
     # - APSConfigDefault
