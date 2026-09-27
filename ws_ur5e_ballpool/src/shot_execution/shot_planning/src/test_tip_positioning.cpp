@@ -129,6 +129,55 @@ int main(int argc, char* argv[])
     //double safety_height             = node->get_parameter("calib_safety_height").as_double();
     //------------------------------------------------------
 
+    //-------------------------------------------
+    /* IDENTIFICAZIONE PALLINE E FREEZE DELLA SCENA*/
+
+    bool detection_confirmed = false;
+
+    while (!detection_confirmed && rclcpp::ok()) 
+    {
+        RCLCPP_INFO(node->get_logger(), "In attesa dell'identificazione della scena...");
+        rclcpp::sleep_for(std::chrono::seconds(1));
+
+        if(node->checkRealtimeSceneIdentification())
+        {
+            
+            char input = node->print_and_wait("\n\n[DETECTION OK] Premi 'r' e INVIO per ripetere l'identificazione, oppure un altro carattere per confermare e procedere..");
+            
+            if(input == 'r' || input == 'R') {
+                RCLCPP_INFO(node->get_logger(), "Ripeto l'identificazione...");
+                continue; // Salta il resto del codice e ricomincia il ciclo while
+            }
+        
+            // Se l'utente preme un carattere diverso da 'r', o se le conferme manuali sono disabilitate:
+            
+            // CONGELIAMO LE TF delle palline
+            if (!node->freeze_balls()) {
+                RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Fallito il congelamento delle palline! Impossibile procedere.");
+                return 1; // Uscita per errore irreversibile
+            }
+
+            RCLCPP_INFO(node->get_logger(), "\n\nScena identificata e TF congelate. Procedo con la costruzione della scena..");
+            detection_confirmed = true; // Imposta la condizione di uscita dal ciclo while
+        }
+        else
+        {
+            // Un grosso vantaggio: se fallisce, ti diamo la possibilità di riprovare 
+            // sistemando fisicamente la scena prima di far crashare il programma!
+            char input = node->print_and_wait("\n\n[DETECTION FALLITA] Non tutte le terne sono state trovate. Premi 'r' e INVIO per riprovare, oppure un altro tasto per uscire..");
+            
+            if(input == 'r' || input == 'R') {
+                RCLCPP_INFO(node->get_logger(), "Ripeto l'identificazione...");
+                continue; // Ricomincia il ciclo
+            } else {
+                RCLCPP_ERROR(node->get_logger(), "\n\nERRORE: Identificazione scena fallita e annullata dall'utente. Uscita.");
+                return 1;
+            }
+        }
+    }
+    //-------------------------------------------
+
+
     // Costruisco la scena di pianificazione (tavolo, palline, ecc.)
     node->build_scene();
 

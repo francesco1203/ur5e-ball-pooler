@@ -112,7 +112,7 @@
               solref="0.002 1.0" solimp="0.99 0.999 0.001"    
               group="3"/>
 
-        <joint type="free" damping="0.0000003"/>
+        <joint type="free" damping="0.000001"/>   
     </default>
 
     <!-- PALLINE COLORATE (contype=4): collidono con Biliardo (1), Bianca (2) e Colorate (4) -> conaffinity = 7 -->
@@ -763,15 +763,15 @@
         <geom mesh="sponde_collision_2" type="mesh" rgba="1 1 1 1"  class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_3" type="mesh" rgba="1 1 1 1"  class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_4" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_5" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
+        <!-- <geom mesh="sponde_collision_5" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
         <geom mesh="sponde_collision_6" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_7" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_8" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
+        <!-- <geom mesh="sponde_collision_8" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
         <geom mesh="sponde_collision_9" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_10" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_11" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_12" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_13" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
+        <!-- <geom mesh="sponde_collision_11" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
+        <!-- <geom mesh="sponde_collision_12" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
+        <!-- <geom mesh="sponde_collision_13" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
         <geom mesh="sponde_collision_14" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_15" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_16" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
@@ -785,7 +785,7 @@
         <geom mesh="sponde_collision_24" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_25" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_26" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
-        <geom mesh="sponde_collision_27" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
+        <!-- <geom mesh="sponde_collision_27" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/> -->
         <geom mesh="sponde_collision_28" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_29" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
         <geom mesh="sponde_collision_30" type="mesh" rgba="1 1 1 1" class="gomma_collision" pos="" quat=""/>
@@ -836,32 +836,32 @@
 
         <!-- PIANO RACCOLTA -->
         <geom name="fondo_buche" class="biliardo_collision" type="box" 
-            size="0.25 0.15 0.005" pos="0.0 0.0 -0.05" rgba="0.3 0.3 0.3 1"/>
+            size="0.25 0.15 0.002" pos="0.0 0.0 -0.10" rgba="0.3 0.3 0.3 1"/>
     </body>
 
     <!-- pallina bianca-->
-    <body name="white_ball" pos="-0.66000 -0.28000 0.0725">
+    <body name="white_ball" pos="-0.56200 -0.28000 0.0725">
         <joint type="free" class="pallina_bianca_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="-0.73000 -0.35000 0.0725">
+    <body name="red_ball" pos="-0.59400 -0.23200 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.49000 -0.40000 0.0725">
+    <body name="blue_ball" pos="-0.45000 -0.43700 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="-0.51000 -0.33000 0.0725">
+    <body name="yellow_ball" pos="-0.43700 -0.23300 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>

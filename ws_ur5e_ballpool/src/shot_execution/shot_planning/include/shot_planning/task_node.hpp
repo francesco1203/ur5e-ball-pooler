@@ -19,6 +19,9 @@
 #include <vector>
 #include <fstream>
 #include <future>
+#include <limits>
+#include <mutex>
+#include <condition_variable>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -135,6 +138,7 @@ public:
     double getDirectionAngle() const;
     double getImpactShotVelocity() const;
     double getImpactAngle() const;
+    std::string getTargetBallColor() const;
     
 
     double getEEFDistance();
@@ -142,7 +146,7 @@ public:
     void printEEFDebugInfo();
 
 
-    void print_and_wait(const std::string & message);
+    char print_and_wait(const std::string & message);
 
 private:
     /* Metodi Privati */
@@ -189,11 +193,13 @@ private:
     bool log_ruckig_trajectory_;                         
     std::string csv_ruckig_trajectory_path_;  
 
-    std::promise<void> params_promise_;
+    std::mutex params_mutex_;
+    std::condition_variable params_cv_;
     bool params_received_ = false;
     double direction_angle_deg_;
     double impact_shot_velocity_;
     double impact_angle_deg_;
+    std::string target_ball_color_;
     
     char c_in; 
 };

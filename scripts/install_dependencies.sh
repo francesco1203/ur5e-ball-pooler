@@ -36,6 +36,10 @@ install_ceres_optimization=true
 #only for image_view in ros2 project
 install_image_view=true
 
+#only for graphical interface in ros2 project
+install_python_tk=true
+
+
 
 
 # Interrompe lo script se un comando fallisce
@@ -124,6 +128,11 @@ if [ "$install_image_view" = true ]; then
     sudo apt install -y ros-jazzy-image-view
 fi
 
+#9.
+if [ "$install_python_tk" = true ]; then
+    echo -e "\nInstallazione Python Tkinter..."
+    sudo apt install -y python3-tk
+fi
 
 echo "========================================="
 echo "✅ Tutte le dipendenze sono state installate con successo!"

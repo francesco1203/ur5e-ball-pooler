@@ -209,7 +209,13 @@ void TaskNode::waitForBilliardIdentification(const std::string& reference_frame)
 
 // Attesa nel main che arrivi una mossa valida
 void TaskNode::waitForGameEngineParams() {
-    params_promise_.get_future().wait();
+    std::unique_lock<std::mutex> lock(params_mutex_);
+    
+    // Il thread aspetta finché la callback non imposta params_received_ a true
+    params_cv_.wait(lock, [this]() { return params_received_; });
+    
+    // IMPORTANTE: Resettiamo il flag per il turno/tiro successivo
+    params_received_ = false;
 }
 
 
@@ -966,6 +972,7 @@ bool TaskNode::stop_game_engine()
 void TaskNode::print_received_game_engine_params()
 {
     RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DA GAME ENGINE--------------------");
+    RCLCPP_INFO(this->get_logger(), "Target ball color: %s", target_ball_color_.c_str());
     RCLCPP_INFO(this->get_logger(), "Parametri ricevuti dal Game Engine: Angle=%.2f, Velocity=%.2f, Pitch=%.2f \n--------------------PARAMETRI DA GAME ENGINE--------------------\n\n", 
                 direction_angle_deg_, impact_shot_velocity_, impact_angle_deg_);
 }
@@ -975,7 +982,7 @@ void TaskNode::print_received_game_engine_params()
 double TaskNode::getDirectionAngle() const { return direction_angle_deg_; }
 double TaskNode::getImpactShotVelocity() const { return impact_shot_velocity_; }
 double TaskNode::getImpactAngle() const { return impact_angle_deg_; }
-
+std::string TaskNode::getTargetBallColor() const { return target_ball_color_; }
 
 /* PER CALCOLO GEOMETRICO */
 
@@ -1059,14 +1066,39 @@ void TaskNode::printEEFDebugInfo()
 
 /* PER CONTROLLO ESECUZIONE*/
 // Metodo di utilità per stampare un messaggio e aspettare l'input da terminale
-void TaskNode::print_and_wait(const std::string & message)
+char TaskNode::print_and_wait(const std::string & message)
 {
     // Stampa il messaggio sul logger ROS2
     RCLCPP_INFO(this->get_logger(), "%s", message.c_str());
-    RCLCPP_INFO(this->get_logger(), "Premi un tasto e INVIO per continuare...");
+    RCLCPP_INFO(this->get_logger(), "Inserisci un carattere e premi INVIO (o Ctrl+C per uscire)...");
 
-    std::cin >> c_in;   // blocca finché l'utente non digita qualcosa e preme INVIO
-    std::cin.ignore(); // pulisce il '\n' rimasto nel buffer
+    char input_char = '\0';
+
+    // Ripristina lo stato di cin nel caso ci fossero stati errori precedenti
+    std::cin.clear();
+
+    // L'operatore >> aspetta che l'utente digiti un carattere non vuoto e prema INVIO.
+    // Se l'utente preme Ctrl+C, il terminale interrompe la lettura e std::cin "fallisce".
+    if (std::cin >> input_char) {
+        // Puliamo TUTTO il resto della riga (es. se l'utente ha scritto "ciao", teniamo 'c' e buttiamo "iao\n")
+        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+    }
+
+    // Controllo se è stato premuto Ctrl+C (cin fallisce, oppure ROS 2 avvia lo shutdown)
+    if (std::cin.fail() || std::cin.eof() || !rclcpp::ok()) {
+        RCLCPP_WARN(this->get_logger(), "Rilevata interruzione manuale (Ctrl+C). Chiusura del programma...");
+        
+        // Spegne i nodi ROS in modo pulito
+        rclcpp::shutdown();
+        
+        // Forza l'uscita immediata dal programma (evita che il main continui l'esecuzione del tiro)
+        std::exit(0); 
+    }
+
+    // Aggiorniamo anche la variabile di classe per mantenere la retrocompatibilità col tuo codice precedente
+    c_in = input_char; 
+
+    return input_char;
 }
 
 
@@ -1078,17 +1110,21 @@ void TaskNode::print_and_wait(const std::string & message)
 
 // Callback subscriber che riceve i parametri
 void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
+    // Blocchiamo il mutex per evitare data race
+    std::lock_guard<std::mutex> lock(params_mutex_);
+    
     if (!params_received_) {
         direction_angle_deg_ = msg->direction_angle_deg;
         impact_shot_velocity_ = msg->impact_shot_velocity;
         impact_angle_deg_ = msg->impact_angle_deg;
+        target_ball_color_ = msg->target_ball_color;
+        
         params_received_ = true;
         
-        // Sblocca il main se stavamo aspettando
-        params_promise_.set_value();
+        // Risveglia waitForGameEngineParams()
+        params_cv_.notify_one();
     }
 }
-
 
 /*ALTRO DI UTILITIES*/
 

@@ -385,7 +385,7 @@ if [[ "$execute_shot" == "true" ]]; then
         gnome-terminal --tab --title="Fake Game Engine" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
                         ros2 run game_engine fake_game_engine --ros-args \
-                            --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; \
+                            --params-file ${GAME_ENGINE_CONFIG_DIR}/fake_game_engine_params.yaml; \
                         exec bash"
         
     fi

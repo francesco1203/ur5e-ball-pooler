@@ -2,3 +2,4 @@
 float64 direction_angle_deg
 float64 impact_shot_velocity
 float64 impact_angle_deg
+string target_ball_color

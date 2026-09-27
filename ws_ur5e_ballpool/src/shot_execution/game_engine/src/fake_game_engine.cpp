@@ -98,7 +98,8 @@ class FakeGameEngine : public rclcpp::Node
             msg.direction_angle_deg = direction_;
             msg.impact_angle_deg = impact_angle_;
             msg.impact_shot_velocity = velocity_;
-            
+            msg.target_ball_color = "[fake]"; // colore fittizio per il fake game engine
+
             publisher_->publish(msg);
             RCLCPP_DEBUG(this->get_logger(), "Parametri di tiro pubblicati.");
         }

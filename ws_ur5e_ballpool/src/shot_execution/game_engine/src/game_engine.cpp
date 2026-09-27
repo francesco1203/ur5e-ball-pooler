@@ -1,6 +1,6 @@
 // ============================================================
 //  game_engine.cpp
-//  Nodo ROS2 che seleziona la buca ottimale e calcola i parametri di tiro.
+//  Nodo ROS2 che seleziona la combinazione Pallina-Buca ottimale.
 // ============================================================
 
 #include <chrono>
@@ -31,61 +31,67 @@ class GameEngine : public rclcpp::Node
         using ShotParamsMsg = interfaces_pkg::msg::ShotParams;   
         using ShotParamsPublisher = rclcpp::Publisher<ShotParamsMsg>::SharedPtr;
         
-        // Alias per il servizio
         using SetBoolSrv = std_srvs::srv::SetBool;
 
         GameEngine() : Node("game_engine")
         {
-            /*IPER PARAMETRI*/
-
-            // Per scalare velocità stecca
+            /* IPER PARAMETRI */
             this->declare_parameter<double>("velocity_factor", 1.2);
-         
-            // Offset di yaw del tip. 
             this->declare_parameter<double>("tip_yaw_offset_deg", 180.0); 
-            tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
-
-            // Parametri per la gestione dinamica dell'inclinazione dell'asta (pitch)
             this->declare_parameter<double>("rail_proximity_threshold", 0.04);
             this->declare_parameter<double>("normal_impact_angle_deg", 10.0);
             this->declare_parameter<double>("steep_impact_angle_deg", 15.0);   
-            this->declare_parameter<double>("cloth_sliding_friction", 0.02);   
-            
-            // Parametro per decidere se il motore parte già attivo o disattivato di default
             this->declare_parameter<bool>("start_active", false);
+            this->declare_parameter<double>("cloth_sliding_friction", 0.02);
+    
+            this->declare_parameter<bool>("target_red", true);
+            this->declare_parameter<bool>("target_blue", true);
+            this->declare_parameter<bool>("target_yellow", true);
+
 
             velocity_factor_ = this->get_parameter("velocity_factor").as_double();
             tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
             rail_proximity_threshold_ = this->get_parameter("rail_proximity_threshold").as_double();
             normal_impact_angle_deg_ = this->get_parameter("normal_impact_angle_deg").as_double();
             steep_impact_angle_deg_ = this->get_parameter("steep_impact_angle_deg").as_double();
-            cloth_sliding_friction_ = this->get_parameter("cloth_sliding_friction").as_double();
-            
             is_active_ = this->get_parameter("start_active").as_bool();
+            cloth_sliding_friction_ = this->get_parameter("cloth_sliding_friction").as_double();
 
-            /*tf*/
+
+            /* tf */
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
             tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-            /*publisher verso task node*/
+            /* publisher e servizi */
             publisher_ = this->create_publisher<ShotParamsMsg>(SHOT_PARAMS_TOPIC, 10);
-
-            /* Servizio per attivare/disattivare il calcolo */
             toggle_service_ = this->create_service<SetBoolSrv>(
                 TOGGLE_GAME_ENGINE_SERVICE, 
                 std::bind(&GameEngine::handle_activation, this, std::placeholders::_1, std::placeholders::_2)
             );
             
-            //altro
+            // Frame delle buche
             pocket_frames_ = {
-                HOLE_TOP_RIGHT_FRAME,
-                HOLE_TOP_LEFT_FRAME,
-                HOLE_MID_RIGHT_FRAME,
-                HOLE_MID_LEFT_FRAME,
-                HOLE_BOTTOM_RIGHT_FRAME,
-                HOLE_BOTTOM_LEFT_FRAME
+                HOLE_TOP_RIGHT_FRAME, HOLE_TOP_LEFT_FRAME,
+                HOLE_MID_RIGHT_FRAME, HOLE_MID_LEFT_FRAME,
+                HOLE_BOTTOM_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME
             };
 
+
+            // POPOLAMENTO DINAMICO DEI TARGET
+            bool target_red = this->get_parameter("target_red").as_bool();
+            bool target_blue = this->get_parameter("target_blue").as_bool();
+            bool target_yellow = this->get_parameter("target_yellow").as_bool();
+
+            if (target_red) target_balls_frames_.push_back(RED_SOLID_BALL_FRAME);
+            if (target_blue) target_balls_frames_.push_back(BLUE_SOLID_BALL_FRAME);
+            if (target_yellow) target_balls_frames_.push_back(YELLOW_SOLID_BALL_FRAME);
+
+            if (target_balls_frames_.empty()) {
+                RCLCPP_WARN(this->get_logger(), "ATTENZIONE: Nessuna pallina bersaglio selezionata nei parametri!");
+            }
+
+
+            //timer callback
             timer_ = this->create_wall_timer(
                 2000ms, std::bind(&GameEngine::publish_params, this));
 
@@ -97,20 +103,18 @@ class GameEngine : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr timer_;
         std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
         std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-        std::vector<std::string> pocket_frames_;
         
+        std::vector<std::string> pocket_frames_;
+        std::vector<std::string> target_balls_frames_;
         rclcpp::Service<SetBoolSrv>::SharedPtr toggle_service_;
 
         double velocity_factor_;
         double tip_yaw_offset_deg_;
-        
-        // Variabili per l'inclinazione dinamica
         double rail_proximity_threshold_;
         double steep_impact_angle_deg_;
         double normal_impact_angle_deg_;
+        bool is_active_; 
         double cloth_sliding_friction_;
-        
-        bool is_active_; // Flag di stato
 
         double normalize_angle(double angle)
         {
@@ -119,13 +123,11 @@ class GameEngine : public rclcpp::Node
             return angle;
         }
 
-        // Callback del servizio SetBool
         void handle_activation(const std::shared_ptr<SetBoolSrv::Request> request,
                                std::shared_ptr<SetBoolSrv::Response> response)
         {
             is_active_ = request->data;
             response->success = true;
-            
             if (is_active_) {
                 response->message = "Game Engine ATTIVATO.";
                 RCLCPP_INFO(this->get_logger(), "Servizio chiamato: Game Engine ATTIVATO.");
@@ -137,32 +139,24 @@ class GameEngine : public rclcpp::Node
 
         void publish_params()
         {
-            // Se inattivo, usciamo subito dal timer senza consumare CPU né inviare messaggi
-            if (!is_active_) {
-                return;
-            }
-            
-            RCLCPP_INFO(this->get_logger(), "--- Inizio ciclo calcolo tiro ---");
+            if (!is_active_) return;
 
-            /* TROVIAMO LE POSIZIONI DELLE PALLINE BIANCA E ROSSA*/
-            geometry_msgs::msg::TransformStamped tf_white, tf_red;
-
+            /* CERCHIAMO LA PALLINA BIANCA (Indispensabile) */
+            geometry_msgs::msg::TransformStamped tf_white;
             try {
                 tf_white = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, WHITE_SOLID_BALL_FRAME, tf2::TimePointZero);
-                tf_red   = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, RED_SOLID_BALL_FRAME,   tf2::TimePointZero);
             } catch (const tf2::TransformException & ex) {
-                // Questo è il motivo più comune di blocco: le TF non sono pubblicate o i nomi dei frame non coincidono
-                RCLCPP_WARN_THROTTLE(
-                    this->get_logger(), *this->get_clock(), 2000,
-                    "Errore TF palline: impossibile trovare le trasformate. Motivo: %s", ex.what());
-                return;
+                return; // Se non vedo la bianca (nessuna TF), non posso tirare
+            }
+            
+            // --- CONTROLLO CIMITERO PER LA BIANCA ---
+            if (tf_white.transform.translation.z < -1.0) {
+                RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
+                                     "Pallina BIANCA nel cimitero! Impossibile tirare.");
+                return; 
             }
 
             tf2::Vector3 pos_white(tf_white.transform.translation.x, tf_white.transform.translation.y, 0.0);
-            tf2::Vector3 pos_red(tf_red.transform.translation.x, tf_red.transform.translation.y, 0.0);
-
-            RCLCPP_INFO(this->get_logger(), "TF Palline trovate. Bianca (%.2f, %.2f) - Rossa (%.2f, %.2f)", 
-                        pos_white.x(), pos_white.y(), pos_red.x(), pos_red.y());
 
             /* CALCOLO INCLINAZIONE ASTA (PITCH) */
             double half_field_length = POOL_TABLE_FIELD_LENGTH / 2.0;
@@ -178,108 +172,142 @@ class GameEngine : public rclcpp::Node
                 chosen_impact_angle = steep_impact_angle_deg_;
             }
 
-            /* SCELTA AUTOMATICA DELLA BUCA MIGLIORE E CALCOLO DELLA VELCOCITÀ PER IL TIRO*/
+            /* VARIABILI PER SALVARE IL TIRO MIGLIORE IN ASSOLUTO */
             std::string best_pocket = "";
+            std::string best_ball = "";
             double best_cost = std::numeric_limits<double>::max();
-            double best_shot_velocity_planar = 0.0;
             double best_shot_velocity = 0.0;
             double best_direction_deg = 0.0;
             bool valid_shot_found = false;
 
-            for (const auto& pocket_frame : pocket_frames_)
+            // CICLO ESTERNO: Analizziamo una ad una le palline bersaglio disponibili
+            for (const auto& target_frame : target_balls_frames_)
             {
-                geometry_msgs::msg::TransformStamped tf_pocket;
+                geometry_msgs::msg::TransformStamped tf_target;
                 try {
-                    tf_pocket = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, pocket_frame, tf2::TimePointZero);
+                    tf_target = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, target_frame, tf2::TimePointZero);
                 } catch (const tf2::TransformException & ex) {
-                    RCLCPP_WARN_THROTTLE(
-                        this->get_logger(), *this->get_clock(), 2000,
-                        "Errore TF buca [%s]: %s", pocket_frame.c_str(), ex.what());
                     continue; 
                 }
 
-                tf2::Vector3 pos_pocket(tf_pocket.transform.translation.x, tf_pocket.transform.translation.y, 0.0);
-                tf2::Vector3 vec_red_to_pocket = pos_pocket - pos_red;
-                double pocket_distance = vec_red_to_pocket.length();
-                
-                if (pocket_distance < 0.001) continue;
+                // --- CONTROLLO CIMITERO PER LE PALLINE BERSAGLIO ---
+                if (tf_target.transform.translation.z < -1.0) {
+                    // Questa pallina è stata mandata nel cimitero dal freezer. La saltiamo!
+                    continue;
+                }
 
-                tf2::Vector3 dir_pocket = vec_red_to_pocket.normalized();
-                tf2::Vector3 pos_ghost = pos_red - (dir_pocket * ball_diameter);
-                double margin = BALL_RADIUS; 
+                tf2::Vector3 pos_target(tf_target.transform.translation.x, tf_target.transform.translation.y, 0.0);
+
                 
-                if (std::abs(pos_ghost.x()) >= (half_field_length - margin) || 
-                    std::abs(pos_ghost.y()) >= (half_field_width - margin)) 
+                // CICLO INTERNO: Valutiamo tutte le buche per la pallina target corrente
+                for (const auto& pocket_frame : pocket_frames_)
                 {
-                    RCLCPP_INFO(this->get_logger(), "Buca [%s] scartata: Ghost ball fuori o troppo vicina al bordo.", pocket_frame.c_str());
-                    continue; 
-                }
+                    geometry_msgs::msg::TransformStamped tf_pocket;
+                    try {
+                        tf_pocket = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, pocket_frame, tf2::TimePointZero);
+                    } catch (const tf2::TransformException & ex) {
+                        continue; 
+                    }
 
-                tf2::Vector3 vec_white_to_ghost = pos_ghost - pos_white;
-                double cue_distance = vec_white_to_ghost.length();
-                if (cue_distance < 0.001) continue;
+                    tf2::Vector3 pos_pocket(tf_pocket.transform.translation.x, tf_pocket.transform.translation.y, 0.0);
 
-                tf2::Vector3 dir_shot = vec_white_to_ghost.normalized();
-                double cos_cut_angle = dir_shot.dot(dir_pocket);
-                
-                if (cos_cut_angle <= 0.087) {
-                    RCLCPP_INFO(this->get_logger(), "Buca [%s] scartata: Angolo di taglio non realistico (cos <= 0.087).", pocket_frame.c_str());
-                    continue; 
-                }
+                    tf2::Vector3 vec_target_to_pocket = pos_pocket - pos_target;
+                    double pocket_distance = vec_target_to_pocket.length();
+                    if (pocket_distance < 0.001) continue;
 
-                double cut_angle_rad = std::acos(cos_cut_angle);
+                    tf2::Vector3 dir_pocket = vec_target_to_pocket.normalized();
 
-                constexpr double WEIGHT_CUT_ANGLE = 3.5; 
-                constexpr double WEIGHT_POCKET_DIST = 1.0; 
-                constexpr double WEIGHT_CUE_DIST = 0.5;   
+                    // Calcolo della Ghost Ball
+                    tf2::Vector3 pos_ghost = pos_target - (dir_pocket * ball_diameter);
 
-                double dist_to_rail_x = half_field_length - std::abs(pos_red.x());
-                double dist_to_rail_y = half_field_width - std::abs(pos_red.y());
-                double rail_penalty = (std::min(dist_to_rail_x, dist_to_rail_y) < ball_diameter) ? 2.0 : 0.0;
+                    // Scarta il tiro se la ghost ball finisce fuori o contro le sponde
+                    double margin = BALL_RADIUS; 
+                    if (std::abs(pos_ghost.x()) >= (half_field_length - margin) || 
+                        std::abs(pos_ghost.y()) >= (half_field_width - margin)) 
+                    {
+                        continue; 
+                    }
 
-                double total_cost = (WEIGHT_CUT_ANGLE * cut_angle_rad) + 
-                                   (WEIGHT_POCKET_DIST * pocket_distance) + 
-                                   (WEIGHT_CUE_DIST * cue_distance) + 
-                                   rail_penalty;
+                    tf2::Vector3 vec_white_to_ghost = pos_ghost - pos_white;
+                    double cue_distance = vec_white_to_ghost.length();
+                    if (cue_distance < 0.001) continue;
 
-                double v2f = std::sqrt(2.0 * cloth_sliding_friction_ * GRAVITY * pocket_distance);
-                double v1i_impact = (v2f / cos_cut_angle);
-                double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * cloth_sliding_friction_ * GRAVITY * cue_distance);
-                double shot_velocity_planar = velocity_factor_ * v_white_start ;   
-                double shot_velocity = shot_velocity_planar / cos(chosen_impact_angle * (M_PI / 180.0)); 
+                    tf2::Vector3 dir_shot = vec_white_to_ghost.normalized();
 
-                double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
-                double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);
-                double final_yaw_rad = normalize_angle(cue_angle_rad + tip_offset_rad);
-                double direction_deg = final_yaw_rad * (180.0 / M_PI);
+                    double cos_cut_angle = dir_shot.dot(dir_pocket);
+                    if (cos_cut_angle <= 0.087) { // Evita angoli di taglio impossibili (vicini a 90 gradi)
+                        continue; 
+                    }
 
-                RCLCPP_INFO(this->get_logger(), "Buca [%s] valida | Costo calcolato: %.3f", pocket_frame.c_str(), total_cost);
+                    double cut_angle_rad = std::acos(cos_cut_angle);
 
-                if (total_cost < best_cost) {
-                    best_cost = total_cost;
-                    best_pocket = pocket_frame;
-                    best_shot_velocity_planar = shot_velocity_planar;
-                    best_shot_velocity = shot_velocity;
-                    best_direction_deg = direction_deg;
-                    valid_shot_found = true;
+                    // Pesi dei Costi
+                    constexpr double WEIGHT_CUT_ANGLE = 3.5; 
+                    constexpr double WEIGHT_POCKET_DIST = 1.0; 
+                    constexpr double WEIGHT_CUE_DIST = 0.5;   
+
+                    double dist_to_rail_x = half_field_length - std::abs(pos_target.x());
+                    double dist_to_rail_y = half_field_width - std::abs(pos_target.y());
+                    double rail_penalty = (std::min(dist_to_rail_x, dist_to_rail_y) < ball_diameter) ? 2.0 : 0.0;
+
+                    double total_cost = (WEIGHT_CUT_ANGLE * cut_angle_rad) + 
+                                       (WEIGHT_POCKET_DIST * pocket_distance) + 
+                                       (WEIGHT_CUE_DIST * cue_distance) + 
+                                       rail_penalty;
+
+                    // Se questo tiro è migliore di tutti i precedenti, salvalo!
+                    if (total_cost < best_cost) {
+                        
+                        double v2f = std::sqrt(2.0 * cloth_sliding_friction_ * GRAVITY * pocket_distance);
+                        double v1i_impact = (v2f / cos_cut_angle);
+                        double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * cloth_sliding_friction_ * GRAVITY * cue_distance);
+                        double shot_velocity_planar = velocity_factor_ * v_white_start ;   
+                        double shot_velocity = shot_velocity_planar / cos(chosen_impact_angle * (M_PI / 180.0)); 
+
+                        double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
+                        double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);
+                        double final_yaw_rad = normalize_angle(cue_angle_rad + tip_offset_rad);
+                        double direction_deg = final_yaw_rad * (180.0 / M_PI);
+
+                        best_cost = total_cost;
+                        best_pocket = pocket_frame;
+                        best_ball = target_frame; // Salviamo quale pallina abbiamo scelto
+                        //best_shot_velocity_planar = shot_velocity_planar;
+                        best_shot_velocity = shot_velocity;
+                        best_direction_deg = direction_deg;
+                        valid_shot_found = true;
+                    }
                 }
             }
 
             if (valid_shot_found) {
+                //riempio il messaggio con i parametri del tiro
                 auto msg = ShotParamsMsg();
                 msg.direction_angle_deg = best_direction_deg;
                 msg.impact_shot_velocity = best_shot_velocity;
                 msg.impact_angle_deg = chosen_impact_angle; 
                 
+                //pubblico anche il colore della pallina bersaglio selezionata
+                std::string color_name = best_ball;
+                if (best_ball == RED_SOLID_BALL_FRAME) color_name = "RED_SOLID";
+                else if (best_ball == BLUE_SOLID_BALL_FRAME) color_name = "BLUE_SOLID";
+                else if (best_ball == YELLOW_SOLID_BALL_FRAME) color_name = "YELLOW_SOLID";
+                msg.target_ball_color = color_name;
+
                 publisher_->publish(msg);
 
+                
+                // Mostra un bel log riassuntivo che include la pallina bersaglio
                 RCLCPP_INFO(this->get_logger(), 
-                    "+++ SCELTA FINALE: Buca [%s] | Vel: %.3f m/s (planar %.3f m/s) | Yaw: %.2f deg | Pitch: %.2f deg | Dist. sponda: %.3f m +++", 
-                    best_pocket.c_str(), best_shot_velocity, best_shot_velocity_planar, best_direction_deg, chosen_impact_angle, min_dist_white_to_rail);
+                    "BERSAGLIO: [%s] -> BUCA: [%s] | Costo Ottimale: %.2f", 
+                    best_ball.c_str(), best_pocket.c_str(), best_cost);
+                RCLCPP_INFO(this->get_logger(),
+                    "PARAMETRI: Vel: %.3f m/s | Yaw: %.2f deg | Pitch: %.2f deg",
+                    best_shot_velocity, best_direction_deg, chosen_impact_angle);
             } else {
                 RCLCPP_WARN_THROTTLE(
                     this->get_logger(), *this->get_clock(), 2000,
-                    "Nessuna buca raggiungibile fisicamente (tutte scartate).");
+                    "Nessuna pallina ha un tiro fisicamente raggiungibile verso le buche.");
             }
         }
 };

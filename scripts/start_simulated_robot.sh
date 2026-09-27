@@ -14,9 +14,10 @@
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
 #simulazione
-open_rviz_when_using_mujoco="false"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
+open_rviz_when_using_mujoco="true"            #true se vuoi aprire anche RViz quando usi MuJoCo, false se vuoi aprire solo MuJoCo
 
 #scena e detection
+graphical_input_scene="true"                   #true se vuoi usare la scena grafica per posizionare le palline, false se vuoi usare il file di config scritto a mano (fake camera)
 use_vision_node_for_mujoco="true"              #(*) true se vuoi usare il nodo di vision che fa detection della telecamera di mujoco, false se vuoi usare la scena fake con le palline già posizionate (fake camera)
 numero_campioni_detection_biliardo=10         #(*) numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera di mujoco (utile solo se true camera di mujoco)
 start_image_view="false"                       #(*) true se vuoi avviare image_view per visualizzare il feed della camera, false se non vuoi avviarlo 
@@ -59,24 +60,45 @@ fi
 # ------------------------------------------------
 
 
+
+
+
+# ================================================
+# AVVIO INTERFACCIA GRAFICA PER PIAZZARE PALLINE
+# ================================================
+#se false, legge il file di config, puoi scriverlo a mano (fake_camera_config.py)
+FAKE_CAMERA_CONFIG_DIR="${WS_DIR}/src/camera_perception/fake_camera/config"
+
+if [[ "$graphical_input_scene" == "true" ]]; then
+    # Avvio dell'interfaccia grafica per la configurazione della scena
+    echo "Avvio dell'interfaccia grafica per la configurazione della scena..."
+    python3 ${FAKE_CAMERA_CONFIG_DIR}/graphical_config_generator.py
+    echo -e "Configurazione della scena completata.\n"
+fi
+
+
 # ================================================
 # AVVIO SIMULATORI + MOVEIT
 # ================================================
 echo "========================================"
 echo "      CONFIGURAZIONE AVVIO ROS 2        "
 echo "========================================"
-read -p "Vuoi usare MuJoCo? (s/n): " scelta_mujoco
 
+read -p "Vuoi usare MuJoCo? (s/n): " scelta_mujoco
 
 if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
 
     #------------------------------------------------
     # gestione del setup di MuJoCo
 
+    #variabile che userò nello script per gestire sim_time
+    scelta_mujoco_bool="true"
+    echo -e "\nUtilizzo di MuJoCo."
+
     # aggiornamento del plugin di MuJoCo nel file ur5e.ros2_control.xacro
     MOVEIT_CONFIG_DIR="${WS_DIR}/src/moveit_config/config"
 
-    echo "Aggiornamento del plugin MuJoCo nel file ur5e.ros2_control.xacro..."
+    echo -e "\nAggiornamento del plugin MuJoCo nel file ur5e.ros2_control.xacro..."
     python3 ${MOVEIT_CONFIG_DIR}/ros2_control_hardware_auto_switch.py mujoco
 
 
@@ -111,6 +133,9 @@ else
 
     #------------------------------------------------
     # gestione del setup di Fake Hardware
+
+    #variabile che userò nello script per gestire sim_time
+    scelta_mujoco_bool="false"
 
     # aggiornamento del plugin di MockHardware nel file ur5e.ros2_control.xacro
     MOVEIT_CONFIG_DIR="${WS_DIR}/src/moveit_config/config"
@@ -183,7 +208,8 @@ fi
 echo "Avvio Scene Builder..."
 gnome-terminal --tab --title="Scene Builder" -- bash -c \
                     "source ${INSTALL_SETUP_BASH} && \
-                    ros2 run scene_description scene_builder; \
+                    ros2 run scene_description scene_builder --ros-args \
+                        -p use_sim_time:=${scelta_mujoco_bool}; \
                     exec bash"
 
 
@@ -229,14 +255,16 @@ if [[ "$execute_shot" == "true" ]]; then
             echo "Avvio Nodo di pubblicazione cartesiana..."
             gnome-terminal --tab --title="Cartesian Pose Publisher TCP" -- bash -c \
                            "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_pose_pub.launch.py; \
+                           ros2 launch logging_nodes cartesian_pose_pub.launch.py \
+                               use_sim_time:=${scelta_mujoco_bool}; \
                            exec bash"
 
 
             echo "Avvio Nodo di pubblicazione twist..."
             gnome-terminal --tab --title="Cartesian Twist Publisher TCP" -- bash -c \
                            "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_twist_pub.launch.py; \
+                           ros2 launch logging_nodes cartesian_twist_pub.launch.py \
+                               use_sim_time:=${scelta_mujoco_bool}; \
                            exec bash"
         fi
 
@@ -250,7 +278,8 @@ if [[ "$execute_shot" == "true" ]]; then
             gnome-terminal --tab --title="Logging nodes" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
                         ros2 launch logging_nodes bag_writer.launch.py \
-                                test_title:='${only_essential_logging_folder}' ; \
+                                test_title:='${only_essential_logging_folder}' \
+                                use_sim_time:=${scelta_mujoco_bool}; \
                             exec bash"
 
             # ------------------------------------------------
@@ -301,7 +330,7 @@ if [[ "$execute_shot" == "true" ]]; then
     fi
 
     # Aggiungo il parametro use_sim_time se sto usando MuJoCo
-    if [[ "$scelta_mujoco" =~ ^[sS][iI]?$ ]]; then
+    if [[ "$scelta_mujoco_bool" == "true"  ]]; then
         NODE_ARGS="${NODE_ARGS} -p use_sim_time:=true"
     fi
 
@@ -325,14 +354,16 @@ if [[ "$execute_shot" == "true" ]]; then
         gnome-terminal --tab --title="Game Engine Reale" -- bash -c \
                        "source ${INSTALL_SETUP_BASH} && \
                        ros2 run game_engine game_engine --ros-args \
-                           --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; \
+                           --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml \
+                           -p use_sim_time:=${scelta_mujoco_bool}; \
                        exec bash"
     else
         echo "Avvio Fake Game Engine..."
         gnome-terminal --tab --title="Fake Game Engine" -- bash -c \
                         "source ${INSTALL_SETUP_BASH} && \
                         ros2 run game_engine fake_game_engine --ros-args \
-                            --params-file ${GAME_ENGINE_CONFIG_DIR}/game_engine_params.yaml; \
+                            --params-file ${GAME_ENGINE_CONFIG_DIR}/fake_game_engine_params.yaml \
+                            -p use_sim_time:=${scelta_mujoco_bool}; \
                         exec bash"
         
     fi
