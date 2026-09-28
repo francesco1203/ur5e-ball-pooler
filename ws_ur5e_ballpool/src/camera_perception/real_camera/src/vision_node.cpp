@@ -1,6 +1,7 @@
 // ============================================================
 //  vision_node.cpp - SOLUZIONE DEFINITIVA
 //  Calibrazione Totale, Nessuno Sprofondamento, Spigolo Sponda 3D
+//  INCLUSO: Esclusione palline imbucate (Depth) e Filtro Fantasmi HSV (Distanza)
 // ============================================================
 #include <new>
 #include <iterator>
@@ -40,12 +41,10 @@ class VisionNode : public rclcpp::Node
 public:
     VisionNode() : Node("vision_node")
     {
-
         // iperparametri
         this->declare_parameter<int>("required_samples", 200);
         required_samples_ = this->get_parameter("required_samples").as_int();
         
-
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -60,7 +59,7 @@ public:
         sub_info_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             CAMERA_INFO_TOPIC, rclcpp::SensorDataQoS(), std::bind(&VisionNode::info_callback, this, std::placeholders::_1));
 
-        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Inizio fase di calibrazione totale (X, Y, Z, Yaw) del tavolo...");
+        RCLCPP_INFO(this->get_logger(), "Vision Node avviato. Inizio calibrazione e tracciamento depth...");
     }
 
 private:
@@ -83,7 +82,7 @@ private:
     std::vector<double> y_measurements_;
     std::vector<double> yaw_measurements_;
 
-    int required_samples_;       // Variabile configurabile tramite ROS 2 parameters
+    int required_samples_;       
 
     // Geometria globale bloccata
     double current_table_x_ = 0.0;
@@ -233,13 +232,16 @@ private:
             cv::GaussianBlur(hsv_frame, blurred_hsv, cv::Size(5, 5), 0);
             double ball_min_area = 80.0; 
 
+            // LISTA DEI CENTRI GIA' VALIDATI IN QUESTO FRAME (per scartare i fantasmi)
+            std::vector<cv::Point2f> validated_ball_centers;
+
             cv::Mat mask1, mask2, red_mask;
             cv::inRange(blurred_hsv, cv::Scalar(0, 80, 20), cv::Scalar(10, 255, 255), mask1);
             cv::inRange(blurred_hsv, cv::Scalar(170, 80, 20), cv::Scalar(180, 255, 255), mask2);
             red_mask = mask1 | mask2;
             cv::dilate(red_mask, red_mask, dilate_kernel);
             cv::morphologyEx(red_mask, red_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(red_mask, REALTIME_PREFIX+RED_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(red_mask, REALTIME_PREFIX+RED_SOLID_BALL_FRAME, ball_min_area, img_stamp, validated_ball_centers);
 
             cv::Mat orange_mask, red_inv;
             cv::inRange(blurred_hsv, cv::Scalar(10, 80, 20), cv::Scalar(35, 255, 255), orange_mask);
@@ -247,13 +249,13 @@ private:
             cv::bitwise_and(orange_mask, red_inv, orange_mask);
             cv::dilate(orange_mask, orange_mask, dilate_kernel);
             cv::morphologyEx(orange_mask, orange_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(orange_mask, REALTIME_PREFIX+YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(orange_mask, REALTIME_PREFIX+YELLOW_SOLID_BALL_FRAME, ball_min_area, img_stamp, validated_ball_centers);
 
             cv::Mat blue_mask;
             cv::inRange(blurred_hsv, cv::Scalar(100, 80, 20), cv::Scalar(130, 255, 255), blue_mask);
             cv::dilate(blue_mask, blue_mask, dilate_kernel);
             cv::morphologyEx(blue_mask, blue_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(blue_mask, REALTIME_PREFIX+BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(blue_mask, REALTIME_PREFIX+BLUE_SOLID_BALL_FRAME, ball_min_area, img_stamp, validated_ball_centers);
 
             cv::Mat white_mask, all_colors_inv;
             cv::inRange(blurred_hsv, cv::Scalar(0, 0, 130), cv::Scalar(180, 50, 255), white_mask);
@@ -262,13 +264,14 @@ private:
             cv::bitwise_and(white_mask, all_colors_inv, white_mask);
             cv::dilate(white_mask, white_mask, dilate_kernel);
             cv::morphologyEx(white_mask, white_mask, cv::MORPH_CLOSE, kernel);
-            process_and_publish_ball(white_mask, REALTIME_PREFIX+WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp);
+            process_and_publish_ball(white_mask, REALTIME_PREFIX+WHITE_SOLID_BALL_FRAME, ball_min_area, img_stamp, validated_ball_centers);
 
             publish_rviz_markers(img_stamp);
         }
     }
 
-    void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, rclcpp::Time stamp)
+    void process_and_publish_ball(const cv::Mat& mask, const std::string& frame_name, double min_area, 
+                                  rclcpp::Time stamp, std::vector<cv::Point2f>& validated_centers)
     {
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
@@ -289,11 +292,49 @@ private:
             double u = m.m10 / m.m00;
             double v = m.m01 / m.m00;
 
-            double z_ball_center = current_table_z_ - BALL_RADIUS; 
+            // =======================================================
+            // 1. LETTURA PROFONDITÀ (DEPTH) PER SCARTO PALLINE IMBUCATE
+            // =======================================================
+            float live_z = get_average_depth(static_cast<int>(u), static_cast<int>(v));
+            
+            if (live_z <= 0.1f) return; 
 
+            double threshold_z = current_table_z_ - (BALL_RADIUS * 0.5); 
+            
+            if (live_z > threshold_z) {
+                return; // Pallina sprofondata
+            }
+
+            // Calcolo coordinate 3D finali
+            double z_ball_center = current_table_z_ - BALL_RADIUS; 
             double x_c = (u - cx_) * z_ball_center / fx_;
             double y_c = (v - cy_) * z_ball_center / fy_;
             
+            cv::Point2f current_xy(x_c, y_c);
+
+            // =======================================================
+            // 2. FILTRO ANTI-FANTASMA (Culling per vicinanza fisica)
+            // =======================================================
+            // Se questa pallina (es. Gialla) è fisicamente troppo vicina a una già trovata
+            // (es. Rossa), sappiamo che è fisicamente impossibile perché due palline non
+            // possono compenetrarsi. E' sicuramente un riflesso/fantasma.
+            for (const auto& validated_xy : validated_centers) {
+                double dist = cv::norm(current_xy - validated_xy);
+                // Due palline toccanti distano 2 * BALL_RADIUS.
+                // Se la distanza è inferiore a 1.2 * BALL_RADIUS (per avere un po' di margine), 
+                // sono la STESSA pallina (una è il riflesso dell'altra).
+                if (dist < (BALL_RADIUS * 1.2)) {
+                    // E' un falso positivo! Interrompiamo la pubblicazione.
+                    return;
+                }
+            }
+            
+            // La pallina è valida e in una posizione unica. La salviamo nella lista.
+            validated_centers.push_back(current_xy);
+
+            // =======================================================
+            // 3. PUBBLICAZIONE TF
+            // =======================================================
             geometry_msgs::msg::TransformStamped t;
             t.header.stamp = stamp; 
             t.header.frame_id = CAMERA_FRAME;
@@ -341,32 +382,23 @@ private:
         t_out.header.frame_id = CAMERA_FRAME;
         t_out.child_frame_id = child_frame;
 
-        // Le coordinate spaziali misurate dalla visione rimangono intatte
         t_out.transform.translation.x = x;
         t_out.transform.translation.y = y;
         t_out.transform.translation.z = z;
 
         try {
-            // 1. Chiediamo all'albero TF l'orientamento LIVE di "world" rispetto a "CAMERA_FRAME"
-            // (La sintassi lookupTransform è: target_frame, source_frame)
             geometry_msgs::msg::TransformStamped t_world_in_cam = 
-                tf_buffer_->lookupTransform(CAMERA_FRAME, WORLD_FRAME, tf2::TimePointZero);
+                tf_buffer_->lookupTransform(CAMERA_FRAME, "world", tf2::TimePointZero);
 
-            // Estraiamo il quaternione che descrive l'orientamento di World rispetto a Camera
             tf2::Quaternion q_world_in_cam;
             tf2::fromMsg(t_world_in_cam.transform.rotation, q_world_in_cam);
 
-            // 2. Definiamo l'orientamento desiderato del tavolo *rispetto al World* 
-            // (Assi paralleli al world, ma ruotati di 180° (M_PI) su Z)
             tf2::Quaternion q_table_in_world;
             q_table_in_world.setRPY(0.0, 0.0, M_PI - yaw_rad);
 
-            // 3. Calcoliamo la rotazione finale del tavolo rispetto alla Camera
-            // Moltiplicando l'orientamento del world (nella camera) per l'orientamento del tavolo (nel world)
             tf2::Quaternion q_final = q_world_in_cam * q_table_in_world;
             q_final.normalize();
 
-            // Assegniamo la rotazione perfetta
             t_out.transform.rotation.x = q_final.x();
             t_out.transform.rotation.y = q_final.y();
             t_out.transform.rotation.z = q_final.z();
@@ -375,7 +407,6 @@ private:
             tf_broadcaster_->sendTransform(t_out);
 
         } catch (const tf2::TransformException & ex) {
-            // Se nei primissimi frame l'albero TF non è ancora pronto, logga e non fa crashare tutto
             RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, 
                 "In attesa dell'albero TF per allineare il tavolo a world: %s", ex.what());
         }
@@ -392,7 +423,6 @@ private:
         double corner_inset_y = 0.02; 
         double mid_inset_y = 0.0125;    
 
-        // 1. PUBBLICA LE 6 BUCHE (Ancorate al panno, Z=0 locale)
         struct HoleDef { std::string name; double x; double y; };
         std::vector<HoleDef> holes = {
             {HOLE_TOP_LEFT_FRAME,     -half_l + corner_inset_x, -half_w + corner_inset_y},
@@ -415,18 +445,14 @@ private:
             tf_broadcaster_->sendTransform(t_hole);
         }
 
-
-        // 2. PUBBLICA I VERTICI ESTERNI (utili per debug, calibrazione e visualizzazione in RViz)
         {
             geometry_msgs::msg::TransformStamped t_corner;
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
             t_corner.child_frame_id = CORNER_BOTTOM_RIGHT_FRAME;
-            
             t_corner.transform.translation.x = POOL_TABLE_LENGTH / 2;
             t_corner.transform.translation.y = POOL_TABLE_WIDTH / 2 ;
-            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; //1.5cm
-            
+            t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
@@ -436,11 +462,9 @@ private:
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
             t_corner.child_frame_id = CORNER_TOP_RIGHT_FRAME;
-        
             t_corner.transform.translation.x = - POOL_TABLE_LENGTH / 2;
             t_corner.transform.translation.y = POOL_TABLE_WIDTH / 2 ;
             t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
-            
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
@@ -450,11 +474,9 @@ private:
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
             t_corner.child_frame_id = CORNER_TOP_LEFT_FRAME;
-            
             t_corner.transform.translation.x = - POOL_TABLE_LENGTH / 2;
             t_corner.transform.translation.y = - POOL_TABLE_WIDTH / 2 ;
             t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
-            
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
@@ -464,11 +486,9 @@ private:
             t_corner.header.stamp = stamp;
             t_corner.header.frame_id = BILLIARD_TABLE_FRAME; 
             t_corner.child_frame_id = CORNER_BOTTOM_LEFT_FRAME;
-            
             t_corner.transform.translation.x = POOL_TABLE_LENGTH / 2;
             t_corner.transform.translation.y = - POOL_TABLE_WIDTH / 2 ;
             t_corner.transform.translation.z = POOL_TABLE_HEIGHT - POOL_TABLE_FIELD_HEIGHT; 
-            
             t_corner.transform.rotation.w = 1.0;
             tf_broadcaster_->sendTransform(t_corner);
         }
@@ -535,12 +555,11 @@ private:
         corner_marker.id = 50;
         corner_marker.type = visualization_msgs::msg::Marker::SPHERE;
         corner_marker.action = visualization_msgs::msg::Marker::ADD;
-        // Z è 0 locale perché la TF sottostante "bottom_right_corner_frame" è già stata alzata di 1.5 cm dal panno
         corner_marker.pose.position.x = 0.0;
         corner_marker.pose.position.y = 0.0;
         corner_marker.pose.position.z = 0.0; 
         corner_marker.pose.orientation.w = 1.0;
-        corner_marker.scale.x = 0.02; // Sferetta da 2 cm 
+        corner_marker.scale.x = 0.02; 
         corner_marker.scale.y = 0.02;
         corner_marker.scale.z = 0.02;
         corner_marker.color.r = 1.0; corner_marker.color.g = 0.0; corner_marker.color.b = 1.0; corner_marker.color.a = 1.0;

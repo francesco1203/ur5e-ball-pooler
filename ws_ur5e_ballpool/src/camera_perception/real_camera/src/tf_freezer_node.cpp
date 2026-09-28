@@ -66,22 +66,27 @@ private:
         std::string frozen_balls_list = "";
         int success_count = 0;
 
+        // Salviamo il tempo attuale in cui è arrivata la richiesta
+        rclcpp::Time now = this->get_clock()->now();
+
         for (const auto& ball_name : ball_frames_)
         {
             std::string realtime_frame = REALTIME_PREFIX + ball_name;
             geometry_msgs::msg::TransformStamped transform_stamped;
 
             try {
-                // Tenta di leggere la posizione corrente
+                // Modifica fondamentale: chiediamo la TF al tempo 'now'
+                // Se la TF non viene pubblicata da un po', questa chiamata 
+                // fallirà (dopo il timeout di 0.5s) e lancerà l'eccezione!
                 transform_stamped = tf_buffer_->lookupTransform(
                     reference_frame_, 
                     realtime_frame, 
-                    rclcpp::Time(0), 
+                    now, 
                     rclcpp::Duration::from_seconds(0.5) 
                 );
 
                 transform_stamped.header.frame_id = reference_frame_;
-                transform_stamped.header.stamp = this->get_clock()->now();
+                transform_stamped.header.stamp = now;
                 transform_stamped.child_frame_id = ball_name;
 
                 static_transforms.push_back(transform_stamped);
@@ -91,12 +96,12 @@ private:
                 RCLCPP_INFO(this->get_logger(), "Congelata TF: [%s]", ball_name.c_str());
 
             } catch (const tf2::TransformException & ex) {
-                // PALLINA NON TROVATA -> CIMITERO
-                RCLCPP_WARN(this->get_logger(), "Pallina %s non trovata. Spostata a Z = -10.0 (Cimitero).", ball_name.c_str());
+                // Ora il blocco catch scatterà non appena la TF dinamica smette di essere pubblicata
+                RCLCPP_WARN(this->get_logger(), "Pallina %s non trovata/imbucata. Spostata a Z = -10.0 (Cimitero).", ball_name.c_str());
                 
                 geometry_msgs::msg::TransformStamped graveyard_tf;
                 graveyard_tf.header.frame_id = reference_frame_;
-                graveyard_tf.header.stamp = this->get_clock()->now();
+                graveyard_tf.header.stamp = now;
                 graveyard_tf.child_frame_id = ball_name;
                 
                 graveyard_tf.transform.translation.x = 0.0;
@@ -112,8 +117,6 @@ private:
             }
         }
 
-        // Pubblica SEMPRE le 4 palline: quelle attuali al loro posto, quelle assenti sotto terra.
-        // Questo forza il TF tree a sovrascrivere i vecchi valori.
         static_broadcaster_->sendTransform(static_transforms);
 
         if (success_count > 0) {
