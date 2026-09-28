@@ -83,10 +83,10 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     //-----------------------------------------------------------------------
     /*LOGGING AND DEBUG PARAMETERS from task_param.yaml*/ 
     this->declare_parameter<bool>("log_ruckig_trajectory", true);
-    this->declare_parameter<std::string>("csv_ruckig_trajectory_path", "data/csv/ruckig_logging/ruckig_trajectory_log.csv");
+    this->declare_parameter<std::string>("csv_ruckig_trajectory_folder_path", "data/csv/ruckig_logging");
 
     log_ruckig_trajectory_ = this->get_parameter("log_ruckig_trajectory").as_bool();
-    csv_ruckig_trajectory_path_ = this->get_parameter("csv_ruckig_trajectory_path").as_string();
+    csv_ruckig_trajectory_folder_path_ = this->get_parameter("csv_ruckig_trajectory_folder_path").as_string();
     //-----------------------------------------------------------------------
     
 
@@ -632,8 +632,20 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
     double v = output.new_velocity[0];          // Velocità corrente lungo la linea (metri/secondo)
     double a = output.new_acceleration[0];      // Accelerazione corrente lungo la linea (metri/secondo^2)
 
-    //se è richiesto il log di ruckig
+    // Generazione del timestamp nel formato YYYYMMDD_HHMMSS
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss_time;
+    ss_time << std::put_time(std::localtime(&now_c), "%Y%m%d_%H%M%S");
+    std::string timestamp = ss_time.str();
+
+    // se è richiesto il log di ruckig
     std::ofstream ruckig_log_file;
+    // Aggiungo un doppio underscore prima del timestamp per uniformità con l'esempio bag
+    std::string csv_ruckig_trajectory_path_ = csv_ruckig_trajectory_folder_path_ + 
+                                              "/ruckig_trajectory_log_" + 
+                                              target_ball_color_ + "__" + 
+                                              timestamp + ".csv";
 
     if (log_ruckig_trajectory_) {    
         ruckig_log_file.open(csv_ruckig_trajectory_path_);

@@ -11,8 +11,8 @@ task_node:
 
     #ruckig shot generated trajectory  logging
     log_ruckig_trajectory: true                                                      # attiva log in file della traiettoria calcolata da Ruckig (in moveCartesianPathAsymmTriangle, tiro)
-    csv_ruckig_trajectory_path: "data/csv/ruckig_logging/ruckig_trajectory_log.csv"  # percorso del file csv di log della traiettoria calcolata da Ruckig
-
+    csv_ruckig_trajectory_folder_path: "data/csv/ruckig_logging"      # percorso del file csv di log della traiettoria calcolata da Ruckig
+  
     #type logging for only essential
     joints_logging_enabled: true
     cartesian_logging_enabled: true

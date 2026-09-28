@@ -170,10 +170,10 @@ if [[ "$use_vision_node_for_mujoco" == "true" && "$scelta_mujoco" =~ ^[sS][iI]?$
     if [ "$start_image_view" == "true" ]; then
         echo "Avvio image_view..."
         gnome-terminal --tab --title="image_view" -- bash -c \
-                            "source ${INSTALL_SETUP_BASH} && \
-                            ros2 run image_view image_view --ros-args -r \
-                                image:=/camera/camera/color/image_raw; \
-                            exec bash"
+                        "source ${INSTALL_SETUP_BASH} && \
+                        ros2 run image_view image_view --ros-args -r \
+                            image:=/camera/camera/color/image_raw; \
+                        exec bash"
     fi
    
     #avvio nodo di visione che effettua la detection e la perception

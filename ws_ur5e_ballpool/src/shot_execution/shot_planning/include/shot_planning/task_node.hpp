@@ -22,6 +22,9 @@
 #include <limits>
 #include <mutex>
 #include <condition_variable>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 #include <rclcpp/rclcpp.hpp>
 
@@ -191,7 +194,7 @@ private:
     double max_cartesian_jerk_;
                                                              
     bool log_ruckig_trajectory_;                         
-    std::string csv_ruckig_trajectory_path_;  
+    std::string csv_ruckig_trajectory_folder_path_;  
 
     std::mutex params_mutex_;
     std::condition_variable params_cv_;
