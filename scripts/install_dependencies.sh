@@ -101,6 +101,7 @@ if [ "$install_realsense_camera" = true ]; then
     sudo apt install -y ros-jazzy-realsense2-camera
     sudo apt install -y ros-jazzy-realsense2-description
     sudo apt install -y ros-jazzy-cv-bridge ros-jazzy-vision-opencv libopencv-dev  #detection and image processing
+    sudo apt install -y ros-jazzy-image-transport-plugins ros-jazzy-compressed-image-transport ros-jazzy-compressed-depth-image-transport  #image transport compression 
 fi
 
 # 5.

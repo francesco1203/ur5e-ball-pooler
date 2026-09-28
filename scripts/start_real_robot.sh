@@ -39,7 +39,8 @@ only_essential_logging="true"
 only_essential_logging_folder="only_essential_logging"        
 
 only_camera_logging="false"                                   
-only_camera_logging_folder="only_camera_logging"              
+only_camera_logging_folder="only_camera_logging"  
+compressed_streaming="true"            
 
 brutal_logging="false"                                        
 brutal_logging_folder="brutal_logging"                        
@@ -265,20 +266,47 @@ if [[ "$execute_shot" == "true" ]]; then
             # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
 
 
-            BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}"
+            if [[ "$compressed_streaming" == "true" ]]; then
 
-            #cancello la cartella di logging precedente se esiste, così da non avere conflitti
-            rm -rf "${BAGDATA_DIR_CAMERA}"  
+                BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}_compressed"
 
-            # solo logging della camera
-            echo "ros2 bag record dei topic della camera..."
-            gnome-terminal --tab --title="ros2bag camera record" -- \
-                bash -c "source \"${INSTALL_SETUP_BASH}\" && \
-                ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
-                    /camera/camera/color/camera_info \
-                    /camera/camera/color/image_raw \
-                    /camera/camera/aligned_depth_to_color/image_raw; \
-                exec bash"
+
+                #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+                rm -rf "${BAGDATA_DIR_CAMERA}"  
+
+                # solo logging della camera
+                echo "ros2 bag record dei topic della camera (raw: no compression)..."
+                gnome-terminal --tab --title="ros2bag camera record" -- \
+                    bash -c "source \"${INSTALL_SETUP_BASH}\" && \
+                    ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
+                        /camera/camera/color/camera_info \
+                        /camera/camera/aligned_depth_to_color/camera_info \
+                        /camera/camera/color/image_raw/compressed \
+                        /camera/camera/aligned_depth_to_color/image_raw/compressedDepth \
+                        /camera/camera/extrinsics/depth_to_color; \
+                    exec bash"
+                    
+            else
+
+                BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}_raw"
+
+                #cancello la cartella di logging precedente se esiste, così da non avere conflitti
+                rm -rf "${BAGDATA_DIR_CAMERA}"  
+
+                # solo logging della camera
+                echo "ros2 bag record dei topic della camera (raw: no compression)..."
+                gnome-terminal --tab --title="ros2bag camera record" -- \
+                    bash -c "source \"${INSTALL_SETUP_BASH}\" && \
+                    ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
+                        /camera/camera/color/camera_info \
+                        /camera/camera/aligned_depth_to_color/camera_info \
+                        /camera/camera/color/image_raw \
+                        /camera/camera/aligned_depth_to_color/image_raw \
+                        /camera/camera/extrinsics/depth_to_color; \
+                    exec bash"
+            fi
+
+
 
             # ------------------------------------------------
         else
@@ -325,7 +353,7 @@ if [[ "$execute_shot" == "true" ]]; then
         if [[ "$brutal_logging" == "true" ]]; then
     
             # ------------------------------------------------
-            # logging di tutti i topic, durante l'esecuzione di tutto il programma
+            # logging di tutti i topic importanti, inclusa la camera (compressed)
 
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
 
@@ -335,7 +363,24 @@ if [[ "$execute_shot" == "true" ]]; then
             echo "Avvio ros2 bag record manuale..."
             gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
                             "source ${INSTALL_SETUP_BASH} && \
-                            ros2 bag record -o ${BAGDATA_DIR_BRUTAL} -a; \
+                            ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
+                                /camera/camera/color/camera_info \
+                                /camera/camera/aligned_depth_to_color/camera_info \
+                                /camera/camera/color/image_raw/compressed \
+                                /camera/camera/aligned_depth_to_color/image_raw/compressedDepth \
+                                /camera/camera/extrinsics/depth_to_color \
+                                /collision_object \
+                                /force_torque_sensor_broadcaster/wrench \
+                                /io_and_status_controller/safety_mode \
+                                /joint_states \
+                                /robot_description \
+                                /rosout \
+                                /scaled_joint_trajectory_controller/joint_trajectory \
+                                /scaled_joint_trajectory_controller/controller_state \
+                                /tcp_pose_broadcaster/pose \
+                                /tcp_twist \
+                                /tf \
+                                /tf_static; \
                             exec bash"
 
         fi
