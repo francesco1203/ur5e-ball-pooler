@@ -14,6 +14,8 @@
    const std::string CARTESIAN_POSE_TOPIC = "/tcp_pose_broadcaster/pose";              // topic per logging della posa cartesiana del robot (geometry_msgs/PoseStamped)
    const std::string CARTESIAN_TWIST_TOPIC = "/tcp_twist";                           // topic per logging della velocità cartesiana del robot (geometry_msgs/TwistStamped)                         
    const std::string CONTROLLER_STATE_TOPIC = "/scaled_joint_trajectory_controller/controller_state";       // topic per lo stato del controller
+   const std::string WRENCH_TOPIC = "/force_torque_sensor_broadcaster/wrench";        // topic per logging della forza/coppia misurata dal sensore (geometry_msgs/WrenchStamped)
+   const std::string WRENCH_FILTERED_TOPIC = "/force_torque_sensor_broadcaster/wrench_filtered"; // topic per logging della forza/coppia filtrata dal sensore (geometry_msgs/WrenchStamped)
 
    //camera topics (da real_sense_camera)
    const std::string RGB_IMAGE_TOPIC = "/camera/camera/color/image_raw";                                // topic per l'immagine RGB della camera

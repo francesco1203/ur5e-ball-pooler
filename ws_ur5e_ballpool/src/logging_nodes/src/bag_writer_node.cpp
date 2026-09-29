@@ -14,7 +14,8 @@
 
 // tipi di messaggio 
 #include <geometry_msgs/msg/pose_stamped.hpp> 
-#include <geometry_msgs/msg/twist_stamped.hpp> // <-- AGGIUNTO
+#include <geometry_msgs/msg/twist_stamped.hpp> 
+#include <geometry_msgs/msg/wrench_stamped.hpp> // <-- AGGIUNTO per forza/coppia
 #include <sensor_msgs/msg/joint_state.hpp> 
 #include "control_msgs/msg/joint_trajectory_controller_state.hpp" 
 
@@ -22,15 +23,13 @@
 #include <mutex> 
 #include <memory> 
 
-// NOTA: Se non hai già definito questa macro nel tuo ros2_architecture.hpp, 
-// decommenta la riga seguente o aggiungila al tuo file di header.
-// #define CARTESIAN_TWIST_TOPIC "/tcp_velocity"
 
 class BagWriterNode : public rclcpp::Node { 
     public: 
         /*ALIAS*/ 
         using PoseStampedMsg = geometry_msgs::msg::PoseStamped; 
         using TwistStampedMsg = geometry_msgs::msg::TwistStamped; 
+        using WrenchStampedMsg = geometry_msgs::msg::WrenchStamped; // <-- AGGIUNTO
         using JointStateMsg = sensor_msgs::msg::JointState; 
         using ControllerStateMsg = control_msgs::msg::JointTrajectoryControllerState; 
 
@@ -47,30 +46,28 @@ class BagWriterNode : public rclcpp::Node {
             
             // Inizializzazione Sottoscrizioni 
             cartesian_pose_sub_ = this->create_subscription<PoseStampedMsg>( 
-                CARTESIAN_POSE_TOPIC, 10, std::bind(&BagWriterNode::cartesian_pose_cb, this, std::placeholders::_1)); // Rinominata callback
+                CARTESIAN_POSE_TOPIC, 10, std::bind(&BagWriterNode::cartesian_pose_cb, this, std::placeholders::_1)); 
             
             cartesian_twist_sub_ = this->create_subscription<TwistStampedMsg>( 
                 CARTESIAN_TWIST_TOPIC, 10, std::bind(&BagWriterNode::cartesian_twist_cb, this, std::placeholders::_1)); 
 
             joint_state_sub_ = this->create_subscription<JointStateMsg>( 
                 JOINT_STATES_TOPIC, 10, std::bind(&BagWriterNode::joint_cb, this, std::placeholders::_1)); 
-                 
-            //NOTA: in joint_state ci sono anche le informazioni di torque, ma solo se sto usando il robot reale
         
             controller_sub_ = this->create_subscription<ControllerStateMsg>( 
                 CONTROLLER_STATE_TOPIC, 10, std::bind(&BagWriterNode::controller_cb, this, std::placeholders::_1)); 
 
-
-            //TODO: aggiungere sottoscrizione, topic per sensore di forza/coppia in flangia
+            // <-- AGGIUNTO: Sottoscrizioni ai topic Wrench
+            wrench_sub_ = this->create_subscription<WrenchStampedMsg>(
+                WRENCH_TOPIC, 10, std::bind(&BagWriterNode::wrench_cb, this, std::placeholders::_1));
             
-
-            
+            wrench_filtered_sub_ = this->create_subscription<WrenchStampedMsg>(
+                WRENCH_FILTERED_TOPIC, 10, std::bind(&BagWriterNode::wrench_filtered_cb, this, std::placeholders::_1));
 
             //Inizializzazione Servizio 
             log_service_ = this->create_service<LogOnFileSrv>( 
                 LOG_ON_OFF_SERVICE, 
                 std::bind(&BagWriterNode::handle_logging_request, this, std::placeholders::_1, std::placeholders::_2)); 
-
 
             // Inizializzazione Writer 
             writer_ = std::make_unique<rosbag2_cpp::Writer>(); 
@@ -87,12 +84,15 @@ class BagWriterNode : public rclcpp::Node {
         bool log_cartesian_ = false; 
         bool log_joint_states_ = false;
         bool log_controller_ = false; 
+        bool log_wrench_ = false; // <-- AGGIUNTO
 
         rclcpp::Service<LogOnFileSrv>::SharedPtr log_service_; 
         rclcpp::Subscription<PoseStampedMsg>::SharedPtr cartesian_pose_sub_; 
         rclcpp::Subscription<TwistStampedMsg>::SharedPtr cartesian_twist_sub_;
         rclcpp::Subscription<JointStateMsg>::SharedPtr joint_state_sub_; 
         rclcpp::Subscription<ControllerStateMsg>::SharedPtr controller_sub_; 
+        rclcpp::Subscription<WrenchStampedMsg>::SharedPtr wrench_sub_; // <-- AGGIUNTO
+        rclcpp::Subscription<WrenchStampedMsg>::SharedPtr wrench_filtered_sub_; // <-- AGGIUNTO
 
         /** CALLBACK DEL SERVIZIO --- */ 
         void handle_logging_request( 
@@ -101,9 +101,11 @@ class BagWriterNode : public rclcpp::Node {
         { 
             std::lock_guard<std::mutex> lock(writer_mutex_); 
 
+            // <-- AGGIUNTO req->enable_wrench_logging 
             bool is_enabling = req->enable_cartesian_logging || 
                                req->enable_joint_logging || 
-                               req->enable_controller_logging; 
+                               req->enable_controller_logging ||
+                               req->enable_wrench_logging; 
 
             if (!is_enabling) {
                 if (is_recording_) { 
@@ -161,7 +163,7 @@ class BagWriterNode : public rclcpp::Node {
                 // Registrazione dinamica dei topic selezionati 
                 if (req->enable_cartesian_logging) { 
                     register_topic(CARTESIAN_POSE_TOPIC, "geometry_msgs/msg/PoseStamped"); 
-                    register_topic(CARTESIAN_TWIST_TOPIC, "geometry_msgs/msg/TwistStamped"); // <-- AGGIUNTO
+                    register_topic(CARTESIAN_TWIST_TOPIC, "geometry_msgs/msg/TwistStamped"); 
                 } 
                 if (req->enable_joint_logging) { 
                     register_topic(JOINT_STATES_TOPIC, "sensor_msgs/msg/JointState"); 
@@ -169,11 +171,18 @@ class BagWriterNode : public rclcpp::Node {
                 if (req->enable_controller_logging) { 
                     register_topic(CONTROLLER_STATE_TOPIC, "control_msgs/msg/JointTrajectoryControllerState"); 
                 } 
+                
+                // <-- AGGIUNTO: Registrazione dinamica topic Wrench
+                if (req->enable_wrench_logging) {
+                    register_topic(WRENCH_TOPIC, "geometry_msgs/msg/WrenchStamped");
+                    register_topic(WRENCH_FILTERED_TOPIC, "geometry_msgs/msg/WrenchStamped");
+                }
 
                 // Salvo i flag in locale 
                 log_cartesian_ = req->enable_cartesian_logging; 
                 log_joint_states_ = req->enable_joint_logging; 
                 log_controller_ = req->enable_controller_logging; 
+                log_wrench_ = req->enable_wrench_logging; // <-- AGGIUNTO
                  
                 is_recording_ = true; 
                 res->logging_state_on = true; 
@@ -218,6 +227,22 @@ class BagWriterNode : public rclcpp::Node {
                 writer_->write(*msg, CONTROLLER_STATE_TOPIC, this->now()); 
             } 
         } 
+
+        // <-- AGGIUNTO: Callback Wrench
+        void wrench_cb(const WrenchStampedMsg::SharedPtr msg) {
+            std::lock_guard<std::mutex> lock(writer_mutex_);
+            if (is_recording_ && log_wrench_) {
+                writer_->write(*msg, WRENCH_TOPIC, this->now());
+            }
+        }
+
+        // <-- AGGIUNTO: Callback Wrench Filtered
+        void wrench_filtered_cb(const WrenchStampedMsg::SharedPtr msg) {
+            std::lock_guard<std::mutex> lock(writer_mutex_);
+            if (is_recording_ && log_wrench_) {
+                writer_->write(*msg, WRENCH_FILTERED_TOPIC, this->now());
+            }
+        }
 }; 
 
 int main(int argc, char **argv) { 

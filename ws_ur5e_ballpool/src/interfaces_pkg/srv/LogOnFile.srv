@@ -3,5 +3,6 @@ string filename                     #vuoto se voglio disattivare il logging, alt
 bool enable_joint_logging
 bool enable_cartesian_logging
 bool enable_controller_logging
+bool enable_wrench_logging
 ---
 bool logging_state_on

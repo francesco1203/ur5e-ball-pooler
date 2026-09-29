@@ -951,10 +951,15 @@ bool TaskNode::checkRealtimeSceneIdentification(const std::string& reference_fra
 
 
 /*SERVIZI DI LOGGING DEI MOVIMENTI*/
-bool TaskNode::startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled)
+/*SERVIZI DI LOGGING DEI MOVIMENTI*/
+bool TaskNode::startLogging(const std::string& filename, 
+                            bool joint_logging_enabled, 
+                            bool cartesian_logging_enabled, 
+                            bool controller_logging_enabled,
+                            bool wrench_logging_enabled) // <-- AGGIUNTO NUOVO FLAG
 {
     RCLCPP_INFO(this->get_logger(), "Avvio logging...");
-    bool ok = send_logging_request(filename, joint_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+    bool ok = send_logging_request(filename, joint_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
     
     return ok;
 }
@@ -963,8 +968,8 @@ bool TaskNode::stopLogging()
 {
     RCLCPP_INFO(this->get_logger(), "Arresto logging...");
     
-    // Basta una stringa vuota per far arrestare il logging, senza dover specificare i parametri
-    bool ok = send_logging_request("", false, false, false);
+    // Basta una stringa vuota per far arrestare il logging, aggiungiamo il nuovo 'false'
+    bool ok = send_logging_request("", false, false, false, false); 
     
     return ok;
 }
@@ -1139,7 +1144,6 @@ void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
 }
 
 /*ALTRO DI UTILITIES*/
-
 // Funzione helper interna per chiamare il servizio. 
 // Se almeno uno dei flag è true, il logging viene attivato, altrimenti viene disattivato.
 //
@@ -1147,9 +1151,13 @@ void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
 //        joint_logging_enabled → true per abilitare il logging delle giunture
 //        cartesian_logging_enabled → true per abilitare il logging della traiettoria cartesiana
 //        controller_logging_enabled → true per abilitare il logging del controller
-
+//        wrench_logging_enabled → true per abilitare il logging della forza/coppia (wrench)
 // output: true se la richiesta è stata completata con successo, false altrimenti
-bool TaskNode::send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled)
+bool TaskNode::send_logging_request(const std::string& filename, 
+                                    bool joint_logging_enabled, 
+                                    bool cartesian_logging_enabled, 
+                                    bool controller_logging_enabled,
+                                    bool wrench_logging_enabled) // <-- AGGIUNTO NUOVO FLAG
 {
     // Aspettiamo che il servizio sia disponibile (max 1 secondo)
     if (!log_client_->wait_for_service(std::chrono::seconds(1))) {
@@ -1163,10 +1171,11 @@ bool TaskNode::send_logging_request(const std::string& filename, bool joint_logg
     request->enable_joint_logging = joint_logging_enabled;
     request->enable_cartesian_logging = cartesian_logging_enabled;
     request->enable_controller_logging = controller_logging_enabled;
+    request->enable_wrench_logging = wrench_logging_enabled; // <-- AGGIUNTO AL REQUEST
 
 
     // Deduciamo se stiamo chiedendo di accendere o spegnere il logging
-    bool is_enabling = joint_logging_enabled || cartesian_logging_enabled || controller_logging_enabled;
+    bool is_enabling = joint_logging_enabled || cartesian_logging_enabled || controller_logging_enabled || wrench_logging_enabled; // <-- AGGIUNTO ALLA LOGICA
 
     // Inviamo la richiesta in modo asincrono
     auto future = log_client_->async_send_request(request);
@@ -1187,6 +1196,7 @@ bool TaskNode::send_logging_request(const std::string& filename, bool joint_logg
         return false;
     }
 }
+
 
 // Funzione helper interna per chiamare servizi di tipo Trigger
 //

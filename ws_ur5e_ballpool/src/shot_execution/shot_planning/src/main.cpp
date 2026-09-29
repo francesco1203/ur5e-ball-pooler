@@ -91,10 +91,12 @@ int main(int argc, char* argv[])
     node->declare_parameter<bool>("joints_logging_enabled", false);
     node->declare_parameter<bool>("cartesian_logging_enabled", false);
     node->declare_parameter<bool>("controller_logging_enabled", false);
+    node->declare_parameter<bool>("wrench_logging_enabled", false); // <-- AGGIUNTO
 
     bool joints_logging_enabled = node->get_parameter("joints_logging_enabled").as_bool();
     bool cartesian_logging_enabled = node->get_parameter("cartesian_logging_enabled").as_bool();
     bool controller_logging_enabled = node->get_parameter("controller_logging_enabled").as_bool();
+    bool wrench_logging_enabled = node->get_parameter("wrench_logging_enabled").as_bool(); // <-- AGGIUNTO
 
     node->declare_parameter<bool>("phase_1_logging_enabled", false);    // andare in posa pre-approach
     node->declare_parameter<bool>("phase_2_logging_enabled", false);    // approach alla pallina
@@ -269,8 +271,8 @@ int main(int argc, char* argv[])
                 RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'pre_approach..");
             }
 
-            //logging
-            if(phase_1_logging_enabled) node->startLogging("preapproach_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+            //logging (AGGIUNTO wrench_logging_enabled)
+            if(phase_1_logging_enabled) node->startLogging("preapproach_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
             
 
             node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);    
@@ -310,8 +312,8 @@ int main(int argc, char* argv[])
                                             );
 
 
-            //logging
-            if(phase_2_logging_enabled) node->startLogging("approach_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+            //logging (AGGIUNTO wrench_logging_enabled)
+            if(phase_2_logging_enabled) node->startLogging("approach_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
             
             perc_success = node->moveCartesianPath(pos_pre_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                                         success_threshold_approach_); //soglia di successo 95%, perché voglio che ci arrivi
@@ -363,8 +365,8 @@ int main(int argc, char* argv[])
                                             desired_distance_from_ball_center * sin(impact_angle_rad) + offset_correction_center_z_
                                             );
 
-            //logging
-            if(phase_3_logging_enabled) node->startLogging("back_shot_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+            //logging (AGGIUNTO wrench_logging_enabled)
+            if(phase_3_logging_enabled) node->startLogging("back_shot_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
         
 
             perc_success = node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME, 
@@ -428,8 +430,8 @@ int main(int argc, char* argv[])
             node->disable_white_ball_collision();
 
             
-            //logging
-            if(phase_4_logging_enabled) node->startLogging("shot_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+            //logging (AGGIUNTO wrench_logging_enabled)
+            if(phase_4_logging_enabled) node->startLogging("shot_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
         
             shot_success = node->ExecuteShot(pos_arresto, Q_shot, WHITE_SOLID_BALL_FRAME, 
                                             impact_shot_velocity_,
@@ -470,8 +472,8 @@ int main(int argc, char* argv[])
                 //uso coordinate sferiche per calcolare la posizione in 3D di dove deve andare la punta dell'asta
                 Vector3d pos_back_shot = Vector3d(0, 0, 0 + elevation_escape_);
 
-                //logging
-                if(phase_5_logging_enabled) node->startLogging("get_high" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+                //logging (AGGIUNTO wrench_logging_enabled)
+                if(phase_5_logging_enabled) node->startLogging("get_high" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
 
                 node->moveCartesianPath(pos_back_shot, Q_shot, WHITE_SOLID_BALL_FRAME);
 
@@ -507,8 +509,8 @@ int main(int argc, char* argv[])
                 RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'away_from_table'..");
             }
 
-            //logging
-            if(phase_6_logging_enabled) node->startLogging("away_from_table_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled);
+            //logging (AGGIUNTO wrench_logging_enabled)
+            if(phase_6_logging_enabled) node->startLogging("away_from_table_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
             
             node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
 
