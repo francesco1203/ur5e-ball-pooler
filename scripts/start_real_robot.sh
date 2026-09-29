@@ -1,6 +1,7 @@
 #!/bin/bash
 
 
+
 #------------------------------------------------
 # DESCRIZIONE SCRIPT
 
@@ -25,7 +26,7 @@ robot_ip="${LAB_ROBOT_IP}"
 launch_robot_driver="true"                         
 
 #avvio camera IntelRealsense
-start_image_view="false"                    #visualizzatore di cosa vede la camera           
+start_image_view="true"                    #visualizzatore di cosa vede la camera           
 numero_campioni_detection_biliardo=50       #numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera
 
 #esecuzione tiro
@@ -40,10 +41,11 @@ only_essential_logging_folder="only_essential_logging"
 
 only_camera_logging="false"                                   
 only_camera_logging_folder="only_camera_logging"  
-compressed_streaming="true"            
 
 brutal_logging="false"                                        
-brutal_logging_folder="brutal_logging"                        
+brutal_logging_folder="brutal_logging"     
+
+compressed_streaming="false"                                #non mettere a TRUE     
 # ------------------------------------------------
 
 
@@ -352,6 +354,8 @@ if [[ "$execute_shot" == "true" ]]; then
         
         if [[ "$brutal_logging" == "true" ]]; then
     
+
+
             # ------------------------------------------------
             # logging di tutti i topic importanti, inclusa la camera (compressed)
 
@@ -360,29 +364,57 @@ if [[ "$execute_shot" == "true" ]]; then
             #cancello la cartella di logging precedente se esiste, così da non avere conflitti
             rm -rf "${BAGDATA_DIR_BRUTAL}"  
 
-            echo "Avvio ros2 bag record manuale..."
-            gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
-                            "source ${INSTALL_SETUP_BASH} && \
-                            ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
-                                /camera/camera/color/camera_info \
-                                /camera/camera/aligned_depth_to_color/camera_info \
-                                /camera/camera/color/image_raw/compressed \
-                                /camera/camera/aligned_depth_to_color/image_raw/compressedDepth \
-                                /camera/camera/extrinsics/depth_to_color \
-                                /collision_object \
-                                /force_torque_sensor_broadcaster/wrench \
-                                /io_and_status_controller/safety_mode \
-                                /joint_states \
-                                /robot_description \
-                                /rosout \
-                                /scaled_joint_trajectory_controller/joint_trajectory \
-                                /scaled_joint_trajectory_controller/controller_state \
-                                /tcp_pose_broadcaster/pose \
-                                /tcp_twist \
-                                /tf \
-                                /tf_static; \
-                            exec bash"
+            if [[ "$compressed_streaming" == "true" ]]; then
+                echo "Avvio ros2 bag record brutal (compressed)..."
 
+                gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
+                                "source ${INSTALL_SETUP_BASH} && \
+                                ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
+                                    /camera/camera/color/camera_info \
+                                    /camera/camera/aligned_depth_to_color/camera_info \
+                                    /camera/camera/color/image_raw/compressed \
+                                    /camera/camera/aligned_depth_to_color/image_raw/compressedDepth \
+                                    /camera/camera/extrinsics/depth_to_color \
+                                    /collision_object \
+                                    /force_torque_sensor_broadcaster/wrench \
+                                    /force_torque_sensor_broadcaster/wrench_filtered \
+                                    /io_and_status_controller/safety_mode \
+                                    /joint_states \
+                                    /robot_description \
+                                    /rosout \
+                                    /scaled_joint_trajectory_controller/joint_trajectory \
+                                    /scaled_joint_trajectory_controller/controller_state \
+                                    /tcp_pose_broadcaster/pose \
+                                    /tcp_twist \
+                                    /tf \
+                                    /tf_static; \
+                                exec bash"
+                else
+                    echo "Avvio ros2 bag record brutal (raw non compresso)..."
+
+                    gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
+                                "source ${INSTALL_SETUP_BASH} && \
+                                ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
+                                    /camera/camera/color/camera_info \
+                                    /camera/camera/aligned_depth_to_color/camera_info \
+                                    /camera/camera/color/image_raw \
+                                    /camera/camera/aligned_depth_to_color/image_raw\
+                                    /camera/camera/extrinsics/depth_to_color \
+                                    /collision_object \
+                                    /force_torque_sensor_broadcaster/wrench \
+                                    /force_torque_sensor_broadcaster/wrench_filtered \
+                                    /io_and_status_controller/safety_mode \
+                                    /joint_states \
+                                    /robot_description \
+                                    /rosout \
+                                    /scaled_joint_trajectory_controller/joint_trajectory \
+                                    /scaled_joint_trajectory_controller/controller_state \
+                                    /tcp_pose_broadcaster/pose \
+                                    /tcp_twist \
+                                    /tf \
+                                    /tf_static; \
+                                exec bash"
+                fi
         fi
     fi
     
