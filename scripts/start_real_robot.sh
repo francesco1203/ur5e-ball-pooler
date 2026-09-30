@@ -36,13 +36,13 @@ use_real_game_engine="true"
 #logging
 logging_enable="true"                                        
 
-only_essential_logging="true"                                
+only_essential_logging="false"                                
 only_essential_logging_folder="only_essential_logging"        
 
 only_camera_logging="false"                                   
 only_camera_logging_folder="only_camera_logging"  
 
-brutal_logging="false"                                        
+brutal_logging="true"                                        
 brutal_logging_folder="brutal_logging"     
 
 compressed_streaming="false"                                #non mettere a TRUE     

@@ -1,6 +1,7 @@
 // ============================================================
 //  game_engine.cpp
 //  Nodo ROS2 che seleziona la combinazione Pallina-Buca ottimale.
+//  Versione con Pitch Dinamico basato sullo spazio dietro la stecca.
 // ============================================================
 
 #include <chrono>
@@ -76,7 +77,6 @@ class GameEngine : public rclcpp::Node
                 HOLE_BOTTOM_RIGHT_FRAME, HOLE_BOTTOM_LEFT_FRAME
             };
 
-
             // POPOLAMENTO DINAMICO DEI TARGET
             bool target_red = this->get_parameter("target_red").as_bool();
             bool target_blue = this->get_parameter("target_blue").as_bool();
@@ -90,8 +90,7 @@ class GameEngine : public rclcpp::Node
                 RCLCPP_WARN(this->get_logger(), "ATTENZIONE: Nessuna pallina bersaglio selezionata nei parametri!");
             }
 
-
-            //timer callback
+            // timer callback
             timer_ = this->create_wall_timer(
                 2000ms, std::bind(&GameEngine::publish_params, this));
 
@@ -141,12 +140,12 @@ class GameEngine : public rclcpp::Node
         {
             if (!is_active_) return;
 
-            /* CERCHIAMO LA PALLINA BIANCA (Indispensabile) */
+            /* CERCHIAMO LA PALLINA BIANCA */
             geometry_msgs::msg::TransformStamped tf_white;
             try {
                 tf_white = tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, WHITE_SOLID_BALL_FRAME, tf2::TimePointZero);
             } catch (const tf2::TransformException & ex) {
-                return; // Se non vedo la bianca (nessuna TF), non posso tirare
+                return; 
             }
             
             // --- CONTROLLO CIMITERO PER LA BIANCA ---
@@ -158,29 +157,19 @@ class GameEngine : public rclcpp::Node
 
             tf2::Vector3 pos_white(tf_white.transform.translation.x, tf_white.transform.translation.y, 0.0);
 
-            /* CALCOLO INCLINAZIONE ASTA (PITCH) */
             double half_field_length = POOL_TABLE_FIELD_LENGTH / 2.0;
             double half_field_width  = POOL_TABLE_FIELD_WIDTH / 2.0;
             double ball_diameter = BALL_RADIUS * 2.0;
-           
-            double dist_white_to_rail_x = half_field_length - std::abs(pos_white.x());
-            double dist_white_to_rail_y = half_field_width - std::abs(pos_white.y());
-            double min_dist_white_to_rail = std::min(dist_white_to_rail_x, dist_white_to_rail_y);
 
-            double chosen_impact_angle = normal_impact_angle_deg_;
-            if (min_dist_white_to_rail < rail_proximity_threshold_) {
-                chosen_impact_angle = steep_impact_angle_deg_;
-            }
-
-            /* VARIABILI PER SALVARE IL TIRO MIGLIORE IN ASSOLUTO */
+            /* VARIABILI PER SALVARE IL TIRO MIGLIORE */
             std::string best_pocket = "";
             std::string best_ball = "";
             double best_cost = std::numeric_limits<double>::max();
             double best_shot_velocity = 0.0;
             double best_direction_deg = 0.0;
+            double best_impact_angle = normal_impact_angle_deg_; // Aggiunto per salvare l'inclinazione finale
             bool valid_shot_found = false;
 
-            // CICLO ESTERNO: Analizziamo una ad una le palline bersaglio disponibili
             for (const auto& target_frame : target_balls_frames_)
             {
                 geometry_msgs::msg::TransformStamped tf_target;
@@ -190,16 +179,10 @@ class GameEngine : public rclcpp::Node
                     continue; 
                 }
 
-                // --- CONTROLLO CIMITERO PER LE PALLINE BERSAGLIO ---
-                if (tf_target.transform.translation.z < -1.0) {
-                    // Questa pallina è stata mandata nel cimitero dal freezer. La saltiamo!
-                    continue;
-                }
+                if (tf_target.transform.translation.z < -1.0) continue;
 
                 tf2::Vector3 pos_target(tf_target.transform.translation.x, tf_target.transform.translation.y, 0.0);
-
                 
-                // CICLO INTERNO: Valutiamo tutte le buche per la pallina target corrente
                 for (const auto& pocket_frame : pocket_frames_)
                 {
                     geometry_msgs::msg::TransformStamped tf_pocket;
@@ -220,7 +203,7 @@ class GameEngine : public rclcpp::Node
                     // Calcolo della Ghost Ball
                     tf2::Vector3 pos_ghost = pos_target - (dir_pocket * ball_diameter);
 
-                    // Scarta il tiro se la ghost ball finisce fuori o contro le sponde
+                    // Scarta il tiro se la ghost ball finisce fuori
                     double margin = BALL_RADIUS; 
                     if (std::abs(pos_ghost.x()) >= (half_field_length - margin) || 
                         std::abs(pos_ghost.y()) >= (half_field_width - margin)) 
@@ -234,8 +217,45 @@ class GameEngine : public rclcpp::Node
 
                     tf2::Vector3 dir_shot = vec_white_to_ghost.normalized();
 
+                    // =======================================================
+                    // CALCOLO PITCH DINAMICO: Controlliamo lo spazio DIETRO la bianca
+                    // L'end-effector si estende nella direzione -dir_shot
+                    // =======================================================
+                    double cue_dir_x = -dir_shot.x();
+                    double cue_dir_y = -dir_shot.y();
+                    
+                    double t_x = std::numeric_limits<double>::max();
+                    double t_y = std::numeric_limits<double>::max();
+
+                    // Distanza dalla sponda lungo l'asse X nella direzione della stecca
+                    if (std::abs(cue_dir_x) > 1e-6) {
+                        if (cue_dir_x > 0) {
+                            t_x = (half_field_length - pos_white.x()) / cue_dir_x;
+                        } else {
+                            t_x = (-half_field_length - pos_white.x()) / cue_dir_x;
+                        }
+                    }
+                    
+                    // Distanza dalla sponda lungo l'asse Y nella direzione della stecca
+                    if (std::abs(cue_dir_y) > 1e-6) {
+                        if (cue_dir_y > 0) {
+                            t_y = (half_field_width - pos_white.y()) / cue_dir_y;
+                        } else {
+                            t_y = (-half_field_width - pos_white.y()) / cue_dir_y;
+                        }
+                    }
+
+                    // Lo spazio libero effettivo è il minimo tra i due impatti con le sponde
+                    double space_behind_white = std::min(t_x, t_y);
+
+                    double current_shot_impact_angle = normal_impact_angle_deg_;
+                    if (space_behind_white < rail_proximity_threshold_) {
+                        current_shot_impact_angle = steep_impact_angle_deg_;
+                    }
+                    // =======================================================
+
                     double cos_cut_angle = dir_shot.dot(dir_pocket);
-                    if (cos_cut_angle <= 0.087) { // Evita angoli di taglio impossibili (vicini a 90 gradi)
+                    if (cos_cut_angle <= 0.087) { // Evita angoli di taglio impossibili
                         continue; 
                     }
 
@@ -255,14 +275,15 @@ class GameEngine : public rclcpp::Node
                                        (WEIGHT_CUE_DIST * cue_distance) + 
                                        rail_penalty;
 
-                    // Se questo tiro è migliore di tutti i precedenti, salvalo!
                     if (total_cost < best_cost) {
                         
                         double v2f = std::sqrt(2.0 * cloth_sliding_friction_ * GRAVITY * pocket_distance);
                         double v1i_impact = (v2f / cos_cut_angle);
                         double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * cloth_sliding_friction_ * GRAVITY * cue_distance);
                         double shot_velocity_planar = velocity_factor_ * v_white_start ;   
-                        double shot_velocity = shot_velocity_planar / cos(chosen_impact_angle * (M_PI / 180.0)); 
+                        
+                        // Usiamo l'angolo specifico calcolato per QUESTO tiro
+                        double shot_velocity = shot_velocity_planar / cos(current_shot_impact_angle * (M_PI / 180.0)); 
 
                         double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
                         double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);
@@ -271,23 +292,21 @@ class GameEngine : public rclcpp::Node
 
                         best_cost = total_cost;
                         best_pocket = pocket_frame;
-                        best_ball = target_frame; // Salviamo quale pallina abbiamo scelto
-                        //best_shot_velocity_planar = shot_velocity_planar;
+                        best_ball = target_frame; 
                         best_shot_velocity = shot_velocity;
                         best_direction_deg = direction_deg;
+                        best_impact_angle = current_shot_impact_angle; // Salviamo l'angolo vincente
                         valid_shot_found = true;
                     }
                 }
             }
 
             if (valid_shot_found) {
-                //riempio il messaggio con i parametri del tiro
                 auto msg = ShotParamsMsg();
                 msg.direction_angle_deg = best_direction_deg;
                 msg.impact_shot_velocity = best_shot_velocity;
-                msg.impact_angle_deg = chosen_impact_angle; 
+                msg.impact_angle_deg = best_impact_angle; // Inviamo l'angolo calcolato dinamicamente
                 
-                //pubblico anche il colore della pallina bersaglio selezionata
                 std::string color_name = best_ball;
                 if (best_ball == RED_SOLID_BALL_FRAME) color_name = "RED_SOLID";
                 else if (best_ball == BLUE_SOLID_BALL_FRAME) color_name = "BLUE_SOLID";
@@ -296,14 +315,12 @@ class GameEngine : public rclcpp::Node
 
                 publisher_->publish(msg);
 
-                
-                // Mostra un bel log riassuntivo che include la pallina bersaglio
                 RCLCPP_INFO(this->get_logger(), 
                     "BERSAGLIO: [%s] -> BUCA: [%s] | Costo Ottimale: %.2f", 
                     best_ball.c_str(), best_pocket.c_str(), best_cost);
                 RCLCPP_INFO(this->get_logger(),
                     "PARAMETRI: Vel: %.3f m/s | Yaw: %.2f deg | Pitch: %.2f deg",
-                    best_shot_velocity, best_direction_deg, chosen_impact_angle);
+                    best_shot_velocity, best_direction_deg, best_impact_angle);
             } else {
                 RCLCPP_WARN_THROTTLE(
                     this->get_logger(), *this->get_clock(), 2000,
