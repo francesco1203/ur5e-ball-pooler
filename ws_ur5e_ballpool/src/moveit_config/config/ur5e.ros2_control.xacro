@@ -6,11 +6,11 @@
         <ros2_control name="${name}" type="system">
             <hardware>
                 <!-- PLUGIN PER MUJOCO -->
-                <!-- <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
-                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param> -->
+                <plugin>mujoco_ros2_control/MujocoSystemInterface</plugin>
+                <param name="mujoco_model">$(find moveit_config)/config/mujoco_bridge/complete_scene.xml</param>
 
                 <!-- PLUGIN PER SOLO RVIZ SIMULATO -->
-                <plugin>mock_components/GenericSystem</plugin>
+                <!-- <plugin>mock_components/GenericSystem</plugin> -->
 
                 <!-- PLUGIN PER HARDWARE REALE / UrSim -->
                 <!-- <plugin>ur_robot_driver/URPositionHardwareInterface</plugin>

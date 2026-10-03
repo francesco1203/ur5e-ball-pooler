@@ -33,6 +33,10 @@ int main(int argc, char* argv[])
     node->declare_parameter<double>("elevation_escape", 0.05);
     node->declare_parameter<double>("success_threshold_approach", 0.99);
     node->declare_parameter<double>("success_threshold_back", 0.20);
+    node->declare_parameter<double>("minimum_pitch_angle_deg", 10.0);
+    node->declare_parameter<double>("maximum_pitch_angle_deg", 30.0);
+    node->declare_parameter<double>("increment_pitch_angle_deg", 1.0);
+    node->declare_parameter<double>("robustness_pitch_delta_deg", 1.0);
 
     double approach_distance_from_ball_surface_ = node->get_parameter("approach_distance_from_ball_surface").as_double();
     double shooting_distance_from_ball_surface_ = node->get_parameter("shooting_distance_from_ball_surface").as_double();
@@ -41,6 +45,10 @@ int main(int argc, char* argv[])
     double elevation_escape_ = node->get_parameter("elevation_escape").as_double();
     double success_threshold_approach_ = node->get_parameter("success_threshold_approach").as_double();
     double success_threshold_back_ = node->get_parameter("success_threshold_back").as_double();
+    double minimum_pitch_angle_deg_ = node->get_parameter("minimum_pitch_angle_deg").as_double();
+    double maximum_pitch_angle_deg_ = node->get_parameter("maximum_pitch_angle_deg").as_double();
+    double increment_pitch_angle_deg_ = node->get_parameter("increment_pitch_angle_deg").as_double();
+    double robustness_pitch_delta_deg_ = node->get_parameter("robustness_pitch_delta_deg").as_double();
     //------------------------------------------------------
 
 
@@ -215,52 +223,17 @@ int main(int argc, char* argv[])
         node->stop_game_engine();
 
 
-        node->print_received_game_engine_params();
-
         // Adesso posso usarli
         double direction_angle_deg_ = node->getDirectionAngle(); 
-        double impact_shot_velocity_ = node->getImpactShotVelocity();
-        double impact_angle_deg_ = node->getImpactAngle();
+        double planar_impact_shot_velocity_ = node->getPlanarImpactShotVelocity();
         std::string target_ball_color_ = node->getTargetBallColor();
+
+        double impact_angle_deg_;            //verrà calcolato dinamicamente in base alle collisioni in fase 2 (pre-approach)
+        double impact_shot_velocity_;         //verrà calcolata dinamicamente in base alla geometria del tiro in fase 2 (pre-approach) *
+
+        //(*) Nota:il Game Engine fornisce la velocità planare della pallina, ovvero la velocità con la quale deve avviarsi sul piano.
+        //    Essendo la stessa inclinata, deve avere anche una componente verticale, dunque abbiamo bisogno dell'angolo dell'inclinazione (fase 2)
         //------------------------------------------------------
-
-
-        //------------------------------------------------------
-        /* STAMPA DEI PARAMETRI DEL TIRO */
-        node->printShotParams(impact_shot_velocity_, 
-                    approach_distance_from_ball_surface_, 
-                    shooting_distance_from_ball_surface_);
-        //------------------------------------------------------
-
-
-        //------------------------------------------------------
-        /* CALCOLO DELL'ORIENTAMENTO STECCA*/
-        // orientamento è costante in molte fasi, dall'approach all'esecuzione tiro.. lo calcolo una sola volta
-
-        // matrice di rotazione di base che allinea z' -> x, y' --> -y, x' --> -z (da posa di pre approach ad approach base)
-        Matrix3d R_base;
-        R_base <<  0,  0, -1,
-                0, -1,  0,
-                -1,  0,  0;
-
-        Quaternion Q_base(R_base);  //converto in quaternione
-
-
-        //direzione d'impatto
-        double impact_angle_rad = impact_angle_deg_ * M_PI / 180;           // inclinazione asta -> rotazione attorno asse y (latitudine)
-        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;     // direzione asta -> rotazione attorno asse z (longitudine)
-
-
-        // calcolo il quaternione dell'orientamento stecca
-        Quaternion Q_shot = Quaternion(
-            RotationAxis(direction_angle_rad, Z_AXIS) *
-            RotationAxis(-impact_angle_rad, Y_AXIS)           //- perché per alzarsi dal tavolo, l'asta deve ruotare in senso orario
-        ) * Q_base;
-
-
-        //Risultato: d'ora in avanti Q_shot è l'orientamento per tutte le sequenze di tiro, dall'approach all'esecuzione del tiro stesso
-        //------------------------------------------------------
-
 
         // FASE 1 - vado in pre-approach per approcciare la pallina
         {
@@ -289,6 +262,62 @@ int main(int argc, char* argv[])
         
         }
         
+
+
+       //------------------------------------------------------
+        /* CALCOLO DELL'ORIENTAMENTO STECCA E RICERCA PITCH DINAMICO */
+        
+        RCLCPP_INFO(node->get_logger(), "Calcolo dell'orientamento della stecca e ricerca dell'angolo di pitch dinamico...");
+        
+        // Matrice di rotazione di base
+        Matrix3d R_base;
+        R_base <<  0,  0, -1,
+                   0, -1,  0,
+                  -1,  0,  0;
+        Quaternion Q_base(R_base);
+
+        double direction_angle_rad = direction_angle_deg_ * M_PI / 180;
+        
+
+        // Calcolo le distanze esatte che la punta della stecca percorrerà (dal backshot all'arresto, mi servono per la funzione sonda findOptimalPitchAngle)
+        double dist_backshot = shooting_distance_from_ball_surface_ + BALL_RADIUS;
+        double decel_distance = distance_deceleration_phase_fraction_radius_ * BALL_RADIUS;
+        double dist_arresto = -(decel_distance - BALL_RADIUS);
+        
+
+        // Chiamo la funzione sonda che testa lo swept volume (restituisce -1.0 se non trova un angolo valido)
+        impact_angle_deg_ = node->findOptimalPitchAngle(
+            minimum_pitch_angle_deg_, 
+            maximum_pitch_angle_deg_, 
+            increment_pitch_angle_deg_, 
+            robustness_pitch_delta_deg_,
+            direction_angle_deg_,                //direzione di tiro yaw (planare, per pallina da colpire)
+            dist_backshot,                       //di quanto mi allontano dalla pallina per prendere velocità
+            dist_arresto,                        //in quanto spazio freno dopo aver toccato la pallina
+            offset_correction_center_z_          //correzione offset verticale per puntare in verticale sopra il centro della pallina
+        );
+
+        if (impact_angle_deg_ < 0.0) { //se non trova un angolo valido, esco con errore irreversibile
+            RCLCPP_ERROR(node->get_logger(), "\n\nERRORE FATALE: Impossibile trovare un angolo di pitch senza collisioni per questo tiro.");
+            rclcpp::shutdown();
+            spinner.join();
+            return -1;
+        }
+
+        // Ora ho l'angolo definitivo: lo converto in radianti, calcolo il quaternione e adeguo la velocità
+        double impact_angle_rad = impact_angle_deg_ * M_PI / 180.0;
+        
+        Quaternion Q_shot = Quaternion(
+            RotationAxis(direction_angle_rad, Z_AXIS) *
+            RotationAxis(-impact_angle_rad, Y_AXIS) 
+        ) * Q_base;
+
+        // Converto la velocità planare del game engine nella velocità effettiva inclinata
+        impact_shot_velocity_ = planar_impact_shot_velocity_ / cos(impact_angle_rad);
+        
+        // Risultato: Q_shot e impact_shot_velocity_ sono pronti e sicuri per TUTTE le fasi successive.
+        //------------------------------------------------------
+
         
 
         // FASE 2 - approach alla pallina
@@ -344,7 +373,6 @@ int main(int argc, char* argv[])
         }
 
 
-
         // FASE 3 - si allontana all'indietro per prendere velocità
         {
     
@@ -398,8 +426,22 @@ int main(int argc, char* argv[])
                 return -1;
             }
 
-            
         }
+
+        //------------------------------------------------------
+        /* STAMPA DEI PARAMETRI DEL TIRO */
+        node->printShotParams(impact_shot_velocity_, 
+                              approach_distance_from_ball_surface_, 
+                              shooting_distance_from_ball_surface_
+                            );
+        
+        node->printGameMoveParams(direction_angle_deg_, 
+                                  planar_impact_shot_velocity_, 
+                                  impact_angle_deg_, 
+                                  target_ball_color_
+                                 );
+        //------------------------------------------------------
+
 
 
         // FASE 4 - eseguo tiro
@@ -526,9 +568,20 @@ int main(int argc, char* argv[])
         
         }
     
-        // --- RICHIESTA CONTINUAZIONE (FINE DEL CICLO) ---
-        node->print_and_wait("\n\n=== SEQUENZA COMPLETATA ===\nPremi un tasto qualsiasi e INVIO per effettuare un nuovo tiro (o premi Ctrl+C per uscire dal programma).");
 
+        // GESTIONE CHIUSURA / RIPETIZIONE IN BASE AL TIPO DI SIMULAZIONE (MOCK, REALE, ecc..)
+        if(node->using_sim_time()){ // Sto usando un simulatore fisico, faccio un solo tiro
+            break; // esco dal ciclo while, così il programma termina dopo un solo tiro
+        }
+        else
+        {
+            // --- RICHIESTA CONTINUAZIONE (FINE DEL CICLO) ---
+            node->print_and_wait("\n\n=== SEQUENZA COMPLETATA ===\nPremi un tasto qualsiasi e INVIO per effettuare un nuovo tiro (o premi Ctrl+C per uscire dal programma).");
+
+            //ripeto il ciclo principale finché non ricevo un segnale di terminazione (Ctrl+C) se sono su Mock oppure robot reale
+            //Nota: su Mock la scena sarà tuttavia sempre la stessa
+        }
+        
     } 
     // === FINE CICLO PRINCIPALE ===
 

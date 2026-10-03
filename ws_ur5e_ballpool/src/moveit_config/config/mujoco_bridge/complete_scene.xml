@@ -840,28 +840,28 @@
     </body>
 
     <!-- pallina bianca-->
-    <body name="white_ball" pos="-0.60000 -0.30100 0.0725">
+    <body name="white_ball" pos="-0.67700 -0.40800 0.0725">
         <joint type="free" class="pallina_bianca_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="bianco"/>
         <geom class="pallina_bianca_collision"/>
     </body>
 
     <!-- pallina rossa-->
-    <body name="red_ball" pos="-0.60600 -0.23900 0.0725">
+    <body name="red_ball" pos="-0.72100 -0.37500 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="rosso"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.43600 -0.43100 0.0725">
+    <body name="blue_ball" pos="-0.39800 -0.34400 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>
     </body>
 
     <!-- pallina gialla -->
-    <body name="yellow_ball" pos="-0.42700 -0.23500 0.0725">
+    <body name="yellow_ball" pos="-0.64200 -0.43600 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="giallo"/>
         <geom class="pallina_colorata_collision"/>

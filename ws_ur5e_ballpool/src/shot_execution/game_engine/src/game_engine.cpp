@@ -1,7 +1,7 @@
 // ============================================================
 //  game_engine.cpp
 //  Nodo ROS2 che seleziona la combinazione Pallina-Buca ottimale.
-//  Versione con Pitch Dinamico basato sullo spazio dietro la stecca.
+//  Versione puramente planare (Pitch dinamico demandato a MoveIt).
 // ============================================================
 
 #include <chrono>
@@ -39,9 +39,6 @@ class GameEngine : public rclcpp::Node
             /* IPER PARAMETRI */
             this->declare_parameter<double>("velocity_factor", 1.2);
             this->declare_parameter<double>("tip_yaw_offset_deg", 180.0); 
-            this->declare_parameter<double>("rail_proximity_threshold", 0.04);
-            this->declare_parameter<double>("normal_impact_angle_deg", 10.0);
-            this->declare_parameter<double>("steep_impact_angle_deg", 15.0);   
             this->declare_parameter<bool>("start_active", false);
             this->declare_parameter<double>("cloth_sliding_friction", 0.02);
     
@@ -52,9 +49,6 @@ class GameEngine : public rclcpp::Node
 
             velocity_factor_ = this->get_parameter("velocity_factor").as_double();
             tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
-            rail_proximity_threshold_ = this->get_parameter("rail_proximity_threshold").as_double();
-            normal_impact_angle_deg_ = this->get_parameter("normal_impact_angle_deg").as_double();
-            steep_impact_angle_deg_ = this->get_parameter("steep_impact_angle_deg").as_double();
             is_active_ = this->get_parameter("start_active").as_bool();
             cloth_sliding_friction_ = this->get_parameter("cloth_sliding_friction").as_double();
 
@@ -109,9 +103,6 @@ class GameEngine : public rclcpp::Node
 
         double velocity_factor_;
         double tip_yaw_offset_deg_;
-        double rail_proximity_threshold_;
-        double steep_impact_angle_deg_;
-        double normal_impact_angle_deg_;
         bool is_active_; 
         double cloth_sliding_friction_;
 
@@ -167,7 +158,6 @@ class GameEngine : public rclcpp::Node
             double best_cost = std::numeric_limits<double>::max();
             double best_shot_velocity = 0.0;
             double best_direction_deg = 0.0;
-            double best_impact_angle = normal_impact_angle_deg_; // Aggiunto per salvare l'inclinazione finale
             bool valid_shot_found = false;
 
             for (const auto& target_frame : target_balls_frames_)
@@ -217,43 +207,6 @@ class GameEngine : public rclcpp::Node
 
                     tf2::Vector3 dir_shot = vec_white_to_ghost.normalized();
 
-                    // =======================================================
-                    // CALCOLO PITCH DINAMICO: Controlliamo lo spazio DIETRO la bianca
-                    // L'end-effector si estende nella direzione -dir_shot
-                    // =======================================================
-                    double cue_dir_x = -dir_shot.x();
-                    double cue_dir_y = -dir_shot.y();
-                    
-                    double t_x = std::numeric_limits<double>::max();
-                    double t_y = std::numeric_limits<double>::max();
-
-                    // Distanza dalla sponda lungo l'asse X nella direzione della stecca
-                    if (std::abs(cue_dir_x) > 1e-6) {
-                        if (cue_dir_x > 0) {
-                            t_x = (half_field_length - pos_white.x()) / cue_dir_x;
-                        } else {
-                            t_x = (-half_field_length - pos_white.x()) / cue_dir_x;
-                        }
-                    }
-                    
-                    // Distanza dalla sponda lungo l'asse Y nella direzione della stecca
-                    if (std::abs(cue_dir_y) > 1e-6) {
-                        if (cue_dir_y > 0) {
-                            t_y = (half_field_width - pos_white.y()) / cue_dir_y;
-                        } else {
-                            t_y = (-half_field_width - pos_white.y()) / cue_dir_y;
-                        }
-                    }
-
-                    // Lo spazio libero effettivo è il minimo tra i due impatti con le sponde
-                    double space_behind_white = std::min(t_x, t_y);
-
-                    double current_shot_impact_angle = normal_impact_angle_deg_;
-                    if (space_behind_white < rail_proximity_threshold_) {
-                        current_shot_impact_angle = steep_impact_angle_deg_;
-                    }
-                    // =======================================================
-
                     double cos_cut_angle = dir_shot.dot(dir_pocket);
                     if (cos_cut_angle <= 0.087) { // Evita angoli di taglio impossibili
                         continue; 
@@ -280,10 +233,9 @@ class GameEngine : public rclcpp::Node
                         double v2f = std::sqrt(2.0 * cloth_sliding_friction_ * GRAVITY * pocket_distance);
                         double v1i_impact = (v2f / cos_cut_angle);
                         double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * cloth_sliding_friction_ * GRAVITY * cue_distance);
-                        double shot_velocity_planar = velocity_factor_ * v_white_start ;   
                         
-                        // Usiamo l'angolo specifico calcolato per QUESTO tiro
-                        double shot_velocity = shot_velocity_planar / cos(current_shot_impact_angle * (M_PI / 180.0)); 
+                        // La velocità è ora calcolata sul piano 2D. Il main si occuperà di applicarla (e compensarla se serve)
+                        double shot_velocity_planar = velocity_factor_ * v_white_start;   
 
                         double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
                         double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);
@@ -293,9 +245,8 @@ class GameEngine : public rclcpp::Node
                         best_cost = total_cost;
                         best_pocket = pocket_frame;
                         best_ball = target_frame; 
-                        best_shot_velocity = shot_velocity;
+                        best_shot_velocity = shot_velocity_planar;
                         best_direction_deg = direction_deg;
-                        best_impact_angle = current_shot_impact_angle; // Salviamo l'angolo vincente
                         valid_shot_found = true;
                     }
                 }
@@ -305,7 +256,10 @@ class GameEngine : public rclcpp::Node
                 auto msg = ShotParamsMsg();
                 msg.direction_angle_deg = best_direction_deg;
                 msg.impact_shot_velocity = best_shot_velocity;
-                msg.impact_angle_deg = best_impact_angle; // Inviamo l'angolo calcolato dinamicamente
+                
+                // NOTA: Se 'impact_angle_deg' è ancora definito nel file .msg, 
+                // qui verrà semplicemente ignorato (e prenderà il valore di default 0.0) 
+                // dato che non ci interessa più popolarlo da game_engine.
                 
                 std::string color_name = best_ball;
                 if (best_ball == RED_SOLID_BALL_FRAME) color_name = "RED_SOLID";
@@ -319,8 +273,8 @@ class GameEngine : public rclcpp::Node
                     "BERSAGLIO: [%s] -> BUCA: [%s] | Costo Ottimale: %.2f", 
                     best_ball.c_str(), best_pocket.c_str(), best_cost);
                 RCLCPP_INFO(this->get_logger(),
-                    "PARAMETRI: Vel: %.3f m/s | Yaw: %.2f deg | Pitch: %.2f deg",
-                    best_shot_velocity, best_direction_deg, best_impact_angle);
+                    "PARAMETRI: Planar Vel: %.3f m/s | Yaw: %.2f deg",
+                    best_shot_velocity, best_direction_deg);
             } else {
                 RCLCPP_WARN_THROTTLE(
                     this->get_logger(), *this->get_clock(), 2000,

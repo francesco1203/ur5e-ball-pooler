@@ -17,7 +17,7 @@ const std::vector<std::string> UR5e_JOINT_NAMES = {
 };
 
 
-
+// NOTA
 // limiti cartesiani spostati nel file shot_execution/shot_planning/config/cartesian_robot_limits.yaml
 // Questi valori sono definiti in un file YAML separato e caricati dinamicamente.
 // siccome non li conosciamo, non ha senso metterli qui come costanti

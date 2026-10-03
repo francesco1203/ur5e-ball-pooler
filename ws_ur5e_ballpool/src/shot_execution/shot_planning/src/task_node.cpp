@@ -95,10 +95,10 @@ TaskNode::TaskNode(const rclcpp::NodeOptions& opt)
     param_sub_ = this->create_subscription<ShotParamsMsg>(
         SHOT_PARAMS_TOPIC, 10, std::bind(&TaskNode::paramsCallback, this, std::placeholders::_1));
 
-
-    /* CLIENT PER SERVIZIO DI GENERAZIONE SCENA E RIMOZIONE PALLINA BIANCA */
+    /* CLIENT PER SERVIZIO DI GENERAZIONE SCENA E RIMOZIONE/AGGIUNTA PALLINA BIANCA */
     build_scene_client_ = this->create_client<TriggerSrv>(BUILD_SCENE_SERVICE);
     remove_white_ball_client_ = this->create_client<TriggerSrv>(REMOVE_WHITE_BALL_SERVICE);
+    add_white_ball_client_ = this->create_client<TriggerSrv>(ADD_WHITE_BALL_SERVICE);
 
     /* CLIENT PER IL SERVIZIO DI FROZEN TF */
     freeze_balls_client_ = this->create_client<TriggerSrv>(FREEZE_TF_SERVICE);
@@ -372,9 +372,10 @@ bool TaskNode::moveToNamedTarget(const std::string& target_name,
 //         success_execute_threshold → percentuale minima di traiettoria che dev'essere eseguita (se non trova almeno questa percentuale, fallisce)
 // RETURN: percentuale di pianificazione della traiettoria, -1 se fallita interamente
 double TaskNode::moveCartesianPath(const Vector3d& posizione, 
-                const Quaternion& orientamento,
-                const std::string& frame_id,
-                double success_execute_threshold)        //se non indicato, default 0.00 (esegue sempre quello che trova)
+                                    const Quaternion& orientamento,
+                                    const std::string& frame_id,
+                                    double success_execute_threshold
+                                   )    
 {
 
     // 1. Inizializza la posa originale come PoseStamped
@@ -491,6 +492,7 @@ double TaskNode::moveCartesianPath(const Vector3d& posizione,
         return fraction; // Ritorna la percentuale di traiettoria pianificata, anche se non sufficiente
     }
 }
+
 
 
 
@@ -734,6 +736,100 @@ bool TaskNode::moveCartesianPathAsymmTriangle(const Vector3d& posizione,
 
 /* METODI PER IL TIRO */
 
+// ── findOptimalPitchAngle ───────────────────────────────────────────────────
+// Cerca il primo angolo di pitch (inclinazione) per cui il movimento in linea
+// retta dal punto di arretramento massimo (backshot) al punto di massima 
+// penetrazione (arresto) è libero da collisioni.
+//
+// RETURN: l'angolo ottimale in gradi (incluso il delta), oppure -1.0 se fallisce.
+double TaskNode::findOptimalPitchAngle(double min_pitch_deg, 
+                                       double max_pitch_deg, 
+                                       double step_deg, 
+                                       double robustness_delta_deg,
+                                       double direction_angle_deg,
+                                       double dist_backshot,
+                                       double dist_arresto,
+                                       double offset_z)
+{
+    double direction_angle_rad = direction_angle_deg * M_PI / 180.0;
+    
+    // Matrice di rotazione base della stecca
+    Matrix3d R_base;
+    R_base <<  0,  0, -1,
+               0, -1,  0,
+              -1,  0,  0;
+    Quaternion Q_base(R_base);
+
+    // IMPORTANTE: Disabilitiamo temporaneamente le collisioni con la pallina bianca,
+    // altrimenti la stecca risulterà sempre in collisione durante l'attraversamento!
+    this->disable_white_ball_collision();
+
+    double optimal_pitch = -1.0; 
+    double current_pitch = min_pitch_deg;
+
+    // Ciclo di ricerca dell'angolo con 'while'
+    while (current_pitch <= max_pitch_deg) 
+    {
+        double impact_angle_rad = current_pitch * M_PI / 180.0;
+        
+        // 1. Calcolo Orientamento Costante
+        Quaternion Q_shot = Quaternion(
+            RotationAxis(direction_angle_rad, Z_AXIS) *
+            RotationAxis(-impact_angle_rad, Y_AXIS) 
+        ) * Q_base;
+
+        // 2. Posizione A (Backshot: inizio del tiro)
+        Vector3d pos_A(
+            dist_backshot * cos(impact_angle_rad) * cos(direction_angle_rad),
+            dist_backshot * cos(impact_angle_rad) * sin(direction_angle_rad), 
+            dist_backshot * sin(impact_angle_rad) + offset_z
+        );
+
+        // 3. Posizione B (Arresto: fine del tiro)
+        // Nota: dist_arresto deve essere un valore negativo (o calcolato come nel main)
+        Vector3d pos_B(      
+            dist_arresto * cos(impact_angle_rad) * cos(direction_angle_rad),
+            dist_arresto * cos(impact_angle_rad) * sin(direction_angle_rad), 
+            dist_arresto * sin(impact_angle_rad) + offset_z
+        );
+
+        // 4. Test dello "swept volume" tra A e B
+        double fraction = planCartesianPathFromAtoB(pos_A, pos_B, Q_shot, WHITE_SOLID_BALL_FRAME);
+
+        // 5. Controllo se il volume è totalmente libero (100% o > 0.99)
+        if (fraction >= 0.99) {
+            //RCLCPP_INFO(this->get_logger(), "--> [Ottimizzazione Pitch] Trovato volume libero a %.1f gradi.", current_pitch);
+            
+            // Aggiungiamo il delta di robustezza per non passare "a pelo" sull'ostacolo
+            // nota: lo faccio solo se ho dovuto alzare la stecca, altrimenti lascio l'angolo minimo, se già va bene
+            if (current_pitch > min_pitch_deg) {
+                optimal_pitch = current_pitch + robustness_delta_deg;
+                RCLCPP_INFO(this->get_logger(), "--> [Ottimizzazione Pitch] Angolo finale selezionato: %.1f gradi. (Applicato delta di robustezza %.1f gradi) ", optimal_pitch, robustness_delta_deg);
+            } else {
+                optimal_pitch = current_pitch;
+                RCLCPP_INFO(this->get_logger(), "--> [Ottimizzazione Pitch] Angolo finale selezionato: %.1f gradi. (minimo richiesto)", optimal_pitch);
+            }
+            
+            // Limitiamo l'angolo massimo consentito
+            if (optimal_pitch > max_pitch_deg) {
+                optimal_pitch = max_pitch_deg;
+            }
+            
+            break; // Esco dal ciclo: angolo trovato!
+        } else {
+            RCLCPP_WARN(this->get_logger(), "--> Collisione (%.2f%%) a %.1f gradi. Alzo a %.1f gradi...", fraction * 100.0, current_pitch, current_pitch + step_deg);
+            
+            // Incremento l'angolo per il prossimo tentativo
+            current_pitch += step_deg; 
+        }
+    }
+
+    // Riabilitiamo le collisioni per rimettere lo stato pulito (il main la ridesabiliterà quando serve per il tiro)
+    this->enable_white_ball_collision(); 
+
+    return optimal_pitch;
+}
+
 void TaskNode::printShotParams(double vel_impact, 
                                double distance_acceleration, 
                                double distance_deceleration
@@ -842,6 +938,23 @@ bool TaskNode::ExecuteShot(const Vector3d& posizione_arresto,        //fine tiro
                                             
 }
 
+void TaskNode::printGameMoveParams(double  direction_angle_deg_, 
+                                   double planar_impact_shot_velocity_, 
+                                   double  impact_angle_deg_,
+                                   const std::string& target_ball_color_
+                                  )
+{
+    // Controllo preliminare dei parametri
+    if (direction_angle_deg_ <= -180.0 || direction_angle_deg_ >= 180.0 || planar_impact_shot_velocity_ <= 0.0 || impact_angle_deg_ <= 0.0) {
+        RCLCPP_ERROR(this->get_logger(), "Parametri di gioco non inseriti o non validi");
+    }
+
+    RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DELLA MOSSA DI GIOCO-------------------");
+    RCLCPP_INFO(this->get_logger(), "Target ball color: %s", target_ball_color_.c_str());
+    RCLCPP_INFO(this->get_logger(), "Parametri ricevuti dal Game Engine: Angle=%.2f, Velocity=%.2f, Pitch=%.2f \n--------------------PARAMETRI DA GAME ENGINE--------------------\n\n", 
+                direction_angle_deg_, planar_impact_shot_velocity_, impact_angle_deg_);
+}
+
 
 /* GESTIONE AMBIENTE */
 bool TaskNode::build_scene() 
@@ -856,6 +969,13 @@ bool TaskNode::disable_white_ball_collision()
     RCLCPP_INFO(this->get_logger(), "Disattivazione collisione con pallina bianca per il tiro...");
     
     return send_trigger_request(remove_white_ball_client_, "remove_white_ball");
+}
+
+bool TaskNode::enable_white_ball_collision() 
+{ 
+    RCLCPP_INFO(this->get_logger(), "Attivazione collisione con pallina bianca per il tiro...");
+    
+    return send_trigger_request(add_white_ball_client_, "add_white_ball");
 }
 
 bool TaskNode::freeze_balls() 
@@ -951,7 +1071,6 @@ bool TaskNode::checkRealtimeSceneIdentification(const std::string& reference_fra
 
 
 /*SERVIZI DI LOGGING DEI MOVIMENTI*/
-/*SERVIZI DI LOGGING DEI MOVIMENTI*/
 bool TaskNode::startLogging(const std::string& filename, 
                             bool joint_logging_enabled, 
                             bool cartesian_logging_enabled, 
@@ -986,20 +1105,13 @@ bool TaskNode::stop_game_engine()
     return set_game_engine_state(false);
 }
 
-void TaskNode::print_received_game_engine_params()
-{
-    RCLCPP_INFO(this->get_logger(), "\n\n--------------------PARAMETRI DA GAME ENGINE--------------------");
-    RCLCPP_INFO(this->get_logger(), "Target ball color: %s", target_ball_color_.c_str());
-    RCLCPP_INFO(this->get_logger(), "Parametri ricevuti dal Game Engine: Angle=%.2f, Velocity=%.2f, Pitch=%.2f \n--------------------PARAMETRI DA GAME ENGINE--------------------\n\n", 
-                direction_angle_deg_, impact_shot_velocity_, impact_angle_deg_);
-}
 
-
-/*metodi getter*/
+/*metodi getter e setter della mossa*/
+//vengono da Game Engine e salvati in variabili interne per essere usati nel tiro
 double TaskNode::getDirectionAngle() const { return direction_angle_deg_; }
-double TaskNode::getImpactShotVelocity() const { return impact_shot_velocity_; }
-double TaskNode::getImpactAngle() const { return impact_angle_deg_; }
+double TaskNode::getPlanarImpactShotVelocity() const { return planar_impact_shot_velocity_; }
 std::string TaskNode::getTargetBallColor() const { return target_ball_color_; }
+
 
 /* PER CALCOLO GEOMETRICO */
 
@@ -1123,6 +1235,90 @@ char TaskNode::print_and_wait(const std::string & message)
 
 /*METODI PRIVATI*/
 
+// sottometodo usato per trovare dinamicamente l'angolo di pitch
+// ── planCartesianPathFromAtoB ───────────────────────────────────────────────
+// Valuta la fattibilità (e le collisioni) di un percorso cartesiano rettilineo 
+// dal punto A al punto B con un orientamento fisso. Non muove il robot e 
+// non salva la traiettoria. È usata come "sonda" per cercare l'angolo ottimale.
+//
+// RETURN: percentuale di percorso libero (0.0 a 1.0), oppure -1.0 in caso di errore 
+// ── planCartesianPathFromAtoB (VERSIONE DEBUGGING) ─────────────────────────
+double TaskNode::planCartesianPathFromAtoB(const Vector3d& pos_A, 
+                                           const Vector3d& pos_B,
+                                           const Quaternion& orientamento,
+                                           const std::string& frame_id)
+{
+    // --- 1. PREPARAZIONE E TRASFORMAZIONE COORDINATE (Uguale a prima) ---
+    std::string planning_frame_moveit = move_group_->getPlanningFrame();
+
+    auto create_and_transform_pose = [&](const Vector3d& pos) -> geometry_msgs::msg::Pose {
+        PoseStampedMsg pose_in;
+        pose_in.header.frame_id = frame_id;
+        pose_in.header.stamp = rclcpp::Time(0);
+        pose_in.pose.position.x = pos.x(); pose_in.pose.position.y = pos.y(); pose_in.pose.position.z = pos.z();
+
+        Quaternion q_norm = orientamento.normalized();
+        pose_in.pose.orientation.w = q_norm.w(); pose_in.pose.orientation.x = q_norm.x(); pose_in.pose.orientation.y = q_norm.y(); pose_in.pose.orientation.z = q_norm.z();
+
+        if (frame_id != planning_frame_moveit) {
+            PoseStampedMsg pose_out = tf_buffer_->transform(pose_in, planning_frame_moveit, tf2::durationFromSec(0.1));
+            return pose_out.pose;
+        }
+        return pose_in.pose;
+    };
+
+    geometry_msgs::msg::Pose pose_start_A;
+    geometry_msgs::msg::Pose pose_end_B;
+    try {
+        pose_start_A = create_and_transform_pose(pos_A);
+        pose_end_B = create_and_transform_pose(pos_B);
+    } catch (...) { return -1.0; }
+
+    // --- 2. RAGGIUNGERE IL PUNTO A IN MODO SICURO (La VERA differenza) ---
+    // Partiamo dallo stato attuale (fisico, col gomito in su) e simuliamo il percorso fino ad A
+    move_group_->setStartStateToCurrentState();
+    
+    std::vector<geometry_msgs::msg::Pose> waypoints_to_A;
+    waypoints_to_A.push_back(pose_start_A);
+    
+    RobotTrajectoryMsg trajectory_to_A;
+    moveit_msgs::msg::Constraints empty_constraints;
+    
+    // Pianifichiamo per arrivare al Punto A
+    double frac_A = move_group_->computeCartesianPath(waypoints_to_A, resolution_step_, trajectory_to_A, empty_constraints);
+    
+    // Se non riusciamo ad arrivare in modo sicuro ad A, il tiro non si può fare
+    if (frac_A < 0.99) {
+        return 0.0;
+    }
+
+    // --- 3. ESTRARRE LO STATO SICURO AL PUNTO A ---
+    // Prendiamo la traiettoria appena calcolata ed estraiamo l'ultimo waypoint (il Punto A)
+    // Questo ci garantisce che la postura (giunti) sia quella naturale calcolata dal cartesiano
+    robot_trajectory::RobotTrajectory rt(move_group_->getRobotModel(), move_group_->getName());
+    rt.setRobotTrajectoryMsg(*move_group_->getCurrentState(), trajectory_to_A);
+    
+    moveit::core::RobotState safe_state_at_A = rt.getLastWayPoint();
+
+    // --- 4. CALCOLO TRAIETTORIA TIRO (Da A verso B) ---
+    // Ora impostiamo questo stato super-sicuro come punto di partenza
+    move_group_->setStartState(safe_state_at_A);
+    
+    std::vector<geometry_msgs::msg::Pose> waypoints_tiro;
+    waypoints_tiro.push_back(pose_end_B);
+    
+    RobotTrajectoryMsg raw_trajectory_tiro;
+    
+    // Valutiamo finalmente se la stecca tocca il tavolo o la palla tra A e B
+    double fraction = move_group_->computeCartesianPath(waypoints_tiro, resolution_step_, raw_trajectory_tiro, empty_constraints);
+    
+    // Ripristiniamo MoveIt allo stato reale per le chiamate future
+    move_group_->setStartStateToCurrentState(); 
+    
+    return fraction;
+}
+
+
 /* CALLBACKS */
 
 // Callback subscriber che riceve i parametri
@@ -1132,8 +1328,8 @@ void TaskNode::paramsCallback(const ShotParamsMsg::SharedPtr msg) {
     
     if (!params_received_) {
         direction_angle_deg_ = msg->direction_angle_deg;
-        impact_shot_velocity_ = msg->impact_shot_velocity;
-        impact_angle_deg_ = msg->impact_angle_deg;
+        planar_impact_shot_velocity_ = msg->impact_shot_velocity;
+        // impact_angle_deg_ = msg->impact_angle_deg;           //non lo prendo più dal game engine, lo calcolo dinamicamente in base alle collisioni
         target_ball_color_ = msg->target_ball_color;
         
         params_received_ = true;

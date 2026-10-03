@@ -120,6 +120,12 @@ class SceneBuilderNode : public rclcpp::Node
             std::bind(&SceneBuilderNode::handleRemoveWhiteBall, this, _1, _2)
         );
 
+        // Creo il servizio per il ripristino della pallina bianca
+        add_white_ball_srv_ = this->create_service<std_srvs::srv::Trigger>(
+            ADD_WHITE_BALL_SERVICE,
+            std::bind(&SceneBuilderNode::handleAddWhiteBall, this, _1, _2)
+        );
+
 
         RCLCPP_INFO(this->get_logger(), "Scene builder pronto.");
         init_done_.set_value();  // sblocca il main — init completato
@@ -147,6 +153,7 @@ class SceneBuilderNode : public rclcpp::Node
 
     TriggerSrvPtr remove_white_ball_srv_;
     TriggerSrvPtr build_scene_srv_;
+    TriggerSrvPtr add_white_ball_srv_;
 
     std::promise<void> init_done_;     // segnala al main che start() è completato
 
@@ -377,6 +384,47 @@ class SceneBuilderNode : public rclcpp::Node
         RCLCPP_INFO(this->get_logger(), "Collisione pallina bianca disabilitata per il tiro.");
     }
 
+    void handleAddWhiteBall(
+        const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+        std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+    {
+        (void)request;
+
+        try {
+            // Cerca solo la pallina bianca
+            if (tf_buffer_->canTransform(BILLIARD_TABLE_FRAME, ID_WHITE_SOLID_BALL, tf2::TimePointZero, tf2::durationFromSec(1.0)))
+            {
+                TransformStampedMsg tf_stamped = 
+                    tf_buffer_->lookupTransform(BILLIARD_TABLE_FRAME, ID_WHITE_SOLID_BALL, tf2::TimePointZero);
+
+                PoseStampedMsg ball_pose;
+                ball_pose.header.frame_id = BILLIARD_TABLE_FRAME;
+                ball_pose.pose.position.x = tf_stamped.transform.translation.x;
+                ball_pose.pose.position.y = tf_stamped.transform.translation.y;
+                ball_pose.pose.position.z = tf_stamped.transform.translation.z + eps_floating;
+                ball_pose.pose.orientation = tf_stamped.transform.rotation;
+
+                // Ricrea la sfera e reimposta il colore bianco
+                addSPHERE(BALL_RADIUS, ball_pose, ID_WHITE_SOLID_BALL);
+                setObjectColor(ID_WHITE_SOLID_BALL, 1.0f, 1.0f, 1.0f, 1.0f);
+
+                response->success = true;
+                response->message = "Pallina bianca reinserita nella scena collisioni.";
+                RCLCPP_INFO(this->get_logger(), "Collisione pallina bianca RIABILITATA.");
+            }
+            else
+            {
+                response->success = false;
+                response->message = "Timeout: TF pallina bianca non trovata.";
+                RCLCPP_WARN(this->get_logger(), "Impossibile riabilitare collisione: TF mancante.");
+            }
+
+        } catch (const tf2::TransformException & ex) {
+            response->success = false;
+            response->message = std::string("Eccezione TF: ") + ex.what();
+            RCLCPP_ERROR(this->get_logger(), "Errore in handleAddWhiteBall: %s", ex.what());
+        }
+    }
     
 
     //altro di utilities

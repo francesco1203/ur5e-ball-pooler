@@ -131,7 +131,8 @@ class BilliardSetupApp:
 
         btn_frame = tk.Frame(self.root, pady=10)
         btn_frame.pack(side=tk.BOTTOM)
-        tk.Button(btn_frame, text="Sovrascrivi YAML scena", command=self.generate_yaml, bg="green", fg="white", font=("Arial", 12, "bold")).pack()
+        # --- MODIFICA DEL PULSANTE ---
+        tk.Button(btn_frame, text="Salva e Chiudi", command=self.generate_yaml, bg="green", fg="white", font=("Arial", 12, "bold")).pack()
 
     def ros2canvas(self, x_ros, y_ros):
         # X verso sinistra, Y verso il BASSO
@@ -248,11 +249,15 @@ balls:"""
         try:
             with open(self.filepath_ws, 'w') as f:
                 f.write(yaml_content)
-            messagebox.showinfo("Successo", f"File '{self.filepath_ws}' generato correttamente!\n\nLe posizioni sono state salvate.")
+            messagebox.showinfo("Successo", f"File '{self.filepath_ws}' generato correttamente!\n\nL'interfaccia verrà chiusa.")
+            # --- CHIUSURA APP DOPO IL SALVATAGGIO ---
+            self.root.destroy()
         except FileNotFoundError:
             with open(self.filepath_local, 'w') as f:
                 f.write(yaml_content)
-            messagebox.showwarning("Attenzione", f"Directory non trovata.\nIl file è stato salvato nella cartella corrente come:\n{self.filepath_local}")
+            messagebox.showwarning("Attenzione", f"Directory non trovata.\nIl file è stato salvato in locale come:\n{self.filepath_local}\n\nL'applicazione verrà chiusa.")
+            # --- CHIUSURA APP DOPO IL SALVATAGGIO LOCALE ---
+            self.root.destroy()
 
 if __name__ == "__main__":
     root = tk.Tk()

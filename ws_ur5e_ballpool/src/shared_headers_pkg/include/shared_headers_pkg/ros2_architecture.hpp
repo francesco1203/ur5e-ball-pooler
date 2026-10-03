@@ -27,6 +27,7 @@
 /* SERVIZI */
    const std::string BUILD_SCENE_SERVICE = "/build_scene";              // servizio per costruire la scena (biliardo + palline)
    const std::string REMOVE_WHITE_BALL_SERVICE = "/remove_white_ball";  // servizio per rimuovere la pallina bianca
+   const std::string ADD_WHITE_BALL_SERVICE = "/add_white_ball";        // servizio per aggiungere la pallina bianca
    const std::string FREEZE_TF_SERVICE = "/freeze_balls_tf";      // servizio per congelare le TF delle palline
    const std::string LOG_ON_OFF_SERVICE = "/log_on_off";          // servizio per abilitare/disabilitare il logging su file (cartesian, joint, controller)
    const std::string TOGGLE_GAME_ENGINE_SERVICE = "/toggle_game_engine";  // servizio per attivare/disattivare il calcolo dei parametri di tiro (motore di gioco)

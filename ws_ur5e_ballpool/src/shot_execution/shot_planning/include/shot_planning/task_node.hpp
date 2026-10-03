@@ -37,11 +37,13 @@
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.hpp>
 #include <moveit_msgs/srv/apply_planning_scene.hpp>
 #include <moveit_msgs/msg/allowed_collision_entry.hpp>
+#include <moveit/robot_state/conversions.hpp>
+#include <moveit_msgs/srv/get_position_ik.hpp>
 
 // Ruckig
 #include <ruckig/ruckig.hpp>
 
-// Servizi e Messaggi
+// Servizi e Messaggi standard
 #include <std_srvs/srv/trigger.hpp>
 #include <std_srvs/srv/set_bool.hpp>
 #include "geometry_msgs/msg/pose_stamped.hpp" 
@@ -53,7 +55,7 @@
 #include <tf2_ros/transform_listener.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-// Header custom (assicurati che i path siano corretti)
+// Header custom 
 #include "shared_headers_pkg/eigen_utilities.hpp"
 #include "shared_headers_pkg/ros2_architecture.hpp"
 #include "shared_headers_pkg/scene_description.hpp"
@@ -97,24 +99,35 @@ public:
     
     bool moveToJointConfig(const joint_config& joint_values, double planning_time = -1.0);
     bool moveToNamedTarget(const std::string& target_name, double planning_time = -1.0);
-    
-    double moveCartesianPath(const Vector3d& posizione, const Quaternion& orientamento,
-                             const std::string& frame_id = WORLD_FRAME,
-                             double success_execute_threshold = 0.00);
-                             
+
+   double moveCartesianPath(const Vector3d& posizione, 
+                            const Quaternion& orientamento,
+                            const std::string& frame_id = WORLD_FRAME,
+                            double success_execute_threshold = 0.00
+                           );        
+                 
     bool moveCartesianPathAsymmTriangle(const Vector3d& posizione, const Quaternion& orientamento,
                                         const std::string& frame_id = WORLD_FRAME,
                                         double vel_max = -1.0, 
                                         double acceleration = -1.0, 
                                         double deceleration = -1.0
-                                        );
+                                      );
 
 
+    double findOptimalPitchAngle(double min_pitch_deg, 
+                                 double max_pitch_deg, 
+                                 double step_deg, 
+                                 double robustness_delta_deg,
+                                 double direction_angle_deg,
+                                 double dist_backshot,
+                                 double dist_arresto,
+                                 double offset_z);
+                                 
     void printShotParams(double vel_impact = -1.0, 
                          double distance_acceleration = -1.0, 
                          double distance_deceleration = -1.0
                         );
-
+    
     bool ExecuteShot(const Vector3d& posizione_arresto, const Quaternion& orientamento,
                      const std::string& frame_id = WORLD_FRAME,
                      double vel_impact = -1.0,
@@ -123,14 +136,20 @@ public:
                     );
 
 
+    void printGameMoveParams(double  direction_angle_deg_ = -1.0, 
+                             double planar_impact_shot_velocity_ = -1.0, 
+                             double  impact_angle_deg_ = -1.0,
+                             const std::string& target_ball_color_ = "none"
+                            );
+
+
     bool freeze_balls();
     bool checkRealtimeSceneIdentification(const std::string& reference_frame = WORLD_FRAME);
     
 
     bool build_scene();
     bool disable_white_ball_collision();
-
-
+    bool enable_white_ball_collision();
 
     bool startLogging(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled, bool wrench_logging_enabled);
     bool stopLogging();
@@ -138,13 +157,11 @@ public:
 
     bool start_game_engine();
     bool stop_game_engine();
-    void print_received_game_engine_params();
+    
     double getDirectionAngle() const;
-    double getImpactShotVelocity() const;
-    double getImpactAngle() const;
+    double getPlanarImpactShotVelocity() const;
     std::string getTargetBallColor() const;
     
-
     double getEEFDistance();
     Vector3d getEEFRelativePosition();
     void printEEFDebugInfo();
@@ -154,19 +171,28 @@ public:
 
 private:
     /* Metodi Privati */
+    double planCartesianPathFromAtoB(const Vector3d& pos_A, 
+                                     const Vector3d& pos_B,
+                                     const Quaternion& orientamento,
+                                     const std::string& frame_id = WORLD_FRAME
+                                    );
+
     void paramsCallback(const ShotParamsMsg::SharedPtr msg);
     bool send_logging_request(const std::string& filename, bool joint_logging_enabled, bool cartesian_logging_enabled, bool controller_logging_enabled, bool wrench_logging_enabled);
     bool send_trigger_request(const TriggerClient& client, const std::string& service_name);
-    bool set_game_engine_state(bool state); 
+    bool set_game_engine_state(bool state);
+
 
     /* Variabili Privati */
     MoveGroupInterfacePtr move_group_; 
+    moveit::planning_interface::MoveGroupInterface::Plan computed_plan_;
     TimerPtr start_timer_;             
     std::promise<void> init_done_;     
     rclcpp::Client<moveit_msgs::srv::ApplyPlanningScene>::SharedPtr planning_scene_diff_cli_;
     ShotParamsSubscription param_sub_;
     TriggerClient build_scene_client_;
     TriggerClient remove_white_ball_client_;
+    TriggerClient add_white_ball_client_;
     TriggerClient freeze_balls_client_;
     LogOnFileClient log_client_;
     SetBoolClient toggle_game_engine_client_;
@@ -201,7 +227,8 @@ private:
     std::condition_variable params_cv_;
     bool params_received_ = false;
     double direction_angle_deg_;
-    double impact_shot_velocity_;
+    double planar_impact_shot_velocity_;  //velocità che la pallina deve assumere
+    double impact_shot_velocity_;         //velocità che la stecca deve avere al momento dell'impatto (calcolata in base alla geometria del tiro)
     double impact_angle_deg_;
     std::string target_ball_color_;
     
