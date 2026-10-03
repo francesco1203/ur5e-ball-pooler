@@ -854,7 +854,7 @@
     </body>
 
     <!-- pallina blu -->
-    <body name="blue_ball" pos="-0.39800 -0.34400 0.0725">
+    <body name="blue_ball" pos="-0.43700 -0.24200 0.0725">
         <joint type="free" class="pallina_colorata_collision"/>
         <geom class="visual_environment" type="sphere" size="0.0125" material="blu"/>
         <geom class="pallina_colorata_collision"/>

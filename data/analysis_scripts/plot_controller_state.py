@@ -4,12 +4,16 @@ plot_controller_position.py
 
 Visualizza gli errori di posizione (e opzionalmente desired vs actual) per ogni giunto
 estraendo i dati dal bagfile usando le librerie native ROS 2 (rosbag2_py).
+Supporta il salvataggio automatico in una sottocartella in data/results 
+se viene passato il flag --save <nome_cartella>.
 """
 
 import sys
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np              
+from pathlib import Path
 
 # --- Import nativi di ROS 2 ---
 import rosbag2_py
@@ -143,14 +147,34 @@ def plot_position(df, joints):
     axes[-1][1].set_xlabel("Tempo [s]")
  
     fig.tight_layout(rect=[0, 0, 1, 0.97])
+    return fig
 
 
 def main():
-
     print("Controller State Plotter - Visualizza gli errori di posizione per ogni giunto, durante il controllo.")
 
+    # --- Lettura Argomenti, Flag e Sottocartella ---
+    args = sys.argv[1:]
+    if len(args) < 1:
+        print("Uso: python3 plot_controller_position.py <percorso_al_bag> [--save <sottocartella>]")
+        sys.exit(1)
+        
+    save_results = '--save' in args
+    save_subdir = None
     
-    bag_path = sys.argv[1]
+    if save_results:
+        idx = args.index('--save')
+        # Verifica se l'utente ha passato il nome della sottocartella subito dopo --save
+        if idx + 1 < len(args) and not args[idx+1].startswith('-'):
+            save_subdir = args[idx + 1]
+            args.pop(idx + 1) # Rimuove la stringa della sottocartella dagli argomenti
+        args.pop(idx) # Rimuove '--save' dagli argomenti
+        
+    if len(args) == 0:
+        print("Errore: Manca il percorso al bagfile.")
+        sys.exit(1)
+    
+    bag_path = args[0]
     topic_target = '/scaled_joint_trajectory_controller/controller_state'
 
     print(f"Estrazione dati controller da: {bag_path} sul topic: {topic_target}...")
@@ -186,13 +210,35 @@ def main():
         print("Nessun movimento rilevato nell'intero log del controller.")
     # --- FINE RIMOZIONE CODA STATICA ---
 
-
     print(f"Trovati {len(joints)} giunti: {joints}")
     print(f"Numero di campioni: {len(df)}")
     print(f"Durata registrata: {df['time_sec'].iloc[-1]:.3f} s")
 
-    plot_position(df, joints)
-    plt.show()
+    # Genera la figura
+    fig = plot_position(df, joints)
+    
+    # --- SALVATAGGIO O VISUALIZZAZIONE ---
+    if save_results:
+        # script_dir è data/analysis_scripts
+        script_dir = Path(__file__).parent.absolute()
+        
+        # results_dir è data/results
+        results_dir = script_dir.parent / 'results'
+        
+        if save_subdir:
+            results_dir = results_dir / save_subdir
+            
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Salvataggio con il nome fisso richiesto
+        save_file = results_dir / "controller_state.png"
+        
+        fig.savefig(save_file, dpi=300)
+        print(f"✅ Grafico salvato in: {save_file}")
+        
+        plt.close(fig) 
+    else:
+        plt.show()
 
 if __name__ == "__main__":
     main()

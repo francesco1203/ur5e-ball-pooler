@@ -26,7 +26,7 @@ execute_shot="true"                            #false se vuoi solo fare visualiz
 use_real_game_engine="true"                    #true se vuoi usare il game engine reale, false se vuoi usare quello fake
 
 #logging
-logging_enable="false"                                        #true se vuoi fare logging
+logging_enable="true"                                        #true se vuoi fare logging
 only_essential_logging="true"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"       #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
@@ -183,7 +183,7 @@ if [[ "$execute_shot" == "true" ]]; then
     # ================================================
     # GESTIONE DEL LOGGING
     # ================================================
-    if [[ "$only_essential_logging" == "true" ]]; then
+    if [[ "$logging_enable" == "true" && "$only_essential_logging" == "true" ]]; then
 
         BAGDATA_DIR="data/bagdata"
 

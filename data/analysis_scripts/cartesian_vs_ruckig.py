@@ -177,28 +177,37 @@ def main():
     # --- FILTRAGGIO SAVITZKY-GOLAY (Opzionale) ---
     filtering_distance = False
     filtering_velocity = False
-    filtering_acceleration = False
+    filtering_acceleration = True  # Filtra solo l'accelerazione come richiesto
     
     wl = 9  # Window length (deve essere dispari)
     po = 3  # Polynomial order
 
+    # Calcolo del passo temporale medio (dt) per la derivata del filtro
+    dt_medio = np.mean(np.diff(t_raw))
+
     # Filtra (o mantieni grezza) la distanza
-    plot_dist = savgol_filter(dist_raw, window_length=wl, polyorder=po) if filtering_distance else dist_raw
+    plot_dist = savgol_filter(dist_raw, window_length=wl, polyorder=po, mode='nearest') if filtering_distance else dist_raw
     label_dist = 'Campioni Reali (Filtrati SG)' if filtering_distance else 'Campioni Reali (Raw)'
 
     # Filtra (o mantieni grezza) la velocità
-    plot_vel = savgol_filter(vel_raw, window_length=wl, polyorder=po) if filtering_velocity else vel_raw
+    plot_vel = savgol_filter(vel_raw, window_length=wl, polyorder=po, mode='nearest') if filtering_velocity else vel_raw
     label_vel = 'Velocità Calcolata (Filtrata SG)' if filtering_velocity else 'Velocità Calcolata (Raw)'
 
-    # Calcolo dell'accelerazione basato sulla velocità (filtrata o meno)
-    dt_vel = np.diff(t_raw)
-    acc_raw = np.diff(plot_vel) / dt_vel
-    t_acc_raw = t_raw[:-1]
+    # --- CALCOLO ACCELERAZIONE: Derivata diretta con Savitzky-Golay ---
+    if filtering_acceleration:
+        # Derivata prima (deriv=1) applicata direttamente sulla velocità
+        plot_acc = savgol_filter(plot_vel, window_length=wl, polyorder=po, deriv=1, delta=dt_medio, mode='nearest')
+        label_acc = 'Accelerazione Calcolata (Derivata - Filtrata SG)'
+    else:
+        # Fallback con np.gradient (preserva la lunghezza dell'array a differenza di np.diff)
+        plot_acc = np.gradient(plot_vel, t_raw)
+        label_acc = 'Accelerazione Calcolata (Raw)'
 
-    # Filtra (o mantieni grezza) l'accelerazione
-    plot_acc = savgol_filter(acc_raw, window_length=wl, polyorder=po) if filtering_acceleration else acc_raw
-    label_acc = 'Accelerazione Calcolata (Filtrata SG)' if filtering_acceleration else 'Accelerazione Calcolata (Raw)'
+    # NOTA: Ora plot_acc ha la stessa lunghezza di t_raw e plot_vel.
+    # Nei plot successivi usa direttamente `t_raw` per l'asse X dell'accelerazione 
+    # e rimuovi eventuali riferimenti a `t_acc_raw`.
 
+    
     # --- 3. PLOTTING SOVRAPPOSTO ---
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     fig.canvas.manager.set_window_title('Confronto: Ideale vs Esecuzione Reale')

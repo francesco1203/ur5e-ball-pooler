@@ -469,6 +469,7 @@ int main(int argc, char* argv[])
                                             );
 
             //disabilito collisione tra asta e pallina bianca, così la stecca può penetrare la pallina senza che MoveIt! blocchi il tiro per collisione
+            RCLCPP_INFO(node->get_logger(), "Disattivazione collisione con pallina bianca per il tiro...");
             node->disable_white_ball_collision();
 
             

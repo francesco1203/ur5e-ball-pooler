@@ -965,16 +965,12 @@ bool TaskNode::build_scene()
 }
 
 bool TaskNode::disable_white_ball_collision() 
-{ 
-    RCLCPP_INFO(this->get_logger(), "Disattivazione collisione con pallina bianca per il tiro...");
-    
+{
     return send_trigger_request(remove_white_ball_client_, "remove_white_ball");
 }
 
 bool TaskNode::enable_white_ball_collision() 
-{ 
-    RCLCPP_INFO(this->get_logger(), "Attivazione collisione con pallina bianca per il tiro...");
-    
+{
     return send_trigger_request(add_white_ball_client_, "add_white_ball");
 }
 

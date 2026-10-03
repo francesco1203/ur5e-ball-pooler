@@ -1,20 +1,42 @@
 """
 plot_ruckig.py
 
-Visualizza il csv generato da Ruckig con i dati ideali di posizione, velocità e accelerazione (riferimento durante il tiro)
+Visualizza il csv generato da Ruckig con i dati ideali di posizione, velocità e accelerazione (riferimento durante il tiro).
+Supporta il salvataggio automatico in una sottocartella in data/results 
+se viene passato il flag --save <nome_cartella>.
 """
 
 import sys
+import os
+from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt
 
 def main():
-
     print("Plot Ruckig - Visualizza la parametrizzazione ideale di posizione, velocità e accelerazione del tiro, generati da Ruckig in un file CSV.")
 
+    # --- Lettura Argomenti, Flag e Sottocartella ---
+    args = sys.argv[1:]
+    if len(args) < 1:
+        print("Uso: python3 plot_ruckig.py <file_csv> [--save <sottocartella>]")
+        sys.exit(1)
         
-    # Se passi il file da riga di comando usa quello
-    file_path = sys.argv[1]
+    save_results = '--save' in args
+    save_subdir = None
+    
+    if save_results:
+        idx = args.index('--save')
+        # Verifica se l'utente ha passato il nome della sottocartella subito dopo --save
+        if idx + 1 < len(args) and not args[idx+1].startswith('-'):
+            save_subdir = args[idx + 1]
+            args.pop(idx + 1) # Rimuove la stringa della sottocartella dagli argomenti
+        args.pop(idx) # Rimuove '--save' dagli argomenti
+        
+    if len(args) == 0:
+        print("Errore: Manca il percorso al file CSV.")
+        sys.exit(1)
+        
+    file_path = args[0]
 
     try:
         df = pd.read_csv(file_path)
@@ -57,7 +79,29 @@ def main():
     axs[2].legend()
 
     plt.tight_layout()
-    plt.show()
+    
+    # --- SALVATAGGIO O VISUALIZZAZIONE ---
+    if save_results:
+        # script_dir è data/analysis_scripts
+        script_dir = Path(__file__).parent.absolute()
+        
+        # results_dir è data/results
+        results_dir = script_dir.parent / 'results'
+        
+        if save_subdir:
+            results_dir = results_dir / save_subdir
+            
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Salvataggio con il nome fisso richiesto
+        save_file = results_dir / "ruckig.png"
+        
+        fig.savefig(save_file, dpi=300)
+        print(f"✅ Grafico salvato in: {save_file}")
+        
+        plt.close(fig) 
+    else:
+        plt.show()
 
 if __name__ == '__main__':
     main()

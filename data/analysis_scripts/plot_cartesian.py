@@ -2,11 +2,13 @@
 plot_cartesian.py
 
 Visualizza i dati di posizione, velocità e accelerazione cartesiana in linea retta, 
-estraendo i dati da un bagfile
+estraendo i dati da un bagfile.
+Supporta il salvataggio automatico in una sottocartella in data/results 
+se viene passato il flag --save <nome_cartella>.
 """
 
-
 import sys
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -67,16 +69,30 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
     return df
 
 def main():
-
     print("Cartesian Kinematics Plotter - Estrae e visualizza i dati di posizione, velocità e accelerazione cartesiana in linea retta.")
 
+    # --- Lettura Argomenti, Flag e Sottocartella ---
+    args = sys.argv[1:]
+    if len(args) < 1:
+        print("Uso: python3 plot_cartesian.py <percorso_al_bag> [--save <sottocartella>]")
+        sys.exit(1)
+        
+    save_results = '--save' in args
+    save_subdir = None
     
-    if len(sys.argv) < 2:
-        print("Uso: python script.py <percorso_al_bag>")
-        return
+    if save_results:
+        idx = args.index('--save')
+        # Verifica se l'utente ha passato il nome della sottocartella subito dopo --save
+        if idx + 1 < len(args) and not args[idx+1].startswith('-'):
+            save_subdir = args[idx + 1]
+            args.pop(idx + 1) # Rimuove la stringa della sottocartella dagli argomenti
+        args.pop(idx) # Rimuove '--save' dagli argomenti
+        
+    if len(args) == 0:
+        print("Errore: Manca il percorso al bagfile.")
+        sys.exit(1)
 
-    bag_path = sys.argv[1]
-    print(f"Estrazione dati da: {bag_path}...")
+    bag_path = args[0]
     
     # --- ASSICURATI CHE QUESTI NOMI SIANO CORRETTI PER IL TUO SISTEMA ---
     topic_pose = '/tcp_pose_broadcaster/pose'
@@ -89,7 +105,7 @@ def main():
         print("Nessun dato estratto. Verifica i nomi dei topic. Uscita.")
         return
 
-    # --- INIZIO NUOVO BLOCCO CONTROLLO VELOCITÀ CARTESIANE ---
+    # --- INIZIO BLOCCO CONTROLLO VELOCITÀ CARTESIANE ---
     is_all_invalid = True
     for col in ['vx', 'vy', 'vz']:
         if not (df[col].isna() | (df[col] == 0.0)).all():
@@ -98,14 +114,13 @@ def main():
             
     if is_all_invalid:
         print("\n" + "="*75)
-        print(" ⚠️  ATTENZIONE: Le velocità cartesiane (Twist) contengono solo ZERI o NaN.")
+        print(" ⚠️️  ATTENZIONE: Le velocità cartesiane (Twist) contengono solo ZERI o NaN.")
         print("     È probabile che questo bag provenga da una simulazione (es. mock_components)")
         print("     dove il Cartesian Velocity Publisher non riceve le velocità dei giunti.")
         print("     I grafici di velocità e accelerazione appariranno piatti.")
         print("="*75 + "\n")
-    # --- FINE NUOVO BLOCCO ---
+    # --- FINE BLOCCO ---
 
-    
     print(f"Estratti {len(df)} messaggi combinati. Pulizia timestamp...")
 
     # Pulizia dei timestamp
@@ -113,8 +128,7 @@ def main():
     df = df[(df['dt'].isna()) | (df['dt'] > 1e-3)].copy()
     df['time_sec'] = df['time_sec'] - df['time_sec'].iloc[0]
 
-
-    # --- NUOVO BLOCCO: RIMOZIONE CODA STATICA ---
+    # --- RIMOZIONE CODA STATICA ---
     # Calcoliamo prima la distanza percorsa in ogni punto per capire quando si ferma
     temp_x = df['x'].values
     temp_y = df['y'].values
@@ -140,32 +154,40 @@ def main():
         print("Nessun movimento cartesiano rilevato nell'intero log.")
     # --- FINE RIMOZIONE CODA STATICA ---
 
-
     # Estrazione array numpy
     t = df['time_sec'].values
     x, y, z = df['x'].values, df['y'].values, df['z'].values
     vx, vy, vz = df['vx'].values, df['vy'].values, df['vz'].values
 
+
     # 2. CALCOLO DI DISTANZA, VELOCITÀ E ACCELERAZIONE CARTESIANE
-    filtering_distance = True
-    filtering_velocity = True
+    # Impostati a False come da tua richiesta (filtrare solo l'accelerazione)
+    filtering_distance = False
+    filtering_velocity = False
     filtering_acceleration = True
     
     wl = 9 # window_length (deve essere dispari)
     po = 3 # polyorder
 
+    # Calcolo del passo temporale medio (dt) per la derivata
+    dt_medio = np.mean(np.diff(t))
+
     # Distanza percorsa (grezza per il filtro, ma non la deriviamo più!)
     raw_dist = np.sqrt((x - x[0])**2 + (y - y[0])**2 + (z - z[0])**2)
-    plot_dist = savgol_filter(raw_dist, window_length=wl, polyorder=po) if filtering_distance else raw_dist
+    plot_dist = savgol_filter(raw_dist, window_length=wl, polyorder=po, mode='nearest') if filtering_distance else raw_dist
 
-    # --- NUOVO CALCOLO VELOCITÀ: Modulo del Twist Lineare ---
+    # --- CALCOLO VELOCITÀ: Modulo del Twist Lineare ---
     raw_vel = np.sqrt(vx**2 + vy**2 + vz**2)
-    vel_cart = savgol_filter(raw_vel, window_length=wl, polyorder=po) if filtering_velocity else raw_vel
+    vel_cart = savgol_filter(raw_vel, window_length=wl, polyorder=po, mode='nearest') if filtering_velocity else raw_vel
 
-    # Accelerazione rimane derivata della velocità
-    acc_cart = np.gradient(vel_cart, t)
+    # --- CALCOLO ACCELERAZIONE: Derivata diretta con Savitzky-Golay ---
     if filtering_acceleration:
-        acc_cart = savgol_filter(acc_cart, window_length=wl, polyorder=po)
+        # Derivata prima con SG (deriv=1) applicata direttamente sulla velocità calcolata sopra
+        acc_cart = savgol_filter(vel_cart, window_length=wl, polyorder=po, deriv=1, delta=dt_medio, mode='nearest')
+    else:
+        # Fallback senza filtro
+        acc_cart = np.gradient(vel_cart, t)
+
 
     # 3. PLOTTING DEI RISULTATI
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
@@ -189,13 +211,35 @@ def main():
     axs[2].plot(t, acc_cart, color='red', label='Accelerazione cartesiana [m/s²]')
     axs[2].set_ylabel('Accelerazione [m/s²]')
     axs[2].set_xlabel('Tempo [s]')
-    axs[2].set_title('Profilo di Accelerazione Cartesiana' + (' (filtrata SG)' if filtering_acceleration else ''))
+    axs[2].set_title('Profilo di Accelerazione Cartesiana' + (' (derivata - filtrata SG)' if filtering_acceleration else ''))
     axs[2].axhline(0, color='black', linewidth=0.8, linestyle=':')
     axs[2].grid(True)
     axs[2].legend()
 
     plt.tight_layout()
-    plt.show()
+    
+    # --- SALVATAGGIO O VISUALIZZAZIONE ---
+    if save_results:
+        # script_dir è data/analysis_scripts
+        script_dir = Path(__file__).parent.absolute()
+        
+        # results_dir è data/results
+        results_dir = script_dir.parent / 'results'
+        
+        if save_subdir:
+            results_dir = results_dir / save_subdir
+            
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Salvataggio con il nome richiesto
+        save_file = results_dir / "cartesian_traj_par.png"
+        
+        plt.savefig(save_file, dpi=300)
+        print(f"✅ Grafico salvato in: {save_file}")
+        
+        plt.close(fig) 
+    else:
+        plt.show()
 
 if __name__ == '__main__':
     main()

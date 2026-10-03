@@ -1,4 +1,13 @@
+"""
+plot_torque.py
+
+Visualizza i dati di coppia per ogni giunto, estraendo i dati da un bagfile.
+Supporta il salvataggio automatico in una sottocartella in data/results 
+se viene passato il flag --save <nome_cartella>.
+"""
+
 import sys
+import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -68,14 +77,30 @@ def extract_torque_from_bag(bag_path, topic_name):
 
 
 def main():
-
     print("Plot Torque - Visualizza i dati di coppia per ogni giunto.")
     
-    if len(sys.argv) < 2:
-        print("Uso: python3 plot_torque.py <percorso_cartella_bag>")
+    # --- Lettura Argomenti, Flag e Sottocartella ---
+    args = sys.argv[1:]
+    if len(args) < 1:
+        print("Uso: python3 plot_torque.py <percorso_cartella_bag> [--save <sottocartella>]")
         sys.exit(1)
         
-    bag_path = sys.argv[1]
+    save_results = '--save' in args
+    save_subdir = None
+    
+    if save_results:
+        idx = args.index('--save')
+        # Verifica se l'utente ha passato il nome della sottocartella subito dopo --save
+        if idx + 1 < len(args) and not args[idx+1].startswith('-'):
+            save_subdir = args[idx + 1]
+            args.pop(idx + 1) # Rimuove la stringa della sottocartella dagli argomenti
+        args.pop(idx) # Rimuove '--save' dagli argomenti
+        
+    if len(args) == 0:
+        print("Errore: Manca il percorso al bagfile.")
+        sys.exit(1)
+        
+    bag_path = args[0]
     topic_target = '/joint_states'
 
     print(f"Estrazione dati effort da: {bag_path} sul topic: {topic_target}...")
@@ -142,4 +167,28 @@ def main():
     axes[-1].set_xlabel("Tempo [s]")
     fig.tight_layout()
 
-    plt.show()
+    # --- SALVATAGGIO O VISUALIZZAZIONE ---
+    if save_results:
+        # script_dir è data/analysis_scripts
+        script_dir = Path(__file__).parent.absolute()
+        
+        # results_dir è data/results
+        results_dir = script_dir.parent / 'results'
+        
+        if save_subdir:
+            results_dir = results_dir / save_subdir
+            
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Salvataggio con il nome fisso richiesto
+        save_file = results_dir / "torque.png"
+        
+        fig.savefig(save_file, dpi=300)
+        print(f"✅ Grafico salvato in: {save_file}")
+        
+        plt.close(fig) 
+    else:
+        plt.show()
+
+if __name__ == '__main__':
+    main()
