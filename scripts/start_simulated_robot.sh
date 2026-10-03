@@ -30,6 +30,7 @@ logging_enable="true"                                        #true se vuoi fare 
 only_essential_logging="true"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"       #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
+topic_monitor="true"                                         #true se vuoi avviare rqt_topic per monitorare i topic, false se non vuoi avviarlo
 # ------------------------------------------------
 
 
@@ -175,6 +176,18 @@ gnome-terminal --tab --title="Scene Builder" -- bash -c \
 
 
 # ================================================
+# MONITORING DEI TOPIC
+# ================================================
+if [[ "$topic_monitor" == "true" ]]; then
+    echo "Avvio Topic Monitor..."
+    gnome-terminal --tab --title="Topic Monitor" -- bash -c \
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 run rqt_topic rqt_topic; \
+                    exec bash"
+fi
+
+
+# ================================================
 # ESECUZIONE
 # ================================================
 if [[ "$execute_shot" == "true" ]]; then
@@ -184,7 +197,7 @@ if [[ "$execute_shot" == "true" ]]; then
     # GESTIONE DEL LOGGING
     # ================================================
     if [[ "$logging_enable" == "true" && "$only_essential_logging" == "true" ]]; then
-
+        
         BAGDATA_DIR="data/bagdata"
 
         

@@ -45,7 +45,8 @@ only_camera_logging_folder="only_camera_logging"
 brutal_logging="true"                                        
 brutal_logging_folder="brutal_logging"     
 
-compressed_streaming="false"                                #non mettere a TRUE     
+compressed_streaming="false"   #for camera topics, if true, use compressed topics, if false, use raw topics                             
+topic_monitor="true"           #for topic monitoring, if true, launch rqt_topic to monitor topics, if false, do not launch it
 # ------------------------------------------------
 
 
@@ -249,6 +250,17 @@ gnome-terminal --tab --title="Scene Builder" -- bash -c \
                 exec bash"
 
 
+# ================================================
+# MONITORING DEI TOPIC
+# ================================================
+if [[ "$topic_monitor" == "true" ]]; then
+    echo "Avvio Topic Monitor..."
+    gnome-terminal --tab --title="Topic Monitor" -- bash -c \
+                    "source ${INSTALL_SETUP_BASH} && \
+                    ros2 run rqt_topic rqt_topic; \
+                    exec bash"
+fi
+
 
 # ================================================
 # ESECUZIONE
@@ -349,7 +361,6 @@ if [[ "$execute_shot" == "true" ]]; then
                                 test_title:='${only_essential_logging_folder}' ; \
                             exec bash"
             # ------------------------------------------------
-        fi
 
         
         if [[ "$brutal_logging" == "true" ]]; then
