@@ -37,6 +37,11 @@ Thumbs.db
 
 
 # PERSONALIZZATO
-data/bagdata/camera_stream/*
-# data/csv/ruckig_logging/*
+
+#dati ignorati
+data/csv/ruckig_logging/*
 data/bagdata/brutal_logging/*
+data/bagdata/only_camera_logging_raw/*
+data/bagdata/only_camera_logging_compressed/*
+data/bagdata/only_essential_logging/*
+save_videos

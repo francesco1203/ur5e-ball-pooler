@@ -6,12 +6,12 @@ task_node:
     user_confirm_for_right_detection: true        #user conferma le terne delle palline e le freeza
     user_confirm_for_each_step: false             #user conferma ogni singolo passo dell'esecuzione
     user_confirm_for_first_move: true             #(*) user conferma il primo movimento del robot
-    user_confirm_for_shot_execution: true         #(*) user conferma l'inizio dello shot
+    user_confirm_for_shot_execution: false         #(*) user conferma l'inizio dello shot
 
     pause_among_step_1_2_milliseconds: 800        #(**) pausa tra il passo 1 e il passo 2 dell'esecuzione, in millisecondi
     pause_among_step_2_3_milliseconds: 800        #(**) pausa tra il passo 2 e il passo 3 dell'esecuzione, in millisecondi
     pause_among_step_3_4_milliseconds: 800        #(**) pausa tra il passo 3 e il passo 4 dell'esecuzione, in millisecondi
-    pause_among_step_4_5_milliseconds: 800        #(**) pausa tra il passo 4 e il passo 5 dell'esecuzione, in millisecondi
+    pause_among_step_4_5_milliseconds: 0        #(**) pausa tra il passo 4 e il passo 5 dell'esecuzione, in millisecondi
     pause_among_step_5_6_milliseconds: 2000       #(**) pausa tra il passo 5 e il passo 6 dell'esecuzione, in millisecondi
     pause_after_step_6_milliseconds: 1000         #(**) pausa tra i passi dell'esecuzione, in millisecondi
   

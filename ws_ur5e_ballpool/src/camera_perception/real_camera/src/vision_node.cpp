@@ -42,7 +42,7 @@ public:
     VisionNode() : Node("vision_node")
     {
         // iperparametri
-        this->declare_parameter<int>("required_samples", 200);
+        this->declare_parameter<int>("required_samples", 50);  // numero di campioni richiesti per la calibrazione
         required_samples_ = this->get_parameter("required_samples").as_int();
         
         tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);

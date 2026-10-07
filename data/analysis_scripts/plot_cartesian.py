@@ -166,8 +166,8 @@ def main():
     filtering_velocity = False
     filtering_acceleration = True
     
-    wl = 9 # window_length (deve essere dispari)
-    po = 3 # polyorder
+    wl = 3 # window_length (deve essere dispari)
+    po = 1 # polyorder
 
     # Calcolo del passo temporale medio (dt) per la derivata
     dt_medio = np.mean(np.diff(t))

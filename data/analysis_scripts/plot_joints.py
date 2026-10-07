@@ -152,8 +152,8 @@ def main():
     filtering_position = False
     filtering_velocity = False
     filtering_acceleration = True
-    filter_sg_window_length = 11  
-    filter_sg_polyorder = 3
+    filter_sg_window_length = 21 
+    filter_sg_polyorder = 5
 
     # Calcolo del passo temporale medio (dt) per la derivata del filtro
     dt_medio = np.mean(np.diff(t))

@@ -1,15 +1,11 @@
 #!/bin/bash
 
-
-
 #------------------------------------------------
 # DESCRIZIONE SCRIPT
-
 # Questo script serve per avviare tutti i nodi necessari per l'esecuzione del tiro con il
 # braccio robotico UR5e del laboratorio di robotica. Lo script permette di scegliere 
 # se eseguire il tiro o no (debug), se usare game engine reale e settare il logging correttamente
 #------------------------------------------------
-
 
 # ------------------------------------------------
 # PARAMETRI DI RETE
@@ -18,38 +14,35 @@ LAB_ROBOT_IP="192.168.1.110"
 robot_ip="${LAB_ROBOT_IP}"
 #------------------------------------------------
 
-
 # ------------------------------------------------
 # PARAMETRI DI PERSONALIZZAZIONE ESECUZIONE OFF-LINE
 
 #launch driver (se il driver è stato già lanciato, non serve rilanciare tutto)
-launch_robot_driver="true"                         
+launch_robot_driver="true"                          
 
 #avvio camera IntelRealsense
-start_image_view="true"                    #visualizzatore di cosa vede la camera           
-numero_campioni_detection_biliardo=50       #numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera
+start_image_view="false"                    #visualizzatore di cosa vede la camera            
+numero_campioni_detection_biliardo=50      #numero di campioni da utilizzare per la detection media del biliardo, dalla telecamera
 
 #esecuzione tiro
-execute_shot="true"                             
-use_real_game_engine="true"                   
+execute_shot="true"                               
+use_real_game_engine="true"                    
 
 #logging
-logging_enable="true"                                        
+logging_enable="true"                                         
 
-only_essential_logging="false"                                
+only_essential_logging="true"                                
 only_essential_logging_folder="only_essential_logging"        
 
-only_camera_logging="false"                                   
+only_camera_logging="true"                                   
 only_camera_logging_folder="only_camera_logging"  
 
-brutal_logging="true"                                        
+brutal_logging="false"                                         
 brutal_logging_folder="brutal_logging"     
 
-compressed_streaming="false"   #for camera topics, if true, use compressed topics, if false, use raw topics                             
-topic_monitor="true"           #for topic monitoring, if true, launch rqt_topic to monitor topics, if false, do not launch it
+compressed_streaming="true"    #for camera topics, if true, use compressed topics, if false, use raw topics                              
+topic_monitor="false"           #for topic monitoring, if true, launch rqt_topic to monitor topics, if false, do not launch it
 # ------------------------------------------------
-
-
 
 #------------------------------------------------
 # PARAMETRI DI SCRIPT PER LA LEGGIBILITA' E LA MANUTENIBILITA'
@@ -67,8 +60,6 @@ if [ ! -d "${INSTALL_DIR}" ]; then
 fi
 source "${INSTALL_SETUP_BASH}"
 # ------------------------------------------------
-
-
 
 # ================================================
 # ADDESTRAMENTO DELL'UTENTE
@@ -92,7 +83,7 @@ Sequenza corretta su Robot Reale:
     - Sul Teach Pendant fisico del robot:
         - Apri/Crea un programma contenente il nodo "External Control"
     - Verifica in "Installation" che l'IP dell'Host (il tuo PC) sia corretto
-    - Premi "Play" ▶️
+    - Premi "Play" ▶️️
     - Solo ora il robot accetta comandi dal driver
     - Lo script aspetta che tu prema un tasto dopo aver visto "Robot ready to receive commands"
 4. Avvio MoveIt ✅
@@ -103,7 +94,6 @@ EOF
 
 sleep 1
 
-
 # ================================================
 # AGGIORNAMENTO PLUGIN UR_ROBOT_DRIVER PER MOVEIT
 # ================================================
@@ -112,8 +102,6 @@ MOVEIT_CONFIG_DIR="${WS_DIR}/src/moveit_config/config"
 echo "Aggiornamento del plugin ur_robot_driver nel file ur5e.ros2_control.xacro..."
 python3 ${MOVEIT_CONFIG_DIR}/ros2_control_hardware_auto_switch.py driver --robot_ip="${robot_ip}" --reverse_ip=""
 #------------------------------------------------
-
-
 
 # ================================================
 # RICORDA ALL'UTENTE DI SPOSTARE IL ROBOT DAL CAMPO DI VISIONE
@@ -126,7 +114,6 @@ echo -e "Premi un tasto per confermare che il robot è in posizione corretta..."
 
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
-
 
 # ================================================
 # AVVIO DRIVER UR5e 
@@ -144,7 +131,6 @@ if [[ "$launch_robot_driver" == "true" ]]; then
     read -n 1 -s -r
 
     # Calcolo il path base del pacchetto arm_description una volta sola
-    # (Funziona perché hai già fatto 'source "${INSTALL_SETUP_BASH}"' in cima allo script)
     ARM_DESC_DIR="$(ros2 pkg prefix arm_description)/share/arm_description"
 
     gnome-terminal --tab --title="Driver UR5e" -- bash -c "source \"${INSTALL_SETUP_BASH}\" && \
@@ -160,8 +146,6 @@ else
     echo -e "\nDriver UR5e non avviati da questo script. Assicurati che siano già attivi..."
 fi
 
-
-
 # ================================================
 # AVVIO MOVEIT
 # ================================================
@@ -174,7 +158,6 @@ echo -e "Premi un tasto per avviare Moveit..."
 # Mettiamo in pausa in attesa del segnale
 read -n 1 -s -r
 
-
 echo "Avvio MoveIt..."
 gnome-terminal --tab --title="MoveGroup" -- bash -c \
                 "source ${INSTALL_SETUP_BASH} && \
@@ -183,7 +166,6 @@ gnome-terminal --tab --title="MoveGroup" -- bash -c \
                 exec bash"
 sleep 5
 
-
 echo "Avvio RViz..."
 gnome-terminal --tab --title="Rviz" -- bash -c \
                "source ${INSTALL_SETUP_BASH} && \
@@ -191,7 +173,6 @@ gnome-terminal --tab --title="Rviz" -- bash -c \
                     use_sim_time:=false; \
                 exec bash"
 sleep 5
-
 
 # ================================================
 # AVVIO DETECTION CON CAMERA
@@ -238,8 +219,6 @@ gnome-terminal --tab --title="VisionNode" -- bash -c \
                     required_samples:=${numero_campioni_detection_biliardo}; \
                 exec bash"
 
-
-
 # ================================================
 # BUILDER DELLA SCENA
 # ================================================
@@ -248,7 +227,6 @@ gnome-terminal --tab --title="Scene Builder" -- bash -c \
                 "source ${INSTALL_SETUP_BASH} && \
                 ros2 run scene_description scene_builder; \
                 exec bash"
-
 
 # ================================================
 # MONITORING DEI TOPIC
@@ -260,7 +238,6 @@ if [[ "$topic_monitor" == "true" ]]; then
                     ros2 run rqt_topic rqt_topic; \
                     exec bash"
 fi
-
 
 # ================================================
 # ESECUZIONE
@@ -274,22 +251,33 @@ if [[ "$execute_shot" == "true" ]]; then
 
         BAGDATA_DIR="data/bagdata"
 
+        # Se il brutal logging è attivo, forziamo la disattivazione degli altri (Esclusività)
+        if [[ "$brutal_logging" == "true" ]]; then
+            echo -e "\n[INFO] Brutal logging attivo: disabilito essential e camera logging per garantire l'esclusività.\n"
+            only_camera_logging="false"
+            only_essential_logging="false"
+        fi
+
+        # ------------------------------------------------
+        # NODI AUSILIARI DI LOGGING
+        # Avviamo il twist publisher se stiamo facendo essential o brutal logging
+        # (non serve lanciarlo se stiamo facendo SOLO logging camera)
+        if [[ "$only_essential_logging" == "true" || "$brutal_logging" == "true" ]]; then
+            echo "Avvio Nodo di pubblicazione twist..."
+            gnome-terminal --tab --title="Cartesian Twist Publisher TCP" -- bash -c \
+                           "source ${INSTALL_SETUP_BASH} && \
+                           ros2 launch logging_nodes cartesian_twist_pub.launch.py; \
+                           exec bash"
+        fi
+
+        # ------------------------------------------------
+        # LOGGING DELLA CAMERA
         if [[ "$only_camera_logging" == "true" ]]; then
-
-            # ------------------------------------------------
-            # solo logging dei topic della camera, durante l'esecuzione di tutto il programma
-
-
             if [[ "$compressed_streaming" == "true" ]]; then
-
                 BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}_compressed"
-
-
-                #cancello la cartella di logging precedente se esiste, così da non avere conflitti
                 rm -rf "${BAGDATA_DIR_CAMERA}"  
-
-                # solo logging della camera
-                echo "ros2 bag record dei topic della camera (raw: no compression)..."
+                
+                echo "ros2 bag record dei topic della camera (compressed)..."
                 gnome-terminal --tab --title="ros2bag camera record" -- \
                     bash -c "source \"${INSTALL_SETUP_BASH}\" && \
                     ros2 bag record -o ${BAGDATA_DIR_CAMERA} \
@@ -299,15 +287,10 @@ if [[ "$execute_shot" == "true" ]]; then
                         /camera/camera/aligned_depth_to_color/image_raw/compressedDepth \
                         /camera/camera/extrinsics/depth_to_color; \
                     exec bash"
-                    
             else
-
                 BAGDATA_DIR_CAMERA="${BAGDATA_DIR}/${only_camera_logging_folder}_raw"
-
-                #cancello la cartella di logging precedente se esiste, così da non avere conflitti
                 rm -rf "${BAGDATA_DIR_CAMERA}"  
-
-                # solo logging della camera
+                
                 echo "ros2 bag record dei topic della camera (raw: no compression)..."
                 gnome-terminal --tab --title="ros2bag camera record" -- \
                     bash -c "source \"${INSTALL_SETUP_BASH}\" && \
@@ -319,65 +302,27 @@ if [[ "$execute_shot" == "true" ]]; then
                         /camera/camera/extrinsics/depth_to_color; \
                     exec bash"
             fi
-
-
-
-            # ------------------------------------------------
-        else
-
-            #se non voglio fare logging solo della camera, allora avvio anche i nodi che danno informazioni cartesiane (pose e twist)
-
-
-            #NOTA: non c'è bisogno di lanciare anche cartesian_pose_publisher, perché quando
-            #      sono su robot reale, il driver UR5e pubblica già la posa della flangia su un topic
-            #      e posso usare direttamente quella, non mi serve quella del TCP (tip asta)
-            # RICORDA: durante il tiro, la flangia e il tip dell'asta in linea retta si muovono ugualmente,
-            #          quindi per la nostra analisi di distanza percorsa sono interscambiabili
-
-            # echo "Avvio Nodo di pubblicazione cartesiana..."
-            # gnome-terminal --tab --title="Cartesian Pose Publisher TCP" -- bash -c \
-            #                "source ${INSTALL_SETUP_BASH} && \
-            #                ros2 launch logging_nodes cartesian_pose_pub.launch.py; \
-            #                exec bash"
-
-
-            echo "Avvio Nodo di pubblicazione twist..."
-            gnome-terminal --tab --title="Cartesian Twist Publisher TCP" -- bash -c \
-                           "source ${INSTALL_SETUP_BASH} && \
-                           ros2 launch logging_nodes cartesian_twist_pub.launch.py; \
-                           exec bash"
         fi
 
-
+        # ------------------------------------------------
+        # ESSENTIAL LOGGING
         if [[ "$only_essential_logging" == "true" ]]; then
-
-            # ------------------------------------------------
-            # solo logging essenziale, topic principali durante il tiro
-
             echo "Avvio Bag Writer essenziale su richiesta..."
             gnome-terminal --tab --title="Logging nodes" -- bash -c \
                            "source ${INSTALL_SETUP_BASH} && \
                            ros2 launch logging_nodes bag_writer.launch.py \
                                 test_title:='${only_essential_logging_folder}' ; \
                             exec bash"
-            # ------------------------------------------------
+        fi
 
-        
+        # ------------------------------------------------
+        # BRUTAL LOGGING
         if [[ "$brutal_logging" == "true" ]]; then
-    
-
-
-            # ------------------------------------------------
-            # logging di tutti i topic importanti, inclusa la camera (compressed)
-
             BAGDATA_DIR_BRUTAL="${BAGDATA_DIR}/${brutal_logging_folder}"
-
-            #cancello la cartella di logging precedente se esiste, così da non avere conflitti
             rm -rf "${BAGDATA_DIR_BRUTAL}"  
 
             if [[ "$compressed_streaming" == "true" ]]; then
                 echo "Avvio ros2 bag record brutal (compressed)..."
-
                 gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
                                 "source ${INSTALL_SETUP_BASH} && \
                                 ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
@@ -400,16 +345,15 @@ if [[ "$execute_shot" == "true" ]]; then
                                     /tf \
                                     /tf_static; \
                                 exec bash"
-                else
-                    echo "Avvio ros2 bag record brutal (raw non compresso)..."
-
-                    gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
+            else
+                echo "Avvio ros2 bag record brutal (raw non compresso)..."
+                gnome-terminal --tab --title="ros2bag brutal record" -- bash -c \
                                 "source ${INSTALL_SETUP_BASH} && \
                                 ros2 bag record -o ${BAGDATA_DIR_BRUTAL} \
                                     /camera/camera/color/camera_info \
                                     /camera/camera/aligned_depth_to_color/camera_info \
                                     /camera/camera/color/image_raw \
-                                    /camera/camera/aligned_depth_to_color/image_raw\
+                                    /camera/camera/aligned_depth_to_color/image_raw \
                                     /camera/camera/extrinsics/depth_to_color \
                                     /collision_object \
                                     /force_torque_sensor_broadcaster/wrench \
@@ -425,11 +369,10 @@ if [[ "$execute_shot" == "true" ]]; then
                                     /tf \
                                     /tf_static; \
                                 exec bash"
-                fi
+            fi
         fi
     fi
     
-
     # ================================================
     # TIRO VERO E PROPRIO (TASK NODE DI SHOT PLANNING)
     # ================================================
@@ -442,9 +385,12 @@ if [[ "$execute_shot" == "true" ]]; then
         --params-file ${SHOT_CONFIG_DIR}/planning_params.yaml \
         --params-file ${SHOT_CONFIG_DIR}/moveit_fix.yaml"
 
-    # Aggiungo il file di essential_logging se richiesto
+    # Aggiungo il file di essential_logging se richiesto (il controllo funzionerà
+    # anche nel caso del brutal logging attivo, perché in quel caso la variabile
+    # only_essential_logging è stata settata a "false" automaticamente in alto)
     if [[ "$logging_enable" == "true" && "$only_essential_logging" == "true" ]]; then
-        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/essential_logging_params.yaml"     #parametro aggiunto
+        echo "Essential logging attivo: aggiungo il file di parametri di essential_logging al nodo di shot planning."
+        NODE_ARGS="${NODE_ARGS} --params-file ${SHOT_CONFIG_DIR}/essential_logging_params.yaml"     
     fi
 
     #eseguo il nodo di shot planning con i parametri definiti
@@ -454,7 +400,6 @@ if [[ "$execute_shot" == "true" ]]; then
                     ros2 run shot_planning task_node ${NODE_ARGS}; \
                     exec bash"
     
-
     # ================================================
     # GAME ENGINE (REALE O SIMULATO)
     # ================================================
@@ -480,6 +425,4 @@ if [[ "$execute_shot" == "true" ]]; then
     
 fi
 
-
 echo "Tutti i nodi sono stati avviati!"
-

@@ -1,15 +1,19 @@
+#!/usr/bin/env python3
 """
 cartesian_vs_ruckig.py
 
 Visualizza i dati di posizione, velocità e accelerazione cartesiana in linea retta, 
 estraendo i dati da un bagfile, confrontando con i dati ideali generati da Ruckig.
+Supporta il salvataggio automatico in data/results usando il flag --save.
 """
 
 import sys
+import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter  # IMPORTANTE: Aggiunto per il filtro SG
+from scipy.signal import savgol_filter
+from pathlib import Path
 
 # Librerie native ROS 2 per leggere i bag file
 import rosbag2_py
@@ -41,13 +45,11 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
         print(f"Errore: Assicurati che i topic '{pose_topic}' e '{twist_topic}' siano nel bagfile.")
         return pd.DataFrame()
         
-    # Salva le classi dei messaggi per deserializzare correttamente i vari topic
     msg_types = {
         pose_topic: get_message(type_map[pose_topic]),
         twist_topic: get_message(type_map[twist_topic])
     }
 
-    # Filtra entrambi i topic
     storage_filter = rosbag2_py.StorageFilter(topics=[pose_topic, twist_topic])
     reader.set_filter(storage_filter)
 
@@ -67,14 +69,12 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
             vzs.append(msg.twist.linear.z)
             twist_times.append(t_sec)
 
-    # Crea due dataframe e ordinali per tempo
     df_pose = pd.DataFrame({'time_sec': pose_times, 'x': xs, 'y': ys, 'z': zs}).sort_values('time_sec')
     df_twist = pd.DataFrame({'time_sec': twist_times, 'vx': vxs, 'vy': vys, 'vz': vzs}).sort_values('time_sec')
     
     if df_pose.empty or df_twist.empty:
         return pd.DataFrame()
 
-    # Unisci i dati allineando il twist al timestamp della pose più vicina
     df = pd.merge_asof(df_pose, df_twist, on='time_sec', direction='nearest')
     
     if not df.empty:
@@ -83,17 +83,29 @@ def extract_kinematics_from_bag(bag_path, pose_topic, twist_topic):
     return df
 
 def main():
-
     print("Cartesian vs Ruckig: Confronto tra traiettoria ideale e reale")
 
-
-    # Se passi i percorsi da terminale: python script.py <file_csv_ideale> <cartella_bag_raw>
-    if len(sys.argv) < 3:
-        print("Uso: python3 compare_ruckig.py <file_ideale.csv> <cartella_bag_reale>")
+    # --- LETTURA ARGOMENTI E FLAG --save ---
+    args = sys.argv[1:]
+    
+    save_results = '--save' in args
+    save_subdir = None
+    
+    if save_results:
+        idx = args.index('--save')
+        # Verifica se l'utente ha passato il nome della sottocartella
+        if idx + 1 < len(args) and not args[idx+1].startswith('-'):
+            save_subdir = args[idx + 1]
+            args.pop(idx + 1)
+        args.pop(idx)
+        
+    if len(args) < 2:
+        print("Uso: python3 cartesian_vs_ruckig.py <file_ideale.csv> <cartella_bag_reale> [--save <sottocartella>]")
         sys.exit(1)
 
-    ideal_file_path = sys.argv[1]
-    raw_bag_path = sys.argv[2]
+    ideal_file_path = args[0]
+    raw_bag_path = args[1]
+    
     topic_pose = '/tcp_pose_broadcaster/pose'
     topic_twist = '/tcp_twist'
 
@@ -104,7 +116,6 @@ def main():
         print(f"Errore nella lettura del file ideale CSV: {e}")
         return
 
-    # Presumendo che le colonne siano: Time_s, Position_m, Velocity_ms, Acceleration_ms2
     t_ideal = df_ideal.iloc[:, 0].values
     pos_ideal = df_ideal.iloc[:, 1].values
     vel_ideal = df_ideal.iloc[:, 2].values
@@ -118,7 +129,7 @@ def main():
         print("Nessun dato estratto dal bag. Uscita.")
         return
 
-    # --- INIZIO NUOVO BLOCCO CONTROLLO VELOCITÀ CARTESIANE ---
+    # Controllo validità velocità
     is_all_invalid = True
     for col in ['vx', 'vy', 'vz']:
         if not (df_raw[col].isna() | (df_raw[col] == 0.0)).all():
@@ -127,108 +138,81 @@ def main():
             
     if is_all_invalid:
         print("\n" + "="*75)
-        print(" ⚠️  ATTENZIONE: Le velocità reali (Twist) contengono solo ZERI o NaN.")
-        print("     È probabile che questo bag provenga da una simulazione (es. mock_components)")
-        print("     dove il Cartesian Velocity Publisher non riceve le velocità dei giunti.")
-        print("     I plot di confronto mostreranno i dati reali di velocità/accelerazione piatti.")
+        print(" ⚠️  ATTENZIONE: Le velocità reali contengono solo ZERI o NaN.")
         print("="*75 + "\n")
-    # --- FINE NUOVO BLOCCO ---
-
     
-    # Pulizia timestamp per evitare divisioni per zero o picchi irreali (burst initiali)
+    # Pulizia timestamp
     df_raw['dt'] = df_raw['time_sec'].diff()
     df_raw = df_raw[(df_raw['dt'].isna()) | (df_raw['dt'] > 1e-3)].copy()
     df_raw['time_sec'] = df_raw['time_sec'] - df_raw['time_sec'].iloc[0]
 
-    # --- NUOVO BLOCCO: RIMOZIONE CODA STATICA (Sui dati reali) ---
-    temp_x = df_raw['x'].values
-    temp_y = df_raw['y'].values
-    temp_z = df_raw['z'].values
-    
-    # Calcolo della distanza radiale dal punto di partenza
+    # Rimozione coda statica
+    temp_x, temp_y, temp_z = df_raw['x'].values, df_raw['y'].values, df_raw['z'].values
     temp_dist = np.sqrt((temp_x - temp_x[0])**2 + (temp_y - temp_y[0])**2 + (temp_z - temp_z[0])**2)
     dist_diff = np.abs(np.diff(temp_dist, prepend=0.0))
     
-    # Cerchiamo gli indici dove l'End-Effector si sta muovendo (soglia ~0.1 mm)
     active_indices = np.where(dist_diff > 1e-4)[0]
     
     if len(active_indices) > 0:
         last_active_idx = active_indices[-1]
-        buffer_samples = 10  # Mantiene ~0.3 secondi dopo l'arresto
-        
+        buffer_samples = 10
         cut_idx = min(last_active_idx + buffer_samples, len(df_raw))
         df_raw = df_raw.iloc[:cut_idx].copy()
-        print(f"Coda statica rimossa (dati reali): mantenuti {cut_idx} campioni su {len(dist_diff)} originali.")
     else:
         print("Nessun movimento cartesiano rilevato nell'intero log reale.")
-    # --- FINE RIMOZIONE CODA STATICA ---
 
-    # Ricalcolo il tempo partendo da 0 sul DataFrame pulito e tagliato
     df_raw['time_sec'] = df_raw['time_sec'] - df_raw['time_sec'].iloc[0]
 
     t_raw = df_raw['time_sec'].values
     x, y, z = df_raw['x'].values, df_raw['y'].values, df_raw['z'].values
     vx, vy, vz = df_raw['vx'].values, df_raw['vy'].values, df_raw['vz'].values
 
-    # Calcoli grezzi
     dist_raw = np.sqrt((x - x[0])**2 + (y - y[0])**2 + (z - z[0])**2)
     vel_raw = np.sqrt(vx**2 + vy**2 + vz**2)
 
-    # --- FILTRAGGIO SAVITZKY-GOLAY (Opzionale) ---
+    # Filtraggio Savitzky-Golay
     filtering_distance = False
     filtering_velocity = False
-    filtering_acceleration = True  # Filtra solo l'accelerazione come richiesto
+    filtering_acceleration = True
     
-    wl = 9  # Window length (deve essere dispari)
-    po = 3  # Polynomial order
-
-    # Calcolo del passo temporale medio (dt) per la derivata del filtro
+    wl = 9
+    po = 3
     dt_medio = np.mean(np.diff(t_raw))
 
-    # Filtra (o mantieni grezza) la distanza
     plot_dist = savgol_filter(dist_raw, window_length=wl, polyorder=po, mode='nearest') if filtering_distance else dist_raw
     label_dist = 'Campioni Reali (Filtrati SG)' if filtering_distance else 'Campioni Reali (Raw)'
 
-    # Filtra (o mantieni grezza) la velocità
     plot_vel = savgol_filter(vel_raw, window_length=wl, polyorder=po, mode='nearest') if filtering_velocity else vel_raw
     label_vel = 'Velocità Calcolata (Filtrata SG)' if filtering_velocity else 'Velocità Calcolata (Raw)'
 
-    # --- CALCOLO ACCELERAZIONE: Derivata diretta con Savitzky-Golay ---
     if filtering_acceleration:
-        # Derivata prima (deriv=1) applicata direttamente sulla velocità
         plot_acc = savgol_filter(plot_vel, window_length=wl, polyorder=po, deriv=1, delta=dt_medio, mode='nearest')
         label_acc = 'Accelerazione Calcolata (Derivata - Filtrata SG)'
     else:
-        # Fallback con np.gradient (preserva la lunghezza dell'array a differenza di np.diff)
         plot_acc = np.gradient(plot_vel, t_raw)
         label_acc = 'Accelerazione Calcolata (Raw)'
 
-    # NOTA: Ora plot_acc ha la stessa lunghezza di t_raw e plot_vel.
-    # Nei plot successivi usa direttamente `t_raw` per l'asse X dell'accelerazione 
-    # e rimuovi eventuali riferimenti a `t_acc_raw`.
-
-    
-    # --- 3. PLOTTING SOVRAPPOSTO ---
+    # --- 3. PLOTTING ---
     fig, axs = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
     fig.canvas.manager.set_window_title('Confronto: Ideale vs Esecuzione Reale')
 
-    # Subplot 1: Posizione
+    # Subplot 1
     axs[0].plot(t_ideal, pos_ideal, 'g-', label='Traiettoria Ideale (Ruckig)', linewidth=2)
     axs[0].plot(t_raw, plot_dist, 'ko', label=label_dist, markersize=4, alpha=0.6)
     axs[0].set_ylabel('Distanza [m]')
     axs[0].set_title('Confronto Posizione')
     axs[0].grid(True); axs[0].legend()
 
-    # Subplot 2: Velocità
+    # Subplot 2
     axs[1].plot(t_ideal, vel_ideal, color='orange', label='Velocità Ideale', linewidth=2)
     axs[1].plot(t_raw, plot_vel, 'ko', label=label_vel, markersize=4, alpha=0.6)
     axs[1].set_ylabel('Velocità [m/s]')
     axs[1].set_title('Confronto Velocità')
     axs[1].grid(True); axs[1].legend()
 
-    # Subplot 3: Accelerazione
+    # Subplot 3 (Corretto t_raw)
     axs[2].plot(t_ideal, acc_ideal, 'r-', label='Accelerazione Ideale', linewidth=2)
-    axs[2].plot(t_acc_raw, plot_acc, 'ko', label=label_acc, markersize=4, alpha=0.6)
+    axs[2].plot(t_raw, plot_acc, 'ko', label=label_acc, markersize=4, alpha=0.6)
     axs[2].set_ylabel('Accelerazione [m/s²]')
     axs[2].set_xlabel('Tempo [s]')
     axs[2].set_title('Confronto Accelerazione')
@@ -236,7 +220,27 @@ def main():
     axs[2].grid(True); axs[2].legend()
 
     plt.tight_layout()
-    plt.show()
+
+    # --- 4. SALVATAGGIO O VISUALIZZAZIONE ---
+    if save_results:
+        # Calcola i path in base a dove si trova lo script
+        script_dir = Path(__file__).parent.absolute()
+        results_dir = script_dir.parent / 'results'
+        
+        if save_subdir:
+            results_dir = results_dir / save_subdir
+            
+        results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Salvataggio con il nome richiesto
+        save_file = results_dir / "ruckig_vs_cartesian.png"
+        
+        fig.savefig(save_file, dpi=300)
+        print(f"✅ Grafico salvato in: {save_file}")
+        
+        plt.close(fig) 
+    else:
+        plt.show()
 
 if __name__ == '__main__':
     main()

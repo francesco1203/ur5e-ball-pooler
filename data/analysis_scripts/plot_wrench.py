@@ -215,7 +215,7 @@ def main():
     # --- Estetica dei Grafici ---
     # FORZE
     axs[0].set_ylabel('Forza [N]')
-    axs[0].set_title('Forze Scambiate (Raw vs Filtered)')
+    axs[0].set_title('Forze Scambiate (Raw)')
     axs[0].grid(True)
     handles, labels = axs[0].get_legend_handles_labels()
     axs[0].legend(handles, labels, loc='upper left', bbox_to_anchor=(1.01, 1.0))
@@ -223,7 +223,7 @@ def main():
     # COPPIE
     axs[1].set_ylabel('Coppia [Nm]')
     axs[1].set_xlabel('Tempo [s]')
-    axs[1].set_title('Coppie Scambiate (Raw vs Filtered)')
+    axs[1].set_title('Coppie Scambiate (Raw)')
     axs[1].grid(True)
     handles, labels = axs[1].get_legend_handles_labels()
     axs[1].legend(handles, labels, loc='upper left', bbox_to_anchor=(1.01, 1.0))

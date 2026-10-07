@@ -186,19 +186,6 @@ int main(int argc, char* argv[])
     // node->checkSceneIdentification(WORLD_FRAME);
 
     //------------------------------------------------------
-    /* POSIZIONAMENTO INIZIALE IN CONFIGURAZIONE NOTA
-       IMPORTANTE: partire da una configurazione di giunti nota (invece che
-       da qualunque posa il robot si trovi ad avere all'avvio) dà a MoveIt
-       un seed IK affidabile per i successivi movimenti cartesiani. Senza
-       questo passo, computeCartesianPath può fallire già al primo micro-step
-       di interpolazione se la posa di partenza è "scomoda" (vicina a una
-       singolarità, lontana dal target, ecc.), esattamente come succede nelle
-       varie fasi di main.cpp prima di ogni sequenza cartesiana. */
-    node->print_and_wait("\n\nPosizionamento in configurazione nota prima di iniziare la calibrazione...");
-    node->moveToNamedTarget(AWAY_FROM_TABLE_CONFIG);
-    //------------------------------------------------------
-
-    //------------------------------------------------------
     /* ORIENTAMENTO: vogliamo solo che l'asse Z locale del tool (EE_LINK)
        punti verso il basso, cioè lungo -Z del frame di riferimento
        (billiard_center_field / white_solid_ball / ecc.). La rotazione

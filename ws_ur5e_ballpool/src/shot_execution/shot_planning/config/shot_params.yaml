@@ -9,7 +9,7 @@ task_node:
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
     success_threshold_approach: 0.99                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_back: 0.20                          # soglia di successo moveCartesianPath per l'arretramento del tiro
-    minimum_pitch_angle_deg: 10.0                         # angolo minimo di pitch (in gradi) per l'approach alla pallina
+    minimum_pitch_angle_deg: 9.0                         # angolo minimo di pitch (in gradi) per l'approach alla pallina
     maximum_pitch_angle_deg: 30.0                         # angolo massimo di pitch (in gradi) per l'approach alla pallina
     increment_pitch_angle_deg: 1.0                        # incremento dell'angolo di pitch (in gradi) per l'approach alla pallina
     robustness_pitch_delta_deg: 2.0                       # gradi aggiuntivi per sicurezza nella ricerca dell'angolo di pitch ottimale
