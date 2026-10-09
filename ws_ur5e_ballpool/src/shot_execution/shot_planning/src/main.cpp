@@ -212,54 +212,74 @@ int main(int argc, char* argv[])
 
 
 
-        //------------------------------------------------------
-        /* LETTURA MOSSA DI GIOCO*/
+        //------------------------------------------------------ 
+        /* LETTURA MOSSA DI GIOCO*/ 
 
-        node->start_game_engine();
+        node->start_game_engine(); 
 
-        RCLCPP_INFO(node->get_logger(), "In attesa che arrivi la mossa di gioco da Game Engine...");
-        node->waitForGameEngineParams();  // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco)
+        RCLCPP_INFO(node->get_logger(), "In attesa che arrivi la mossa di gioco da Game Engine..."); 
 
-        node->stop_game_engine();
+        node->waitForGameEngineParams();  // Aspetta che arrivi qualcosa sui topic di parametri di tiro (da motore di gioco) 
 
+        node->stop_game_engine(); 
 
-        // Adesso posso usarli
-        double direction_angle_deg_ = node->getDirectionAngle(); 
-        double planar_impact_shot_velocity_ = node->getPlanarImpactShotVelocity();
-        std::string target_ball_color_ = node->getTargetBallColor();
+        // Adesso posso usarli 
+        double direction_angle_deg_ = node->getDirectionAngle();  
+        double planar_impact_shot_velocity_ = node->getPlanarImpactShotVelocity(); 
+        std::string target_ball_color_ = node->getTargetBallColor(); 
 
-        double impact_angle_deg_;            //verrà calcolato dinamicamente in base alle collisioni in fase 2 (pre-approach)
+        double impact_angle_deg_;            //verrà calcolato dinamicamente in base alle collisioni in fase 2 (pre-approach) 
         double impact_shot_velocity_;         //verrà calcolata dinamicamente in base alla geometria del tiro in fase 2 (pre-approach) *
 
-        //(*) Nota:il Game Engine fornisce la velocità planare della pallina, ovvero la velocità con la quale deve avviarsi sul piano.
-        //    Essendo la stessa inclinata, deve avere anche una componente verticale, dunque abbiamo bisogno dell'angolo dell'inclinazione (fase 2)
-        //------------------------------------------------------
+        //(*) Nota:il Game Engine fornisce la velocità planare della pallina, ovvero la velocità con la quale deve avviarsi sul piano. 
+        //    Essendo la stessa inclinata, deve avere anche una componente verticale, dunque abbiamo bisogno dell'angolo dell'inclinazione (fase 2) 
+        //------------------------------------------------------ 
 
-        // FASE 1 - vado in pre-approach per approcciare la pallina
-        {
-            if(user_confirm_for_each_step_ || user_confirm_for_first_move_){
-                node->print_and_wait("\n\nPosizionamento in 'pre_approach..");
-            }
-            else{
-                RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'pre_approach..");
-            }
+        // Determinazione della configurazione di pre-approach in base all'angolo di tiro
+        // Normalizzazione dell'angolo nell'intervallo [-180, 180] gradi
+        double normalized_angle = std::fmod(direction_angle_deg_, 360.0);
+        if (normalized_angle > 180.0) normalized_angle -= 360.0;
+        if (normalized_angle < -180.0) normalized_angle += 360.0;
 
-            //logging (AGGIUNTO wrench_logging_enabled)
-            if(phase_1_logging_enabled) node->startLogging("preapproach_" + target_ball_color_ + "_", joints_logging_enabled, cartesian_logging_enabled, controller_logging_enabled, wrench_logging_enabled);
-            
+        // Convenzione standard: tra -90° e +90° il tiro procede verso destra (Left to Right)
+        std::string selected_preapproach_config;
+        if (normalized_angle >= -90.0 && normalized_angle <= 90.0) {
+            selected_preapproach_config = READY_TO_APPROACH_FROM_LEFT_TO_RIGHT_CONFIG;
+            RCLCPP_INFO(node->get_logger(), "Selezionato Pre-Approach: LEFT_TO_RIGHT (Angolo: %.2f°)", direction_angle_deg_);
+        } else {
+            selected_preapproach_config = READY_TO_APPROACH_FROM_RIGHT_TO_LEFT_CONFIG;
+            RCLCPP_INFO(node->get_logger(), "Selezionato Pre-Approach: RIGHT_TO_LEFT (Angolo: %.2f°)", direction_angle_deg_);
+        }
 
-            node->moveToNamedTarget(READY_TO_APPROACH_CONFIG);    
-            
-            //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati
-            if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo)
-                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ )));
-            }
-            else{
-                rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ ));
-            }
+        // FASE 1 - vado in pre-approach per approcciare la pallina 
+        { 
+            if(user_confirm_for_each_step_ || user_confirm_for_first_move_){ 
+                node->print_and_wait("\n\nPosizionamento in 'pre_approach.."); 
+            } 
+            else{ 
+                RCLCPP_INFO(node->get_logger(), "\n\nPosizionamento in 'pre_approach.."); 
+            } 
 
-            if(phase_1_logging_enabled) node->stopLogging();
-        
+            //logging (AGGIUNTO wrench_logging_enabled) 
+            if(phase_1_logging_enabled) {
+                node->startLogging("preapproach_" + target_ball_color_ + "_", 
+                                  joints_logging_enabled, cartesian_logging_enabled, 
+                                  controller_logging_enabled, wrench_logging_enabled); 
+            }
+             
+            // Esecuzione movimento sulla configurazione dinamica scelta
+            node->moveToNamedTarget(selected_preapproach_config);     
+             
+            //piccola pausa tra le fasi per evitare che il robot vada troppo veloce e finisca il movimento prima che il logger abbia finito di scrivere i dati 
+            if(node->using_sim_time()){ // Tempo simulato (es. MuJoCo) 
+                node->get_clock()->sleep_for(rclcpp::Duration(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ ))); 
+            } 
+            else{ 
+                rclcpp::sleep_for(std::chrono::milliseconds(pause_among_step_1_2_milliseconds_ )); 
+            } 
+
+            if(phase_1_logging_enabled) node->stopLogging(); 
+         
         }
         
 

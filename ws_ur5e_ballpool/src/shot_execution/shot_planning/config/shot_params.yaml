@@ -7,7 +7,7 @@ task_node:
     distance_deceleration_phase_fraction_radius: 1.75     # distanza di decelerazione espressa in frazione del raggio della pallina (1.00 = 1 raggio, 1.5 = 1.5 raggi ecc..) -> Consigliato da 1.25 a 1.75
     offset_correction_center_z: 0.000                     # correzione dell'offset del centro della pallina, per far colpire più in alto rispetto al centro della pallina (in metri)
     elevation_escape: 0.05                                # altezza di sollevamento dell'asta dopo il tiro, per levarsi dal campo
-    success_threshold_approach: 0.99                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
+    success_threshold_approach: 0.80                      # soglia di successo moveCartesianPath per l'approccio alla pallina 
     success_threshold_back: 0.20                          # soglia di successo moveCartesianPath per l'arretramento del tiro
     minimum_pitch_angle_deg: 9.0                         # angolo minimo di pitch (in gradi) per l'approach alla pallina
     maximum_pitch_angle_deg: 30.0                         # angolo massimo di pitch (in gradi) per l'approach alla pallina

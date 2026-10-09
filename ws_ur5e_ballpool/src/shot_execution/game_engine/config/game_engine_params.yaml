@@ -2,10 +2,7 @@ game_engine:
   ros__parameters:
     # game engine parameters
     velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
-    rail_proximity_threshold: 0.04                    # distanza minima tra asta e binario per considerare il tiro vicino la sponda e alzare l'asta
-    normal_impact_angle_deg: 10.0                     # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta lontano dalla sponda (cons:10-15 gradi)
-    steep_impact_angle_deg: 15.0                      # angolo di inclinazione dell'asta rispetto al piano orizzontale in gradi per alzare l'asta vicino la sponda (cons:15-20 gradi)
-    cloth_sliding_friction: 0.05                      # attrito del panno con la pallina 
+    cloth_sliding_friction: 0.05                      # coefficiente di attrito tra la cloth e le palline (consigliamo valori bassi, altrimenti le palline non scivolano)
     target_red: true                                  # se vero, la pallina rossa è un bersaglio
     target_blue: true                                 # se vero, la pallina blu è un bersaglio
     target_yellow: true                               # se vero, la pallina gialla è un bersaglio

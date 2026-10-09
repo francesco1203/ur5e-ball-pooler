@@ -1,15 +1,10 @@
 billiard_table:
-  pos: [-0.61, -0.33]                   # Posizionamento sul banco rispetto al world
-  yaw_angle_rad: 0.0                    # Orientamento sul banco rispetto al world  
-  rialzo_vention: 0.000                 # Rialzo del tavolo rispetto al banco
-#per ora usiamo solo palline piene, possibile futura implementazione -> type: "solid" o "striped"
+  pos: [-0.61, -0.33]
+  yaw_angle_rad: 0.0
+  rialzo_vention: 0.000
 
 balls:
-  - color: "red"
-    pos: [0.130, -0.046]                     # Posizione rispetto al centro del tavolo
   - color: "white"
-    pos: [0.051, 0.070]
-  - color: "blue"
-    pos: [-0.173, -0.088]
-  - color: "yellow"
-    pos: [0.025, -0.090]
+    pos: [-0.100, -0.050]  # Posizione rispetto al centro del tavolo
+  - color: "red"
+    pos: [0.050, 0.050]

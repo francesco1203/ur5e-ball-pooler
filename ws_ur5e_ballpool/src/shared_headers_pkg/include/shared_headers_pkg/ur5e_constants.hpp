@@ -42,5 +42,6 @@ const std::string EE_LINK = "rod_tip_virtual_link";         // link del tip dell
 //moveit setup
 const std::string PLANNING_GROUP    = "arm";
 const std::string AWAY_FROM_TABLE_CONFIG     = "discover_game_field_to_camera";   // configurazione per scostarsi dal tavolo (definita in SRDF)
-const std::string READY_TO_APPROACH_CONFIG   = "ready_to_approach";               // configurazione pre-approach (definita in SRDF)
+const std::string READY_TO_APPROACH_FROM_RIGHT_TO_LEFT_CONFIG   = "ready_to_approach_from_right_to_left";               // configurazione pre-approach (definita in SRDF)
+const std::string READY_TO_APPROACH_FROM_LEFT_TO_RIGHT_CONFIG   = "ready_to_approach_from_left_to_right";               // configurazione pre-approach (definita in SRDF)
 

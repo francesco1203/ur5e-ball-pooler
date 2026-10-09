@@ -26,13 +26,23 @@
     <!--GROUP STATES: Purpose: Define a named state for a particular group, in terms of joint values. This is useful to define states like 'folded arms'-->
 
     <!-- pre approach - GOMITO ALTO VERSO SINISTRA -->
-    <group_state name="ready_to_approach" group="arm">
-        <joint name="elbow_joint" value="-2.074"/>               <!-- -118.9° -->
-        <joint name="shoulder_lift_joint" value="0.309"/>        <!-- 17.7° -->
-        <joint name="shoulder_pan_joint" value="0.016"/>         <!-- 0.9° -->
-        <joint name="wrist_1_joint" value="0.144"/>              <!-- 8.3° -->
-        <joint name="wrist_2_joint" value="-3.961"/>             <!-- -227.1° -->
-        <joint name="wrist_3_joint" value="-0.816"/>             <!-- -46.8° -->
+    <!-- pre approach - LEFT TO RIGHT -->
+    <group_state name="ready_to_approach_from_left_to_right" group="arm">
+        <joint name="shoulder_pan_joint" value="0.593"/>         <!-- 34.0° -->
+        <joint name="shoulder_lift_joint" value="-0.192"/>       <!-- -11.0° -->
+        <joint name="elbow_joint" value="-0.768"/>               <!-- -44.0° -->
+        <joint name="wrist_1_joint" value="-1.117"/>             <!-- -64.0° -->
+        <joint name="wrist_2_joint" value="-4.119"/>             <!-- -236.0° -->
+        <joint name="wrist_3_joint" value="-4.625"/>             <!-- -265.0° -->
+    </group_state>
+    
+    <group_state name="ready_to_approach_from_right_to_left" group="arm">
+        <joint name="shoulder_pan_joint" value="-0.262"/>         <!-- -15.0° -->
+        <joint name="shoulder_lift_joint" value="0.698"/>        <!-- 40.0° -->
+        <joint name="elbow_joint" value="-1.815"/>               <!-- -104.0° -->
+        <joint name="wrist_1_joint" value="-0.140"/>             <!-- -8.0° -->
+        <joint name="wrist_2_joint" value="-3.927"/>             <!-- -225.0° -->
+        <joint name="wrist_3_joint" value="-0.297"/>             <!-- -17.0° -->
     </group_state>
 
     <!-- scoperto il campo - GOMITO ALTO -->
