@@ -30,7 +30,7 @@ logging_enable="true"                                        #true se vuoi fare 
 only_essential_logging="true"                                #true se vuoi fare logging solo dei dati essenziali, false se vuoi fare logging di tutti i dati
 only_essential_logging_folder="only_essential_logging"       #nome della cartella di logging, che verrà creata in data/bagdata/<logging_folder_title>
 
-topic_monitor="true"                                         #true se vuoi avviare rqt_topic per monitorare i topic, false se non vuoi avviarlo
+topic_monitor="false"                                         #true se vuoi avviare rqt_topic per monitorare i topic, false se non vuoi avviarlo
 # ------------------------------------------------
 
 
@@ -63,7 +63,7 @@ FAKE_CAMERA_CONFIG_DIR="${WS_DIR}/src/camera_perception/fake_camera/config"
 if [[ "$graphical_input_scene" == "true" ]]; then
     # Avvio dell'interfaccia grafica per la configurazione della scena
     echo "Avvio dell'interfaccia grafica per la configurazione della scena..."
-    python3 ${FAKE_CAMERA_CONFIG_DIR}/graphical_config_generator.py
+    python3 ${FAKE_CAMERA_CONFIG_DIR}/raw_graphical_config_generator.py
     echo -e "Configurazione della scena completata.\n"
 fi
 

@@ -1,7 +1,9 @@
 #!/bin/bash
 
+# Script per riprodurre un bag file che contiene i dati della camera (COMPRESSI)
+# sposta il tuo script in save_videos e modifica BAG_DIR per puntare al bag file corretto.
+
 ROS_SETUP="/opt/ros/jazzy/setup.bash"
-# BAG_DIR="data/bagdata/only_camera_logging_compressed/only_camera_logging_compressed_0.mcap"
 BAG_DIR="data/bagdata/save_videos/due_palle_con_fallo/only_camera_logging_compressed_0.mcap"
 
 # 1. Riproduzione Bag File
