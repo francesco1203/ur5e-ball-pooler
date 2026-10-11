@@ -101,7 +101,7 @@ if [ -n "$BAG_PHASE4" ]; then
     launch "plot_cartesian.py" "$BAG_PHASE4" "04_shot_execution"
     launch "plot_joints.py" "$BAG_PHASE4" "04_shot_execution"
     launch "plot_wrench.py" "$BAG_PHASE4" "04_shot_execution"
-    launch "plot_torque.py" "$BAG_PHASE4" "04_shot_execution"
+    launch "plot_current.py" "$BAG_PHASE4" "04_shot_execution"
     launch "plot_controller_state.py" "$BAG_PHASE4" "04_shot_execution"
 
     if [ -n "$RUCKIG_CSV" ]; then
