@@ -1,7 +1,7 @@
 """
-plot_torque.py
+plot_effort.py
 
-Visualizza i dati di coppia per ogni giunto, estraendo i dati da un bagfile.
+Visualizza i dati di corrente per ogni giunto, estraendo i dati da un bagfile.
 Supporta il salvataggio automatico in una sottocartella in data/results 
 se viene passato il flag --save <nome_cartella>.
 """
@@ -11,13 +11,13 @@ import os
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt  # <--- ASSICURATI DI AVERE QUESTA RIGA IN CIMA AL FILE
+import matplotlib.pyplot as plt 
 from rosbags.highlevel import AnyReader
 
-def extract_torque_from_bag(bag_path, topic_name):
-    """Estrae i dati di effort/coppia (e posizione per il crop) e i timestamp da un bag ROS 2."""
+def extract_current_from_bag(bag_path, topic_name):
+    """Estrae i dati di effort/corrente (e posizione per il crop) e i timestamp da un bag ROS 2."""
     times = []
-    torque_data = {}
+    current_data = {}
     joint_names = []
     
     try:
@@ -41,8 +41,8 @@ def extract_torque_from_bag(bag_path, topic_name):
                         joint_names = [f"actuator_{i}" for i in range(len(msg.effort))]
                         
                     for name in joint_names:
-                        torque_data[name] = []
-                        torque_data[f"{name}_pos"] = [] # <--- Aggiunto per tracciare il crop
+                        current_data[name] = []
+                        current_data[f"{name}_pos"] = [] # <--- Aggiunto per tracciare il crop
                         
                 times.append(t_sec)
                 
@@ -59,15 +59,15 @@ def extract_torque_from_bag(bag_path, topic_name):
                     positions = [0.0] * len(joint_names)
                 
                 for i, name in enumerate(joint_names):
-                    torque_data[name].append(efforts[i])
-                    torque_data[f"{name}_pos"].append(positions[i])
+                    current_data[name].append(efforts[i])
+                    current_data[f"{name}_pos"].append(positions[i])
                     
     except Exception as e:
         print(f"Errore nella lettura del bagfile {bag_path}: {e}")
         sys.exit(1)
 
     # Creazione DataFrame
-    df = pd.DataFrame(torque_data)
+    df = pd.DataFrame(current_data)
     df['time_sec'] = times
     
     if not df.empty:
@@ -77,12 +77,12 @@ def extract_torque_from_bag(bag_path, topic_name):
 
 
 def main():
-    print("Plot Torque - Visualizza i dati di coppia per ogni giunto.")
+    print("Plot Torque - Visualizza i dati di corrente per ogni giunto.")
     
     # --- Lettura Argomenti, Flag e Sottocartella ---
     args = sys.argv[1:]
     if len(args) < 1:
-        print("Uso: python3 plot_torque.py <percorso_cartella_bag> [--save <sottocartella>]")
+        print("Uso: python3 plot_current.py <percorso_cartella_bag> [--save <sottocartella>]")
         sys.exit(1)
         
     save_results = '--save' in args
@@ -104,7 +104,7 @@ def main():
     topic_target = '/joint_states'
 
     print(f"Estrazione dati effort da: {bag_path} sul topic: {topic_target}...")
-    df, joint_columns = extract_torque_from_bag(bag_path, topic_target)
+    df, joint_columns = extract_current_from_bag(bag_path, topic_target)
 
     if df.empty:
         print("Nessun dato trovato o DataFrame vuoto. Uscita.")
@@ -121,7 +121,7 @@ def main():
         print("\n" + "="*70)
         print(" ⚠️  ATTENZIONE: I dati di effort contengono solo ZERI o NaN.")
         print("     È probabile che questo bag provenga da una simulazione")
-        print("     (es. mock_components) in cui la coppia non viene calcolata.")
+        print("     (es. mock_components) in cui la corrente non viene calcolata.")
         print("     I grafici verranno aperti, ma appariranno vuoti.")
         print("="*70 + "\n")
 
@@ -130,7 +130,7 @@ def main():
     df = df[(df['dt'].isna()) | (df['dt'] > 1e-3)].copy()
 
     # --- 2. RIMOZIONE CODA STATICA ---
-    # Invece del rumore della coppia, analizziamo la variazione della posizione per il taglio
+    # Invece del rumore della corrente, analizziamo la variazione della posizione per il taglio
     pos_columns = [f"{col}_pos" for col in joint_columns]
     
     max_pos_diff = df[pos_columns].diff().abs().max(axis=1).values
@@ -160,7 +160,7 @@ def main():
     for ax, joint_name in zip(axes, joint_columns):
         # Utilizziamo la colonna dell'effort per il plot (non la posizione!)
         ax.plot(df["time_sec"], df[joint_name], linewidth=1.5, color='#1f77b4')
-        ax.set_ylabel("Effort [Nm]")
+        ax.set_ylabel("Current [A]")
         ax.set_title(joint_name)
         ax.grid(True, alpha=0.4)
 
@@ -181,7 +181,7 @@ def main():
         results_dir.mkdir(parents=True, exist_ok=True)
         
         # Salvataggio con il nome fisso richiesto
-        save_file = results_dir / "torque.png"
+        save_file = results_dir / "current.png"
         
         fig.savefig(save_file, dpi=300)
         print(f"✅ Grafico salvato in: {save_file}")
