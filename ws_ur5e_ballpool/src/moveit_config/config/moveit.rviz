@@ -305,10 +305,6 @@ Visualization Manager:
           Value: true
         blue_solid_ball:
           Value: true
-        bottom_left_corner_frame:
-          Value: false
-        bottom_right_corner_frame:
-          Value: false
         camera_color_optical_frame:
           Value: true
         cut_rod_link:
@@ -333,12 +329,6 @@ Visualization Manager:
           Value: false
         hole_top_right:
           Value: false
-        realtime_red_solid_ball:
-          Value: true
-        realtime_white_solid_ball:
-          Value: true
-        realtime_yellow_solid_ball:
-          Value: true
         red_solid_ball:
           Value: true
         rod_tip_virtual_link:
@@ -346,10 +336,6 @@ Visualization Manager:
         shoulder_link:
           Value: false
         tool0:
-          Value: false
-        top_left_corner_frame:
-          Value: false
-        top_right_corner_frame:
           Value: false
         upper_arm_link:
           Value: false
@@ -377,33 +363,7 @@ Visualization Manager:
           base_link:
             base:
               camera_color_optical_frame:
-                billiard_center_field:
-                  bottom_left_corner_frame:
-                    {}
-                  bottom_right_corner_frame:
-                    {}
-                  hole_bottom_left:
-                    {}
-                  hole_bottom_right:
-                    {}
-                  hole_mid_left:
-                    {}
-                  hole_mid_right:
-                    {}
-                  hole_top_left:
-                    {}
-                  hole_top_right:
-                    {}
-                  top_left_corner_frame:
-                    {}
-                  top_right_corner_frame:
-                    {}
-                realtime_red_solid_ball:
-                  {}
-                realtime_white_solid_ball:
-                  {}
-                realtime_yellow_solid_ball:
-                  {}
+                {}
             base_link_inertia:
               shoulder_link:
                 upper_arm_link:
@@ -420,15 +380,28 @@ Visualization Manager:
                                 {}
                           ft_frame:
                             {}
-          blue_solid_ball:
-            {}
-          red_solid_ball:
-            {}
+          billiard_center_field:
+            blue_solid_ball:
+              {}
+            hole_bottom_left:
+              {}
+            hole_bottom_right:
+              {}
+            hole_mid_left:
+              {}
+            hole_mid_right:
+              {}
+            hole_top_left:
+              {}
+            hole_top_right:
+              {}
+            red_solid_ball:
+              {}
+            white_solid_ball:
+              {}
+            yellow_solid_ball:
+              {}
           wall_link:
-            {}
-          white_solid_ball:
-            {}
-          yellow_solid_ball:
             {}
       Update Interval: 0
       Value: true
@@ -451,25 +424,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 2.4649980068206787
+      Distance: 1.8085198402404785
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.7299690246582031
-        Y: -0.21513405442237854
-        Z: 0.09064412117004395
+        X: -0.5779833197593689
+        Y: 0.15294010937213898
+        Z: -0.0017815668834373355
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0881216526031494
+      Pitch: 0.8481218814849854
       Target Frame: world
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.045097827911377
+      Yaw: 5.075098514556885
     Saved: ~
 Window Geometry:
   Displays:

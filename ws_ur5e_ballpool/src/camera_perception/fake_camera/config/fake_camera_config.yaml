@@ -6,10 +6,10 @@ billiard_table:
 
 balls:
   - color: "red"
-    pos: [0.081, -0.106]                     # Posizione rispetto al centro del tavolo
+    pos: [-0.080, -0.097]                     # Posizione rispetto al centro del tavolo
   - color: "white"
-    pos: [-0.109, -0.048]
+    pos: [-0.028, 0.012]
   - color: "blue"
-    pos: [-0.120, 0.070]
+    pos: [-0.108, 0.108]
   - color: "yellow"
-    pos: [-0.013, 0.087]
+    pos: [0.135, 0.061]
