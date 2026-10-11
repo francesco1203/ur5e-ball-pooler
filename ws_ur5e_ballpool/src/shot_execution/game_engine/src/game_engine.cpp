@@ -36,22 +36,21 @@ class GameEngine : public rclcpp::Node
 
         GameEngine() : Node("game_engine")
         {
+            is_active_ = false;  // inizialmente inattivo
+
+
             /* IPER PARAMETRI */
             this->declare_parameter<double>("velocity_factor", 1.2);
             this->declare_parameter<double>("tip_yaw_offset_deg", 180.0); 
-            this->declare_parameter<bool>("start_active", false);
             this->declare_parameter<double>("cloth_sliding_friction", 0.02);
-    
-            this->declare_parameter<bool>("target_red", true);
-            this->declare_parameter<bool>("target_blue", true);
-            this->declare_parameter<bool>("target_yellow", true);
-
+            this->declare_parameter<double>("coefficient_of_restitution", 0.8);
 
             velocity_factor_ = this->get_parameter("velocity_factor").as_double();
             tip_yaw_offset_deg_ = this->get_parameter("tip_yaw_offset_deg").as_double();
-            is_active_ = this->get_parameter("start_active").as_bool();
             cloth_sliding_friction_ = this->get_parameter("cloth_sliding_friction").as_double();
+            coefficient_of_restitution_ = this->get_parameter("coefficient_of_restitution").as_double();
 
+            
 
             /* tf */
             tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
@@ -72,6 +71,10 @@ class GameEngine : public rclcpp::Node
             };
 
             // POPOLAMENTO DINAMICO DEI TARGET
+            this->declare_parameter<bool>("target_red", true);
+            this->declare_parameter<bool>("target_blue", true);
+            this->declare_parameter<bool>("target_yellow", true);
+
             bool target_red = this->get_parameter("target_red").as_bool();
             bool target_blue = this->get_parameter("target_blue").as_bool();
             bool target_yellow = this->get_parameter("target_yellow").as_bool();
@@ -104,6 +107,7 @@ class GameEngine : public rclcpp::Node
         double velocity_factor_;
         double tip_yaw_offset_deg_;
         bool is_active_; 
+        double coefficient_of_restitution_;
         double cloth_sliding_friction_;
 
         double normalize_angle(double angle)
@@ -234,8 +238,8 @@ class GameEngine : public rclcpp::Node
                         double v1i_impact = (v2f / cos_cut_angle);
                         double v_white_start = std::sqrt(std::pow(v1i_impact, 2) + 2.0 * cloth_sliding_friction_ * GRAVITY * cue_distance);
                         
-                        // La velocità è ora calcolata sul piano 2D. Il main si occuperà di applicarla (e compensarla se serve)
-                        double shot_velocity_planar = velocity_factor_ * v_white_start;   
+                        // La velocità è  calcolata sul piano 2D. Il main si occuperà di applicarla (e compensarla se serve)
+                        double shot_velocity_planar = velocity_factor_ / (1 + coefficient_of_restitution_) * v_white_start;   
 
                         double cue_angle_rad = std::atan2(dir_shot.y(), dir_shot.x());
                         double tip_offset_rad = tip_yaw_offset_deg_ * (M_PI / 180.0);

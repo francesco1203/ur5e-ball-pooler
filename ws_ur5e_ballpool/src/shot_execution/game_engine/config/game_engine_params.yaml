@@ -2,7 +2,8 @@ game_engine:
   ros__parameters:
     # game engine parameters
     velocity_factor: 1.0                              # fattore di moltiplicazione della velocità di tiro (consigliamo non troppo alto, altrimenti il tiro supera i limiti fisici del robot per tiri lontani)
-    cloth_sliding_friction: 0.05                      # coefficiente di attrito tra la cloth e le palline (consigliamo valori bassi, altrimenti le palline non scivolano)
+    cloth_sliding_friction: 0.08                      # coefficiente di attrito tra la cloth e le palline 
+    coefficient_of_restitution: 0.8                   # coefficiente di restituzione tra palline e palline, e tra palline e cloth
     target_red: true                                  # se vero, la pallina rossa è un bersaglio
     target_blue: true                                 # se vero, la pallina blu è un bersaglio
     target_yellow: true                               # se vero, la pallina gialla è un bersaglio

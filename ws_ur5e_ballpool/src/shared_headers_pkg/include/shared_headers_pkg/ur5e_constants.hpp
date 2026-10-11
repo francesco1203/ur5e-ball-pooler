@@ -28,12 +28,6 @@ const std::vector<std::string> UR5e_JOINT_NAMES = {
 // constexpr double MAX_TRANS_ACC = 2.50;     // acceleration limit for EE translation in m/s^2
 // constexpr double MAX_TRANS_DEC = -2.50;    // deceleration limit for EE translation in m/s^2
 
-// limiti fisici cartesiani (l'ha detto Natale E PKKE)
-// constexpr double MAX_TRANS_VEL = 5.0;      // velocity limit for EE translation in m/s
-// constexpr double MAX_TRANS_ACC = 10.0;     // acceleration limit for EE translation in m/s^2
-// constexpr double MAX_TRANS_DEC = -10.0;    // deceleration limit for EE translation in m/s^2
-
-
 //end effector
 const std::string EE_LINK = "rod_tip_virtual_link";         // link del tip dell'asta, end-effector (definito in URDF)
 // const std::string EE_LINK_PHYSICAL = "cut_rod_link";      // link intera asta, per collision detection
